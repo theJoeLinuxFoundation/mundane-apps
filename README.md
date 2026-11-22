@@ -57,6 +57,18 @@ System Monitor samples visible processes every two seconds. CPU is measured acro
 | Request termination / cancel | Delete / Escape |
 | Increase / decrease / reset row text size | Ctrl++ / Ctrl+- / Ctrl+0 |
 
+## Image Viewer
+
+Open a local PNG or JPEG from Files, the command line, or the **Open** button. The viewer applies embedded orientation, fits the whole image to the window, and shows its upright dimensions. Zoom is relative to that fit. A failed Open leaves the current image available. [Image Viewer tests](docs/viewer-tests.md)
+
+| Action | Shortcut |
+| --- | --- |
+| Open / close | Ctrl+O / Ctrl+W |
+| Zoom in / out | + / − (also Ctrl+= / Ctrl+-) |
+| Pan a zoomed image | Arrow keys or scroll |
+| Fit to window | F or Ctrl+0 |
+| Reach Open / return to the image | F6 / Escape |
+
 ## Building
 
 Use a Rust toolchain with Cargo, a C/C++ toolchain, pkg-config, and the Linux development files for Wayland, xkbcommon and fontconfig. The release build was tested with Rust 1.100 on x86-64 Linux. Run Terminal in a Wayland session with Mesa, a Vulkan driver, installed fonts and xterm-256color terminfo.
@@ -67,6 +79,7 @@ cargo build --workspace --release --locked
 ./target/release/mundane-files "$HOME"
 ./target/release/mundane-text-editor
 ./target/release/mundane-system-monitor
+./target/release/mundane-image-viewer "tests/fixtures/North Point.jpg"
 ```
 
 Files uses the OpenURI desktop portal or GIO's default handler, GIO Trash, and GNU coreutils for recursive copies and cross-filesystem moves. Its desktop entry handles local directories. Text Editor accepts a local path and declares `text/plain`. Its Open and Save As dialogs use the FileChooser desktop portal. Distribution packaging and the joe image smoke test are pending. [Development plan](docs/plan.md)

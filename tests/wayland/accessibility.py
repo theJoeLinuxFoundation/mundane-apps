@@ -197,6 +197,7 @@ if suite == "Processes":
 tree = [(n.get_role_name(), n.get_name(), n.get_interfaces()) for n in walk(root)]
 print(json.dumps(tree, ensure_ascii=False), flush=True)
 expected = {"Terminal": ["Find in Terminal", "Find match", "Find text"],
+            "ImageViewer": ["North Point.jpg", "Open", "Zoom out", "Zoom in", "Fit", "Image status"],
             "Files": ["Open folder", "Cancel", "Open"],
             "TextEditor": ["Document status", "Find", "Save"],
             "SystemMonitor": ["End process?", "Cancel", "End process"]}
@@ -206,6 +207,22 @@ if suite in ("Files", "Terminal", "SystemMonitor"):
     assert dialog.get_state_set().contains(Atspi.StateType.MODAL)
     assert dialog.get_description()
     assert all(n.get_role() != Atspi.Role.TITLE_BAR for n in walk(root))
+if suite == "ImageViewer":
+    picture = named(root, "North Point.jpg")
+    assert picture.get_role() == Atspi.Role.IMAGE
+    assert picture.get_description() == "480 × 300 pixels"
+    assert picture.get_state_set().contains(Atspi.StateType.FOCUSED)
+    for label in ("Open", "Zoom out", "Zoom in", "Fit"):
+        button = named(root, label)
+        assert button.get_role() == Atspi.Role.PUSH_BUTTON and button.get_action_name(0) == "click"
+    for label, expected_zoom in [("Zoom in", "125% of fit"), ("Zoom out", "Fit to window"),
+                                 ("Zoom out", "75% of fit"), ("Fit", "Fit to window")]:
+        assert named(root, label).do_action(0)
+        def zoom_status():
+            node = named(root, "Image status")
+            node.clear_cache()
+            return node.get_description() == "480 × 300  ·  " + expected_zoom
+        wait(zoom_status, label + " accessibility action")
 if suite == "TextEditor":
     body = named(root, "Document text")
     assert "Inspect the tide pools." in Atspi.Text.get_text(body, 0, -1)

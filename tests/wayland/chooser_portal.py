@@ -1,5 +1,6 @@
-"""Private FileChooser replies for the Text Editor's native Open and Save As paths."""
+"""Private FileChooser replies for native Open and Save As dialogs."""
 import os
+import sys
 from pathlib import Path
 from gi.repository import Gio, GLib
 
@@ -18,6 +19,8 @@ def choose(bus, sender, path, iface, method, args, call):
     handle = f"{desktop}/request/{sender[1:].replace('.', '_')}/{options['handle_token']}"
     call.return_value(GLib.Variant("(o)", (handle,)))
     dest = Path.home() / ("Saved copy.txt" if method == "SaveFile" else "Second.txt")
+    if method == "OpenFile" and len(sys.argv) > 1:
+        dest = Path(sys.argv[1])
     cancel = (runtime / "cancel-choice").exists()
     bus.emit_signal(sender, handle, "org.freedesktop.portal.Request", "Response",
                     GLib.Variant("(ua{sv})", (1, {}) if cancel else (0, {"uris": GLib.Variant("as", [dest.as_uri()])})))

@@ -26,7 +26,12 @@ fn open_zoom_pan_fit_and_recover(cx: &mut TestAppContext) {
         assert_eq!(ZOOM[viewer.zoom], 1.25);
         assert_eq!(viewer.pan, point(0.25, 0.25));
     });
-    cx.simulate_keystrokes("ctrl-0");
+    cx.simulate_keystrokes("tab tab tab");
+    cx.update(|window, cx| assert!(view.read(cx).tools[3].is_focused(window)));
+    cx.simulate_keystrokes("enter");
+    cx.simulate_event(gpui::KeyUpEvent {
+        keystroke: gpui::Keystroke::parse("enter").unwrap(),
+    });
     cx.update(|window, cx| {
         view.update(cx, |viewer, cx| {
             assert_eq!(viewer.zoom, FIT);

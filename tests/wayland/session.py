@@ -1,6 +1,6 @@
 """Run inside the private session created by tests/wayland/run."""
 import argparse
-from files_fixture import create as create_files_fixture
+from files_fixture import create as create_files_fixture, png
 from contextlib import ExitStack
 import os
 from pathlib import Path
@@ -245,7 +245,7 @@ def exercise_monitor(args, scale, stack, app, app_id):
 def main():
     global OUTPUT
     parser = argparse.ArgumentParser()
-    parser.add_argument("--app", choices=["terminal", "files", "text-editor", "system-monitor"], default="terminal")
+    parser.add_argument("--app", choices=["terminal", "files", "text-editor", "system-monitor", "image-viewer"], default="terminal")
     parser.add_argument("--fields", action="store_true", help="exercise two-window activation, password and multiline fields")
     parser.add_argument("--cost", type=Path, help="directory containing the two release cost fixture binaries")
     parser.add_argument("--at-spi", action="store_true")
@@ -300,7 +300,7 @@ seat seat0 fallback true
         os.environ["WAYLAND_DISPLAY"] = display.name
         run("dbus-update-activation-environment", "WAYLAND_DISPLAY", "XDG_CURRENT_DESKTOP")
         if args.at_spi:
-            if args.app == "terminal" and not args.cost:
+            if args.app in ("terminal", "image-viewer") and not args.cost:
                 launch(stack, "wtype", "-k", "Shift_L", "-s", "300000", log="seat.log")
             from gi.repository import Gio, GLib
             launch(stack, "/usr/lib/at-spi-bus-launcher", "--launch-immediately", log="a11y-bus.log")
@@ -381,6 +381,12 @@ seat seat0 fallback true
                 launch(stack, "python3", str(HERE / "open_portal.py"), log=f"portal-{args.profile}.log")
                 until((RUNTIME / "portal-ready").exists, "private OpenURI portal")
             argv.append(str(folder))
+        if suite_app == "image-viewer":
+            argv.append(str(ROOT / "tests/fixtures/North Point.jpg"))
+            second = Path.home() / "Blue tile.png"
+            png(second, 16, 12, lambda x, y: (24, 63, 190, 128))
+            launch(stack, "python3", str(HERE / "chooser_portal.py"), str(second), log="viewer-portal.log")
+            until((RUNTIME / "chooser-ready").exists, "private FileChooser")
         if suite_app == "text-editor":
             document = Path.home() / "Field notes.txt"
             original = "Coastal survey\r\n\r\nStation 04   東京\r\nWater temperature   12 °C\r\n\r\n".encode()
@@ -399,6 +405,41 @@ seat seat0 fallback true
                 return "ack_configure" in (OUTPUT / log).read_text(errors="replace")
             return app_id in command("-t", "get_tree")
         until(mapped, f"mapped {suite_app}")
+        if suite_app == "image-viewer":
+            resize(720, 440)
+            until(lambda: "North Point.jpg — Image Viewer" in (OUTPUT / log).read_text(), "oriented JPEG")
+            key("Shift_L")
+            if labwc:
+                run("wlrctl", "toplevel", "waitfor", app_id, "state:active")
+            key("equal", "ctrl")
+            # Compare only the canvas so changing the status text cannot satisfy zoom or pan.
+            crop = f"{int(400*scale)}x{int(240*scale)}+{int(160*scale)}+{int(64*scale)}"
+            def canvas_pixels(path):
+                return subprocess.check_output(["magick", str(path), "-crop", crop, "rgb:-"], timeout=15)
+            capture = RUNTIME / "zoomed.png"
+            def snapshot():
+                run("grim", "-s", str(scale), "-o", "HEADLESS-1", str(capture))
+                return canvas_pixels(capture)
+            centered = snapshot()
+            key("Down")
+            panned = snapshot()
+            assert centered != panned, "zoomed image did not pan"
+            key("0", "ctrl")
+            name = f"viewer-{args.compositor}-{args.profile}.png"
+            compare_screenshot(name, scale)
+            assert centered != canvas_pixels(OUTPUT / name), "image did not return to fit"
+            if args.at_spi:
+                inspect_accessibility(stack, app_id, app.pid)
+            (RUNTIME / "cancel-choice").touch()
+            key("o", "ctrl")
+            until((RUNTIME / "OpenFile").exists, "cancelled Open")
+            (RUNTIME / "cancel-choice").unlink()
+            key("o", "ctrl")
+            until(lambda: "Blue tile.png — Image Viewer" in (OUTPUT / log).read_text(), "portal PNG")
+            key("w", "ctrl")
+            assert app.wait(timeout=8) == 0
+            print(f"Passed {name}, zoom, pan, fit and portal Open")
+            return
         if suite_app == "system-monitor":
             resize(720, 440)
             # Smoke-test the installed entry point using the real procfs service.
