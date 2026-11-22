@@ -75,11 +75,13 @@ fn svg(bytes: &[u8]) -> Result<RgbaImage> {
         bytes.len() <= 8 * 1024 * 1024,
         "SVG exceeds the 8 MiB limit."
     );
-    let mut opts = usvg::Options::default();
     // Render standalone vectors. Keep image references inside an untrusted SVG from opening files.
-    opts.image_href_resolver = usvg::ImageHrefResolver {
-        resolve_string: Box::new(|_, _| None),
-        resolve_data: Box::new(|_, _, _| None),
+    let mut opts = usvg::Options {
+        image_href_resolver: usvg::ImageHrefResolver {
+            resolve_string: Box::new(|_, _| None),
+            resolve_data: Box::new(|_, _, _| None),
+        },
+        ..Default::default()
     };
     opts.fontdb_mut().load_system_fonts();
     let tree = usvg::Tree::from_data(bytes, &opts)?;
