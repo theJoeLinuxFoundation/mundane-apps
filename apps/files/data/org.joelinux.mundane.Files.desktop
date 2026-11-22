@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Files
+Exec=mundane-files %f
+Icon=system-file-manager
+Categories=System;FileTools;FileManager;
+MimeType=inode/directory;
+Terminal=false

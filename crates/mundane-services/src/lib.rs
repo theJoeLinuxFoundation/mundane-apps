@@ -2,3 +2,6 @@
 
 #[cfg(feature = "terminal")]
 pub mod terminal;
+
+#[cfg(feature = "files")]
+pub mod files;

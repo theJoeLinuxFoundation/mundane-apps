@@ -61,6 +61,13 @@ impl TextField {
         }
     }
 
+    /// Prefill a rename or location field so typing replaces the current value.
+    pub fn select_value(mut self, value: String) -> Self {
+        self.selected_range = 0..value.len();
+        self.content = value.into();
+        self
+    }
+
     pub fn text(&self) -> &str {
         &self.content
     }
