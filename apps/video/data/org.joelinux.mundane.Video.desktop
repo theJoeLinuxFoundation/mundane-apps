@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Video
+Exec=mundane-video %f
+Icon=video-x-generic
+Categories=AudioVideo;Video;Player;
+MimeType=video/webm;
+Terminal=false

@@ -8,3 +8,6 @@ pub mod files;
 
 #[cfg(feature = "monitor")]
 pub mod processes;
+
+#[cfg(feature = "video")]
+pub mod playback;

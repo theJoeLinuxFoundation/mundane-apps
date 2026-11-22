@@ -245,17 +245,23 @@ def exercise_monitor(args, scale, stack, app, app_id):
 def main():
     global OUTPUT
     parser = argparse.ArgumentParser()
-    parser.add_argument("--app", choices=["terminal", "files", "text-editor", "system-monitor", "image-viewer", "calculator", "document-viewer"], default="terminal")
+    parser.add_argument("--app", choices=["terminal", "files", "text-editor", "system-monitor", "image-viewer", "calculator", "document-viewer", "video"], default="terminal")
+    parser.add_argument("--missing-video-decoder", action="store_true", help="inspect Video with the vpx plugin absent")
     parser.add_argument("--fields", action="store_true", help="exercise two-window activation, password and multiline fields")
     parser.add_argument("--cost", type=Path, help="directory containing the two release cost fixture binaries")
     parser.add_argument("--at-spi", action="store_true")
     parser.add_argument("--profile", choices=["standard", "fractional", "contrast"], default="standard")
     parser.add_argument("--compositor", choices=["sway", "labwc"], default="sway")
     args = parser.parse_args()
+    if args.missing_video_decoder:
+        args.app = "video"
+        args.at_spi = True
     if args.cost or args.fields:
         args.at_spi = True
     if args.at_spi:
         suite = "fields" if args.fields else "cost" if args.cost else args.app
+        if args.missing_video_decoder:
+            suite = "missing-video-decoder"
         OUTPUT = OUTPUT / f"accessibility-{suite}-{args.profile}"
         OUTPUT.mkdir(exist_ok=True)
     labwc = args.compositor == "labwc"
@@ -300,7 +306,7 @@ seat seat0 fallback true
         os.environ["WAYLAND_DISPLAY"] = display.name
         run("dbus-update-activation-environment", "WAYLAND_DISPLAY", "XDG_CURRENT_DESKTOP")
         if args.at_spi:
-            if args.app in ("terminal", "image-viewer", "calculator", "document-viewer") and not args.cost:
+            if args.app in ("terminal", "image-viewer", "calculator", "document-viewer", "video") and not args.cost:
                 launch(stack, "wtype", "-k", "Shift_L", "-s", "300000", log="seat.log")
             from gi.repository import Gio, GLib
             launch(stack, "/usr/lib/at-spi-bus-launcher", "--launch-immediately", log="a11y-bus.log")
@@ -381,6 +387,17 @@ seat seat0 fallback true
                 launch(stack, "python3", str(HERE / "open_portal.py"), log=f"portal-{args.profile}.log")
                 until((RUNTIME / "portal-ready").exists, "private OpenURI portal")
             argv.append(str(folder))
+        if suite_app == "video":
+            from video_audio import start, record, check_tone
+            from video_plugins import PLUGINS, configure, loaded_plugins
+            configure(RUNTIME / "gst-plugins", omit=("vpx",) if args.missing_video_decoder else ())
+            start(stack, RUNTIME, launch, until)
+            if not args.missing_video_decoder:
+                recording = record(stack, RUNTIME, launch, "vp8-opus")
+            argv.append(str(ROOT / "tests/fixtures/Coastal passage.webm"))
+            second = ROOT / "tests/fixtures/Harbour.webm"
+            launch(stack, "python3", str(HERE / "chooser_portal.py"), str(second), log="video-portal.log")
+            until((RUNTIME / "chooser-ready").exists, "private FileChooser")
         if suite_app == "document-viewer":
             document = ROOT / "tests/fixtures/Coastal survey.pdf"
             argv.append(str(document))
@@ -412,6 +429,37 @@ seat seat0 fallback true
                 return "ack_configure" in (OUTPUT / log).read_text(errors="replace")
             return app_id in command("-t", "get_tree")
         until(mapped, f"mapped {suite_app}")
+        if args.missing_video_decoder:
+            run("python3", str(HERE / "accessibility.py"), str(app.pid), "MissingVideoDecoder")
+            key("w", "ctrl")
+            assert app.wait(timeout=8) == 0
+            print("Passed missing VP8 decoder diagnosis on the private accessibility bus")
+            return
+        if suite_app == "video":
+            resize(720, 480)
+            until(lambda: "Coastal passage.webm — Video" in (OUTPUT / log).read_text(), "playing VP8/Opus")
+            check_tone(recording, until)
+            key("Shift_L")
+            if labwc:
+                run("wlrctl", "toplevel", "waitfor", app_id, "state:active")
+            key("space")
+            key("Home")
+            key("Right")
+            name = f"video-{args.compositor}-{args.profile}.png"
+            compare_screenshot(name, scale)
+            if args.at_spi:
+                inspect_accessibility(stack, app_id, app.pid)
+            recording = record(stack, RUNTIME, launch, "vp9-vorbis")
+            key("o", "ctrl")
+            until((RUNTIME / "OpenFile").exists, "private video chooser response")
+            until(lambda: "Harbour.webm — Video" in (OUTPUT / log).read_text(), "portal VP9/Vorbis")
+            check_tone(recording, until)
+            loaded = loaded_plugins(app.pid)
+            assert loaded == set(PLUGINS), (loaded, PLUGINS)
+            key("w", "ctrl")
+            assert app.wait(timeout=8) == 0
+            print(f"Passed {name}, paused seek and both WebM audio tracks on private PipeWire")
+            return
         if suite_app == "document-viewer":
             resize(720, 560)
             until(lambda: "Coastal survey.pdf — Document Viewer" in (OUTPUT / log).read_text(), "opened PDF")

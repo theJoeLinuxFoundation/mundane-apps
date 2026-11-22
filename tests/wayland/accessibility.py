@@ -161,6 +161,11 @@ if suite == "Fields":
     print("Passed two-window lifecycle, password, Unicode multiline selection and action teardown")
     sys.exit()
 root = wait(lambda: next((n for n in children(desktop) if n.get_process_id() == pid), None), "GPUI registration")
+if suite == "MissingVideoDecoder":
+    error = wait(lambda: next((n for n in walk(root) if "Missing decoder vp8dec" in n.get_name()), None),
+                 "missing VP8 decoder reported to user")
+    assert error.get_role() == Atspi.Role.STATUS_BAR and "video/x-vp8" in error.get_name()
+    sys.exit()
 if suite == "Processes":
     listbox = named(root, "Processes")
     row = named(listbox, "file-indexer (PID 1978)")
@@ -197,6 +202,7 @@ if suite == "Processes":
 tree = [(n.get_role_name(), n.get_name(), n.get_interfaces()) for n in walk(root)]
 print(json.dumps(tree, ensure_ascii=False), flush=True)
 expected = {"Terminal": ["Find in Terminal", "Find match", "Find text"],
+            "Video": ["Coastal passage.webm", "Play", "Playback position", "Playback status"],
             "DocumentViewer": ["Page 2 of 2", "Page number", "Find text", "Document status"],
             "Calculator": ["Expression", "Result", "History", "Use result", "Clear history"],
             "ImageViewer": ["North Point.jpg", "Open", "Zoom out", "Zoom in", "Fit", "Image status"],
@@ -209,6 +215,21 @@ if suite in ("Files", "Terminal", "SystemMonitor"):
     assert dialog.get_state_set().contains(Atspi.StateType.MODAL)
     assert dialog.get_description()
     assert all(n.get_role() != Atspi.Role.TITLE_BAR for n in walk(root))
+if suite == "Video":
+    screen = named(root, "Coastal passage.webm")
+    assert screen.get_state_set().contains(Atspi.StateType.FOCUSED)
+    slider = named(root, "Playback position")
+    assert slider.get_role() == Atspi.Role.SLIDER and "Value" in slider.get_interfaces()
+    assert abs(slider.get_current_value() - 5) < 0.01
+    assert slider.get_minimum_value() == 0 and 11.9 <= slider.get_maximum_value() < 12.1
+    assert slider.set_current_value(7)
+    wait(lambda: abs(slider.get_current_value() - 7) < 0.01, "seek to seven seconds")
+    assert named(root, "Back 5 seconds").do_action(0)
+    wait(lambda: abs(slider.get_current_value() - 2) < 0.01, "accessible backward step")
+    assert named(root, "Play").do_action(0)
+    wait(lambda: named(root, "Pause"), "resume by AT-SPI")
+    assert named(root, "Pause").do_action(0)
+    wait(lambda: named(root, "Play"), "pause by AT-SPI")
 if suite == "DocumentViewer":
     field = named(root, "Find text")
     assert field.get_state_set().contains(Atspi.StateType.FOCUSED)

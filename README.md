@@ -95,6 +95,18 @@ Open a local PDF from Files, the command line, or the **Open** button. Jump to a
 | Zoom in / out / return to 100% | Ctrl+= / Ctrl+- / Ctrl+0 |
 | Scroll / leave Find | Arrow keys on the page / Escape |
 
+## Video
+
+Video plays local WebM files with VP8 or VP9 video and optional Opus or Vorbis audio. Sound goes directly to PipeWire. Click or drag the seek slider, use the five-second step buttons, or operate the player by keyboard. At the end of a clip, **Replay** starts it again. [GStreamer packaging list and Video tests](docs/video-tests.md)
+
+| Action | Shortcut |
+| --- | --- |
+| Open / close | Ctrl+O / Ctrl+W |
+| Play or pause with the picture focused | Space |
+| Step back / forward five seconds | Left / Right |
+| Seek to start / end | Home / End |
+| Reach Open / return to the picture | F6 / Escape |
+
 ## Building
 
 Use a Rust toolchain with Cargo, a C/C++ toolchain, pkg-config, and the Linux development files for Wayland, xkbcommon and fontconfig. The release build was tested with Rust 1.100 on x86-64 Linux. Run Terminal in a Wayland session with Mesa, a Vulkan driver, installed fonts and xterm-256color terminfo.
@@ -108,6 +120,7 @@ cargo build --workspace --release --locked
 ./target/release/mundane-image-viewer "tests/fixtures/North Point.jpg"
 ./target/release/mundane-calculator
 ./target/release/mundane-document-viewer "tests/fixtures/Coastal survey.pdf"
+./target/release/mundane-video "tests/fixtures/Coastal passage.webm"
 ```
 
 Files uses the OpenURI desktop portal or GIO's default handler, GIO Trash, and GNU coreutils for recursive copies and cross-filesystem moves. Its desktop entry handles local directories. Text Editor accepts a local path and declares `text/plain`. Its Open and Save As dialogs use the FileChooser desktop portal. Distribution packaging and the joe image smoke test are pending. [Development plan](docs/plan.md)
