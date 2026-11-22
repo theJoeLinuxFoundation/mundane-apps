@@ -6,6 +6,8 @@ impl Viewer {
         let theme = Theme::current(cx);
         let (label, index) = match cmd {
             Command::Open => ("Open", 0),
+            Command::Previous => ("Previous image", 4),
+            Command::Next => ("Next image", 5),
             Command::Smaller => ("Zoom out", 1),
             Command::Larger => ("Zoom in", 2),
             Command::Fit => ("Fit", 3),
@@ -34,6 +36,10 @@ impl Viewer {
             ("+" | "=" | "plus" | "equal", _) => self.command(Command::Larger, window, cx),
             ("-" | "minus", _) => self.command(Command::Smaller, window, cx),
             ("0", _) | ("f", false) => self.command(Command::Fit, window, cx),
+            ("pageup", false) => self.command(Command::Previous, window, cx),
+            ("pagedown", false) => self.command(Command::Next, window, cx),
+            ("left", false) if self.zoom <= FIT => self.command(Command::Previous, window, cx),
+            ("right", false) if self.zoom <= FIT => self.command(Command::Next, window, cx),
             ("left", false) => self.pan_by(-0.25, 0., cx),
             ("right", false) => self.pan_by(0.25, 0., cx),
             ("up", false) => self.pan_by(0., -0.25, cx),
@@ -82,7 +88,7 @@ impl Viewer {
             return area.child(if self.error.is_some() {
                 "Image unavailable"
             } else {
-                "Open a PNG or JPEG image"
+                "Open a PNG, JPEG, WebP or SVG image"
             });
         };
         let pixels = pic.pixels.clone();
@@ -154,13 +160,26 @@ impl Render for Viewer {
             .bg(rgb(theme.surface))
             .text_color(rgb(theme.text))
             .on_key_down(cx.listener(Self::keys))
-            .child(self.header.render(
-                "Image Viewer",
-                self.tool(Command::Open, cx),
-                &self.image_focus,
-                theme,
-                window,
-            ))
+            .child(
+                self.header.render(
+                    "Image Viewer",
+                    div()
+                        .flex()
+                        .gap_1()
+                        .child(self.tool(Command::Open, cx))
+                        .when(
+                            self.gallery.neighbour(-1).is_some()
+                                || self.gallery.neighbour(1).is_some(),
+                            |el| {
+                                el.child(self.tool(Command::Previous, cx))
+                                    .child(self.tool(Command::Next, cx))
+                            },
+                        ),
+                    &self.image_focus,
+                    theme,
+                    window,
+                ),
+            )
             .child(self.viewport(cx))
             .when_some(self.picture.as_ref(), |el, pic| {
                 let detail = format!("{} × {}  ·  {zoom}", pic.width, pic.height);

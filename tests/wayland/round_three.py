@@ -33,6 +33,21 @@ def exercise(app, side, key, type_text, until, compare, root, log):
             subprocess.run([root / "target/debug/examples/header-pointer", socket, "gesture", "340,194", "press", "355,187", "350,149", "release"], check=True)
             until(lambda: all((folder / "Archive" / n).exists() and not (folder/n).exists()
                               for n in ("draft.txt", "palette.png")), "dragged selection moved to folder")
+    elif app == "image-viewer":
+        def title(name):
+            return name + " — Image Viewer" in log.read_text()
+        until(lambda: title("01 North Point.jpg"), "first image")
+        key("Page_Down")
+        if after:
+            until(lambda: title("02 North Point.webp"), "next WebP image")
+        shot("webp")
+        key("Right")
+        if after:
+            until(lambda: title("03 Harbour.svg"), "next SVG image")
+        shot("svg")
+        if after:
+            key("Page_Up")
+            until(lambda: log.read_text().count("02 North Point.webp — Image Viewer") == 2, "previous image")
     elif app == "packages":
         calls = Path(os.environ["XDG_RUNTIME_DIR"]) / "packages/calls.jsonl"
         until(calls.exists, "dave listing")

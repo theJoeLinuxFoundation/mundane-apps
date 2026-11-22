@@ -533,6 +533,14 @@ seat seat0 fallback true
             until((RUNTIME / "chooser-ready").exists, "private FileChooser")
         if suite_app == "image-viewer":
             argv.append(str(ROOT / "tests/fixtures/North Point.jpg"))
+            if args.round_three:
+                gallery = Path.home() / "Coastal charts"
+                gallery.mkdir()
+                first = gallery / "01 North Point.jpg"
+                first.write_bytes(Path(argv[-1]).read_bytes())
+                run("magick", str(first), "-auto-orient", "-resize", "320x200", "-colorspace", "gray", str(gallery/"02 North Point.webp"))
+                (gallery/"03 Harbour.svg").write_bytes((ROOT/"tests/fixtures/gallery/Harbour.svg").read_bytes())
+                argv[-1]=str(first)
             second = Path.home() / "Blue tile.png"
             png(second, 16, 12, lambda x, y: (24, 63, 190, 128))
             launch(stack, "python3", str(HERE / "chooser_portal.py"), str(second), log="viewer-portal.log")

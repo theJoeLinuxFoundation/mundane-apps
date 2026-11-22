@@ -21,3 +21,5 @@ Sway and labwc run on isolated headless outputs with Pixman. GPUI uses Mesa lava
 On the private accessibility bus, Orca lists Image Viewer as an application. The AT-SPI inspector checks the image role, filename, focus, upright dimensions and the four named buttons. It invokes Zoom in, Zoom out and Fit through their Click actions and checks the resulting zoom descriptions. [Suite accessibility report and three open checks](accessibility/report.md)
 
 The desktop entry registers `image/png` and `image/jpeg` with a single local path argument. The packaged joe Linux VM smoke test is pending on the image.
+
+Folder navigation, lossless/colour WebP decoding and standalone SVG use the existing image limits. SVG additionally caps source size at 8 MiB. The `image` WebP codec and `resvg` run in process; resvg does not load external files for an image reference. The round-three private compositor test opens a JPEG, advances through a WebP and SVG and returns to the WebP. A unit test checks SVG dimensions and transparency.

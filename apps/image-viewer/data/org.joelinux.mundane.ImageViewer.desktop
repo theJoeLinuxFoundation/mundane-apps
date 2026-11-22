@@ -4,5 +4,5 @@ Name=Image Viewer
 Exec=mundane-image-viewer %f
 Icon=image-viewer
 Categories=Graphics;Viewer;
-MimeType=image/png;image/jpeg;
+MimeType=image/png;image/jpeg;image/webp;image/svg+xml;
 Terminal=false

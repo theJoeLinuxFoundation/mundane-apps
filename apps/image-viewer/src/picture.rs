@@ -31,12 +31,24 @@ pub fn open(path: &Path) -> Result<RgbaImage> {
 }
 
 fn decode(bytes: &[u8]) -> Result<RgbaImage> {
+    if bytes
+        .strip_prefix(&[0xef, 0xbb, 0xbf])
+        .unwrap_or(bytes)
+        .iter()
+        .find(|b| !b.is_ascii_whitespace())
+        == Some(&b'<')
+    {
+        return svg(bytes);
+    }
     let format = image::guess_format(bytes)
-        .context("The file does not contain a readable PNG or JPEG image.")?;
+        .context("The file does not contain a readable PNG, JPEG, WebP or SVG image.")?;
     let complete = match format {
         ImageFormat::Jpeg => jpeg_complete(&bytes[2..]),
         ImageFormat::Png => png_complete(&bytes[8..]),
-        _ => bail!("Choose a PNG or JPEG image."),
+        ImageFormat::WebP => bytes
+            .get(4..8)
+            .is_some_and(|n| u32::from_le_bytes(n.try_into().unwrap()) as usize + 8 <= bytes.len()),
+        _ => bail!("Choose a PNG, JPEG, WebP or SVG image."),
     };
     ensure!(complete, "Image is incomplete.");
     let mut reader = ImageReader::with_format(Cursor::new(bytes), format);
@@ -55,6 +67,38 @@ fn decode(bytes: &[u8]) -> Result<RgbaImage> {
     let mut image = DynamicImage::from_decoder(decoder)?;
     image.apply_orientation(orientation);
     Ok(image.into_rgba8())
+}
+
+fn svg(bytes: &[u8]) -> Result<RgbaImage> {
+    use resvg::{tiny_skia, usvg};
+    ensure!(
+        bytes.len() <= 8 * 1024 * 1024,
+        "SVG exceeds the 8 MiB limit."
+    );
+    let mut opts = usvg::Options::default();
+    // Render standalone vectors. Keep image references inside an untrusted SVG from opening files.
+    opts.image_href_resolver = usvg::ImageHrefResolver {
+        resolve_string: Box::new(|_, _| None),
+        resolve_data: Box::new(|_, _, _| None),
+    };
+    opts.fontdb_mut().load_system_fonts();
+    let tree = usvg::Tree::from_data(bytes, &opts)?;
+    let size = tree.size().to_int_size();
+    let (w, h) = (size.width(), size.height());
+    ensure!(
+        w <= 8192 && h <= 8192 && u64::from(w) * u64::from(h) <= MAX_PIXELS,
+        "SVG dimensions exceed the image limit."
+    );
+    let mut surface = tiny_skia::Pixmap::new(w, h).context("Cannot allocate SVG surface")?;
+    resvg::render(
+        &tree,
+        tiny_skia::Transform::identity(),
+        &mut surface.as_mut(),
+    );
+    Ok(RgbaImage::from_fn(w, h, |x, y| {
+        let p = surface.pixels()[(y * w + x) as usize].demultiply();
+        image::Rgba([p.red(), p.green(), p.blue(), p.alpha()])
+    }))
 }
 
 // Both decoders can return pixels before reaching the end of the stream.
@@ -105,6 +149,19 @@ mod tests {
     use image::{ExtendedColorType, ImageEncoder, codecs::png::PngEncoder};
 
     const JPEG: &[u8] = include_bytes!("../../../tests/fixtures/North Point.jpg");
+
+    #[test]
+    fn svg_geometry_alpha_and_bounds() {
+        let bytes=br#"<svg xmlns="http://www.w3.org/2000/svg" width="4" height="2"><rect width="2" height="2" fill="red" opacity=".5"/></svg>"#;
+        let pix = decode(bytes).unwrap();
+        assert_eq!(pix.dimensions(), (4, 2));
+        assert_eq!(pix.get_pixel(0, 0).0, [255, 0, 0, 128]);
+        assert_eq!(pix.get_pixel(3, 1).0, [0, 0, 0, 0]);
+        assert!(
+            decode(br#"<svg xmlns="http://www.w3.org/2000/svg" width="20000" height="2"/>"#)
+                .is_err()
+        );
+    }
 
     #[test]
     fn rotated_jpeg_has_upright_landmarks() {

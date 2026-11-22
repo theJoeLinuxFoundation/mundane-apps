@@ -1,3 +1,4 @@
+mod gallery;
 mod picture;
 #[cfg(test)]
 mod tests;
@@ -41,6 +42,8 @@ impl Picture {
 #[derive(Copy, Clone)]
 enum Command {
     Open,
+    Previous,
+    Next,
     Smaller,
     Larger,
     Fit,
@@ -54,7 +57,8 @@ struct Viewer {
     busy: bool,
     error: Option<String>,
     header: WindowHeader,
-    tools: [FocusHandle; 4],
+    tools: [FocusHandle; 6],
+    gallery: gallery::Gallery,
     image_focus: FocusHandle,
 }
 
@@ -65,6 +69,7 @@ impl Viewer {
         window.set_window_title("Image Viewer");
         Self {
             picture: None,
+            gallery: Default::default(),
             zoom: FIT,
             pan: Default::default(),
             busy: false,
@@ -76,17 +81,31 @@ impl Viewer {
     }
 
     fn open(&mut self, path: PathBuf, window: &mut Window, cx: &mut Context<Self>) {
+        self.load(
+            move || {
+                let gallery = gallery::Gallery::for_path(&path);
+                Ok((Picture::open(path)?, gallery))
+            },
+            window,
+            cx,
+        );
+    }
+    fn load(
+        &mut self,
+        read: impl FnOnce() -> anyhow::Result<(Picture, gallery::Gallery)> + Send + 'static,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
         self.busy = true;
         self.error = None;
-        let task = cx
-            .background_executor()
-            .spawn(async move { Picture::open(path) });
+        let task = cx.background_executor().spawn(async move { read() });
         cx.spawn_in(window, async move |view, cx| {
             let result = task.await;
             let _ = view.update_in(cx, |this, window, cx| {
                 this.busy = false;
                 match result {
-                    Ok(pic) => {
+                    Ok((pic, gallery)) => {
+                        this.gallery = gallery;
                         window.set_window_title(&format!("{} — Image Viewer", pic.name));
                         if let Some(old) = this.picture.replace(pic) {
                             let _ = window.drop_image(old.pixels);
@@ -139,6 +158,8 @@ impl Viewer {
         }
         match cmd {
             Command::Open => true,
+            Command::Previous => self.gallery.neighbour(-1).is_some(),
+            Command::Next => self.gallery.neighbour(1).is_some(),
             Command::Smaller => self.picture.is_some() && self.zoom > 0,
             Command::Larger => self.picture.is_some() && self.zoom + 1 < ZOOM.len(),
             Command::Fit => self.picture.is_some(),
@@ -151,6 +172,20 @@ impl Viewer {
         }
         match cmd {
             Command::Open => self.choose(window, cx),
+            Command::Previous | Command::Next => {
+                let gallery = self.gallery.clone();
+                self.load(
+                    move || {
+                        gallery.step(if matches!(cmd, Command::Previous) {
+                            -1
+                        } else {
+                            1
+                        })
+                    },
+                    window,
+                    cx,
+                );
+            }
             Command::Smaller => self.zoom -= 1,
             Command::Larger => self.zoom += 1,
             Command::Fit => self.zoom = FIT,
