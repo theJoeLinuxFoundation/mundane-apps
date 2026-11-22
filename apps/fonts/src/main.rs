@@ -1,4 +1,5 @@
 mod catalog;
+mod download;
 use catalog::{Face, Family, Output, Renderer, Request};
 use gpui::{prelude::*, *};
 use mundane_ui::{
@@ -44,6 +45,13 @@ async fn worker(
     }
 }
 struct Fonts {
+    inventory_dir: Option<PathBuf>,
+    back: FocusHandle,
+    download: Option<std::sync::Arc<download::Download>>,
+    open_button: FocusHandle,
+    install_button: FocusHandle,
+    did_install: bool,
+    opening: bool,
     header: WindowHeader,
     list: BrowserList,
     families: Vec<Family>,
@@ -79,6 +87,7 @@ impl Fonts {
         cx.observe(&sample, |_, _, cx| cx.notify()).detach();
         let (jobs, incoming) = async_channel::bounded(1);
         let (replies, events) = async_channel::bounded(2);
+        let inventory_dir = dir.clone();
         cx.background_executor()
             .scheduler_executor()
             .spawn_dedicated(move |_| worker(dir, incoming, replies))
@@ -96,6 +105,13 @@ impl Fonts {
         let list = BrowserList::new(cx);
         list.focus.focus(w, cx);
         Self {
+            inventory_dir,
+            back: cx.focus_handle().tab_stop(true),
+            download: None,
+            open_button: cx.focus_handle().tab_stop(true),
+            install_button: cx.focus_handle().tab_stop(true),
+            did_install: false,
+            opening: false,
             header: WindowHeader::new(cx),
             list,
             families: vec![],
@@ -170,7 +186,7 @@ impl Fonts {
     }
     fn receive(&mut self, reply: Reply, w: &mut Window, cx: &mut Context<Self>) {
         match reply {
-            Reply::Inventory(Ok(families)) => {
+            Reply::Inventory(Ok(families)) if self.download.is_none() => {
                 self.families = families;
                 self.filter_rows(cx)
             }
@@ -237,6 +253,11 @@ impl Fonts {
     fn keys(&mut self, e: &KeyDownEvent, w: &mut Window, cx: &mut Context<Self>) {
         let k = &e.keystroke;
         match (k.key.as_str(), k.modifiers.control) {
+            ("o", true) => self.choose(w, cx),
+            ("i", true) => self.install(cx),
+            ("escape", false) if self.download.is_some() && self.list.focus.is_focused(w) => {
+                self.browse(w, cx)
+            }
             ("f6", false) => self.edit.focus(w, cx),
             ("f", true) => {
                 self.search.focus_handle(cx).focus(w, cx);
@@ -272,6 +293,36 @@ impl Render for Fonts {
         let edit = button("Edit sample", &self.edit, t, move |w, cx| {
             let _ = v.update(cx, |v, cx| v.edit(w, cx));
         });
+        let v = cx.weak_entity();
+        let actions = div()
+            .flex()
+            .gap_1()
+            .child(button("Open font", &self.open_button, t, move |w, cx| {
+                let _ = v.update(cx, |v, cx| v.choose(w, cx));
+            }))
+            .when(self.download.is_some(), |el| {
+                let v = cx.weak_entity();
+                let browser = cx.weak_entity();
+                el.child(button("Installed fonts", &self.back, t, move |w, cx| {
+                    let _ = browser.update(cx, |v, cx| v.browse(w, cx));
+                }))
+                .child(unavailable(
+                    button(
+                        if self.did_install {
+                            "Installed"
+                        } else {
+                            "Install for me"
+                        },
+                        &self.install_button,
+                        t,
+                        move |_, cx| {
+                            let _ = v.update(cx, |v, cx| v.install(cx));
+                        },
+                    ),
+                    self.did_install || self.opening,
+                ))
+            })
+            .child(edit);
         let v = cx.weak_entity();
         let list = self.list.render("Font families", t, w, move |i, _, w, cx| {
             let _ = v.update(cx, |v, cx| {
@@ -347,7 +398,7 @@ impl Render for Fonts {
             .flex()
             .flex_col()
             .on_key_down(cx.listener(Self::keys))
-            .child(self.header.render("Fonts", edit, &self.list.focus, t, w))
+            .child(self.header.render("Fonts", actions, &self.list.focus, t, w))
             .child(div().p_3().child(self.search.clone()))
             .child(div().flex_1().min_h_0().flex().child(list).child(panel))
             .child(
@@ -361,8 +412,13 @@ impl Render for Fonts {
     }
 }
 fn main() {
-    browser_window("Fonts", "org.joelinux.mundane.Fonts", |w, cx| {
-        Fonts::new(None, w, cx)
+    let path = std::env::args_os().nth(1).map(PathBuf::from);
+    browser_window("Fonts", "org.joelinux.mundane.Fonts", move |w, cx| {
+        let mut fonts = Fonts::new(None, w, cx);
+        if let Some(path) = path {
+            fonts.open_file(path, w, cx);
+        }
+        fonts
     })
 }
 #[cfg(test)]

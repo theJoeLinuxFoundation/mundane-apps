@@ -445,6 +445,9 @@ seat seat0 fallback true
             else:
                 os.environ["MUNDANE_MAPS_TILEJSON"] = address + "/tilejson"
                 os.environ["MUNDANE_MAPS_SEARCH"] = address + "/search"
+        if suite_app == "fonts" and args.round_four:
+            launch(stack, "python3", str(HERE / "chooser_portal.py"), str(ROOT / "tests/fonts/Survey.ttc"), log="fonts-chooser.log")
+            until((RUNTIME / "chooser-ready").exists, "private font chooser")
         if suite_app == "clocks":
             argv = [str(Path(argv[0]).parent / "examples/clocks-fixture")]
             launch(stack, "python3", str(ROOT / "tests/clocks/notifications.py"), log="notifications.log")
@@ -611,6 +614,9 @@ seat seat0 fallback true
             elif suite_app == "maps":
                 from round_four import maps
                 maps(args.round_four, ROOT, OUTPUT / log, key, type_text, until, compare_screenshot)
+            elif suite_app == "fonts":
+                from round_four import fonts
+                fonts(args.round_four, ROOT, OUTPUT / log, key, until, compare_screenshot)
             elif suite_app == "characters":
                 from round_four import characters
                 characters(args.round_four, ROOT, key, type_text, until, compare_screenshot, clipboard)

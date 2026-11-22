@@ -13,7 +13,7 @@ int mundane_font_list(const char *fixture, void *data, visit_face visit) {
     if (!config) return 0;
     if (fixture && (!FcConfigParseAndLoadFromMemory(config, (const FcChar8 *)
         "<fontconfig><cachedir prefix='xdg'>fontconfig</cachedir></fontconfig>", FcTrue) ||
-        !FcConfigAppFontAddDir(config, (const FcChar8 *)fixture))) {
+        !(g_file_test(fixture, G_FILE_TEST_IS_DIR) ? FcConfigAppFontAddDir(config, (const FcChar8 *)fixture) : FcConfigAppFontAddFile(config, (const FcChar8 *)fixture)))) {
         FcConfigDestroy(config);
         return 0;
     }

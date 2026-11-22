@@ -133,3 +133,12 @@ Ctrl+B browses emoji and Unicode categories. Searching matches names and emoji s
 | --- | --- | --- |
 | Browse emoji | [Character search](parity/round-4/before/characters-category.png) | [Emoji category](parity/round-4/after/characters-category.png) |
 | Reuse a copied sequence | [Search](parity/round-4/before/characters-recent.png) | [Recently copied](parity/round-4/after/characters-recent.png) |
+
+### Fonts
+
+Open a downloaded font or collection from Files or Ctrl+O, browse its faces and try sample text before installing it. “Install for me” (Ctrl+I) writes the previewed file to the user’s fonts directory. “Installed fonts” returns to the family list. Size comparisons, family thumbnails and font metadata remain.
+
+| Task | Before | After |
+| --- | --- | --- |
+| Preview a download | [Installed families](parity/round-4/before/fonts-file.png) | [Downloaded collection](parity/round-4/after/fonts-file.png) |
+| Install for this user | [Installed families](parity/round-4/before/fonts-installed.png) | [Installation result](parity/round-4/after/fonts-installed.png) |

@@ -6,6 +6,9 @@ license.workspace = true
 publish.workspace = true
 
 [dependencies]
+anyhow.workspace = true
+rustix = { version = "1", features = ["fs"] }
+tempfile = "3"
 async-channel.workspace = true
 image = { version = "0.25", default-features = false }
 gpui.workspace = true

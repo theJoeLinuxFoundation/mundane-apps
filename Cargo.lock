@@ -3276,12 +3276,15 @@ dependencies = [
 name = "mundane-fonts"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "async-channel",
  "cc",
  "gpui",
  "image",
  "mundane-ui",
  "pkg-config",
+ "rustix",
+ "tempfile",
 ]
 
 [[package]]

@@ -11,3 +11,5 @@ The repository contains an original two-face TrueType collection. The model test
 The six software-rendered Sway and labwc references show DejaVu Sans Bold with Latin, Greek and Hebrew text. On the private accessibility bus the probe checks the selected family, face, editable sample and preview description. It replaces the sample with 字, verifies the missing U+5B57 in DejaVu and selects Noto Sans CJK SC to verify coverage.
 
 Run `cargo test -p mundane-fonts`, `cargo build -p mundane-fonts` and `tests/wayland/run --app fonts`. The harness accepts `--compositor labwc`, `--profile fractional|contrast` and, on Sway, `--at-spi`.
+
+The private file chooser opens Survey.ttc, a collection with two faces. The Wayland test installs it under the isolated XDG data directory, compares every byte and returns to the installed families. The snapshot unit test replaces the input between preview and install, repeats the install and checks that a conflicting destination survives.

@@ -229,3 +229,20 @@ def characters(side,root,key,type_text,until,compare,clipboard):
         until(lambda:clipboard()=="👩‍💻","copied complete emoji sequence")
         key("r","ctrl")
     compare("characters-recent.png",1,root/"docs/parity/round-4"/side)
+
+
+def fonts(side, root, log, key, until, compare):
+    key("Shift_L")
+    key("o", "ctrl")
+    if side == "after":
+        until(lambda: "Survey Fixture · Regular — Fonts" in log.read_text(), "downloaded font preview")
+    compare("fonts-file.png", 1, root / "docs/parity/round-4" / side)
+    key("i", "ctrl")
+    if side == "after":
+        saved = Path(os.environ["XDG_DATA_HOME"]) / "fonts/Survey.ttc"
+        until(saved.exists, "font installed for current user")
+        assert saved.read_bytes() == (root / "tests/fonts/Survey.ttc").read_bytes()
+    compare("fonts-installed.png", 1, root / "docs/parity/round-4" / side)
+    if side == "after":
+        key("Escape")
+        until(lambda: "DejaVu" in log.read_text().split("Survey Fixture · Regular — Fonts")[-1], "returned to installed families")

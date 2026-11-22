@@ -1,7 +1,8 @@
 [Desktop Entry]
 Type=Application
 Name=Fonts
-Exec=mundane-fonts
+Exec=mundane-fonts %f
+MimeType=font/ttf;font/otf;font/collection;application/x-font-ttf;application/x-font-otf;
 Icon=preferences-desktop-font
 Categories=Utility;
 Terminal=false
