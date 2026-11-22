@@ -1,4 +1,5 @@
 use super::*;
+use mundane_ui::ControlRole as _;
 use mundane_ui::{Role, button, focus_ring};
 use std::ops::Range;
 
@@ -107,7 +108,7 @@ impl Monitor {
     fn rows(
         &mut self,
         range: Range<usize>,
-        _: &mut Window,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) -> Vec<Stateful<Div>> {
         range
@@ -116,34 +117,40 @@ impl Monitor {
                 let id = p.id;
                 let selected = self.selected == Some(id);
                 let theme = self.theme;
-                Role::ListItem
-                    .row(format!("{} (PID {})", p.name, id.pid), id.pid as usize)
-                    .w_full()
-                    .h(px(self.text_size + 21.))
-                    .px_3()
-                    .gap_2()
-                    .flex()
-                    .items_center()
-                    .border_l_2()
-                    .border_color(rgb(if selected { theme.focus } else { theme.surface }))
-                    .when(selected, |row| row.bg(rgb(theme.selection)))
-                    .when(!selected, |row| {
-                        row.hover(move |style| style.bg(rgb(theme.panel)))
-                    })
-                    .on_click(cx.listener(move |this, _, window, cx| {
-                        if let Some(index) = this.rows.iter().position(|r| r.id == id) {
-                            this.select(index, window, cx);
-                        }
-                    }))
-                    .child(cell(Column::Name).truncate().child(p.name.clone()))
-                    .child(cell(Column::Pid).child(id.pid.to_string()))
-                    .child(
-                        cell(Column::Cpu).child(
-                            p.cpu_percent
-                                .map_or_else(|| "—".into(), |v| format!("{v:.1}%")),
-                        ),
-                    )
-                    .child(cell(Column::Memory).child(memory(p.resident_bytes)))
+                mundane_ui::option(
+                    ElementId::NamedInteger(id.pid.to_string().into(), id.start_ticks),
+                    format!("{} (PID {})", p.name, id.pid),
+                    index,
+                    self.rows.len(),
+                    selected,
+                    self.list_focus.is_focused(window),
+                )
+                .w_full()
+                .h(px(self.text_size + 21.))
+                .px_3()
+                .gap_2()
+                .flex()
+                .items_center()
+                .border_l_2()
+                .border_color(rgb(if selected { theme.focus } else { theme.surface }))
+                .when(selected, |row| row.bg(rgb(theme.selection)))
+                .when(!selected, |row| {
+                    row.hover(move |style| style.bg(rgb(theme.panel)))
+                })
+                .on_click(cx.listener(move |this, _, window, cx| {
+                    if let Some(index) = this.rows.iter().position(|r| r.id == id) {
+                        this.select(index, window, cx);
+                    }
+                }))
+                .child(cell(Column::Name).truncate().child(p.name.clone()))
+                .child(cell(Column::Pid).child(id.pid.to_string()))
+                .child(
+                    cell(Column::Cpu).child(
+                        p.cpu_percent
+                            .map_or_else(|| "—".into(), |v| format!("{v:.1}%")),
+                    ),
+                )
+                .child(cell(Column::Memory).child(memory(p.resident_bytes)))
             })
             .collect()
     }
@@ -153,7 +160,8 @@ impl Monitor {
         let accept = cancel.clone();
         let present = self.selected == Some(confirm.target);
         Role::Dialog
-            .control("End process?")
+            .control("end-dialog", "End process?")
+            .aria_description(format!("{} (PID {})", confirm.name, confirm.target.pid))
             .absolute()
             .inset_0()
             .occlude()
@@ -230,34 +238,47 @@ impl Render for Monitor {
                 let _ = view.update(cx, |this, cx| this.ask(window, cx));
             },
         );
+        let end = mundane_ui::unavailable(end, self.sending || self.confirm.is_some());
         let list = uniform_list("process-rows", self.rows.len(), cx.processor(Self::rows))
             .track_scroll(&self.scroll)
             .size_full();
-        div()
-            .relative()
+        let body = self
+            .content
+            .render(self.confirm.is_some())
             .size_full()
             .flex()
             .flex_col()
             .font_family("DejaVu Sans")
             .bg(rgb(theme.surface))
             .text_color(rgb(theme.text))
-            .on_key_down(cx.listener(Self::keys))
             .child(
                 self.header
                     .render("System Monitor", end, &self.list_focus, theme, window),
             )
             .child(self.headings(cx))
             .child(
-                focus_ring(Role::List.control("Processes"), &self.list_focus, theme)
-                    .flex_1()
-                    .min_h_0()
-                    .overflow_hidden()
-                    .text_size(px(self.text_size))
-                    .child(list),
+                focus_ring(
+                    Role::ListBox.control("processes", "Processes"),
+                    &self.list_focus,
+                    theme,
+                )
+                .flex_1()
+                .min_h_0()
+                .overflow_hidden()
+                .text_size(px(self.text_size))
+                .child(list),
             )
             .child(
                 Role::Status
-                    .control("Process status")
+                    .control("process-status", "Process status")
+                    .aria_description(format!(
+                        "{} processes. {}",
+                        self.rows.len(),
+                        self.sample_error
+                            .as_deref()
+                            .or(self.status.as_deref())
+                            .unwrap_or("Updates every 2 s")
+                    ))
                     .px_3()
                     .py_2()
                     .gap_2()
@@ -283,7 +304,14 @@ impl Render for Monitor {
                             .unwrap_or("Updates every 2 s")
                             .to_owned(),
                     ),
-            )
+            );
+        div()
+            .relative()
+            .size_full()
+            .on_key_down(cx.listener(Self::keys))
+            .font_family("DejaVu Sans")
+            .text_color(rgb(self.theme.text))
+            .child(body)
             .children(self.confirm.as_ref().map(|prompt| self.dialog(prompt, cx)))
     }
 }

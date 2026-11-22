@@ -1,4 +1,5 @@
 use super::*;
+use mundane_ui::ControlRole as _;
 use mundane_ui::{Role, button};
 
 impl Editor {
@@ -82,7 +83,8 @@ impl Editor {
     fn prompt(&self, confirm: &Confirmation, cx: &Context<Self>) -> impl IntoElement {
         let theme = self.theme;
         Role::Dialog
-            .control("Save changes?")
+            .control("save-dialog", "Save changes?")
+            .aria_description(format!("{} has unsaved changes.", self.name()))
             .absolute()
             .inset_0()
             .occlude()
@@ -138,15 +140,15 @@ impl Render for Editor {
                 .zip(&self.tools)
                 .map(|(cmd, focus)| self.tool(cmd, focus, cx)),
         );
-        div()
-            .relative()
+        let body = self
+            .content
+            .render(self.confirmation.is_some() || self.busy.is_some())
             .size_full()
             .flex()
             .flex_col()
             .font_family("DejaVu Sans")
             .bg(rgb(theme.surface))
             .text_color(rgb(theme.text))
-            .on_key_down(cx.listener(Self::keys))
             .child(
                 self.header
                     .render("Text Editor", tools, &focus, theme, window),
@@ -170,7 +172,7 @@ impl Render for Editor {
                     .when(dirty, |el| {
                         el.child(
                             Role::Status
-                                .control("Unsaved changes")
+                                .control("dirty", "Unsaved changes")
                                 .text_sm()
                                 .text_color(rgb(theme.focus))
                                 .child("●  Unsaved changes"),
@@ -186,11 +188,19 @@ impl Render for Editor {
                     .child(self.body.clone()),
             )
             .when_some(self.error.clone(), |el, err| {
-                el.child(Role::Status.control("File error").px_3().py_1().child(err))
+                el.child(
+                    Role::Status
+                        .control("error", "File error")
+                        .aria_description(err.clone())
+                        .px_3()
+                        .py_1()
+                        .child(err),
+                )
             })
             .child(
                 Role::Status
-                    .control("Document status")
+                    .control("status", "Document status")
+                    .aria_description(format!("Line {row}, Column {col}, UTF-8, {ending}"))
                     .flex()
                     .justify_between()
                     .px_3()
@@ -200,7 +210,14 @@ impl Render for Editor {
                     .text_sm()
                     .child(format!("Line {row}, Column {col}"))
                     .child(format!("UTF-8   ·   {ending}")),
-            )
+            );
+        div()
+            .relative()
+            .size_full()
+            .on_key_down(cx.listener(Self::keys))
+            .font_family("DejaVu Sans")
+            .text_color(rgb(self.theme.text))
+            .child(body)
             .children(
                 self.confirmation
                     .as_ref()
@@ -209,7 +226,7 @@ impl Render for Editor {
             .when_some(self.busy, |el, message| {
                 el.child(
                     Role::Status
-                        .control(message)
+                        .control("busy", message)
                         .track_focus(&self.busy_focus)
                         .absolute()
                         .inset_0()

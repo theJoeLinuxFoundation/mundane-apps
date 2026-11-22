@@ -1,5 +1,6 @@
 use super::{Files, Job, Paste};
 use gpui::{prelude::*, *};
+use mundane_ui::ControlRole as _;
 use mundane_ui::{TextField, button};
 use std::path::{Path, PathBuf};
 
@@ -110,7 +111,8 @@ impl Files {
         let cancel = cx.weak_entity();
         let accept = cancel.clone();
         mundane_ui::Role::Dialog
-            .control(title)
+            .control("file-dialog", title)
+            .aria_description(detail.clone().unwrap_or_else(|| title.to_string()))
             .absolute()
             .inset_0()
             .occlude()

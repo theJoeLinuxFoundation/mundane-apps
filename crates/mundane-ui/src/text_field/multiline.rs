@@ -101,6 +101,10 @@ impl TextField {
     }
 
     pub fn set_document(&mut self, text: SharedString, cx: &mut Context<Self>) {
+        assert!(
+            !self.password,
+            "a password field cannot display a multiline document"
+        );
         let mut layout = Multiline {
             crlf: text.find('\n').is_some_and(|i| text[..i].ends_with('\r')),
             zoom: self.multi.as_ref().map_or(0, |m| m.zoom),
@@ -295,23 +299,25 @@ impl TextField {
 
     pub(super) fn paper(&self, cx: &Context<Self>) -> impl IntoElement + use<> {
         let entity = cx.entity();
+        let prepare = entity.clone();
         canvas(
-            |_, _, _| (),
+            move |bounds, window, cx| {
+                prepare.update(cx, |input, _| input.layout_document(bounds, window))
+            },
             move |bounds, (), window, cx| {
-                let focus = entity.read(cx).focus_handle.clone();
-                window.handle_input(&focus, ElementInputHandler::new(bounds, entity.clone()), cx);
+                let input = entity.read(cx);
+                window.handle_input(
+                    &input.focus_handle,
+                    ElementInputHandler::new(bounds, entity.clone()),
+                    cx,
+                );
                 entity.update(cx, |input, cx| input.paint_document(bounds, window, cx));
             },
         )
         .size_full()
     }
 
-    fn paint_document(
-        &mut self,
-        bounds: Bounds<Pixels>,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
+    fn layout_document(&mut self, bounds: Bounds<Pixels>, window: &Window) {
         let cursor = self.cursor_offset();
         let m = self.multi.as_mut().unwrap();
         m.bounds = bounds;
@@ -349,6 +355,26 @@ impl TextField {
             m.lines.push(line);
         }
         m.reveal = false;
+        if let Some(layout) = &self.accessible_layout {
+            let mut geometry = layout.borrow_mut();
+            geometry.lines.clear();
+            geometry
+                .lines
+                .extend(m.lines.iter().enumerate().map(|(i, line)| {
+                    let origin = bounds.origin + point(-m.left, px(i as f32 * m.row_height()));
+                    (
+                        m.top + i,
+                        line.clone(),
+                        Bounds::new(origin, size(line.width, px(m.row_height()))),
+                    )
+                }));
+        }
+    }
+
+    fn paint_document(&self, bounds: Bounds<Pixels>, window: &mut Window, cx: &mut App) {
+        let cursor = self.cursor_offset();
+        let m = self.multi.as_ref().unwrap();
+        let caret_row = m.row(cursor);
         for (i, line) in m.lines.iter().enumerate() {
             let row = m.top + i;
             let start = m.starts[row];

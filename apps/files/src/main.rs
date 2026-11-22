@@ -1,3 +1,4 @@
+use mundane_ui::ControlRole as _;
 mod dialogs;
 mod listing;
 #[cfg(test)]
@@ -100,6 +101,7 @@ struct Files {
     show_hidden: bool,
     message: Option<String>,
     header: WindowHeader,
+    content: mundane_ui::ApplicationContent,
     list_focus: FocusHandle,
     location_focus: FocusHandle,
     tools: [FocusHandle; 6],
@@ -122,6 +124,7 @@ impl Files {
             working: false,
             show_hidden: false,
             message: None,
+            content: Default::default(),
             header: WindowHeader::new(cx),
             list_focus,
             location_focus: cx.focus_handle().tab_stop(true),
@@ -343,9 +346,20 @@ impl Files {
 
     fn tool(&self, cmd: Command, focus: &FocusHandle, cx: &Context<Self>) -> Stateful<Div> {
         let view = cx.weak_entity();
-        button(cmd.label(), focus, self.theme, move |window, cx| {
+        let disabled = self.working
+            || self.loading
+            || self.dialog.is_some()
+            || match cmd {
+                Command::Up => self.path.parent().is_none(),
+                Command::Copy | Command::Cut | Command::Trash | Command::Rename => {
+                    self.selected().is_none()
+                }
+                _ => false,
+            };
+        let tool = button(cmd.label(), focus, self.theme, move |window, cx| {
             let _ = view.update(cx, |this, cx| this.command(cmd, window, cx));
-        })
+        });
+        mundane_ui::unavailable(tool, disabled)
     }
 }
 
@@ -406,8 +420,9 @@ impl Render for Files {
                 )
             })
         };
-        div()
-            .relative()
+        let body = self
+            .content
+            .render(self.dialog.is_some())
             .size_full()
             .flex()
             .flex_col()
@@ -449,7 +464,7 @@ impl Render for Files {
             )
             .child(
                 focus_ring(
-                    mundane_ui::Role::List.control("Folder contents"),
+                    mundane_ui::Role::ListBox.control("folder", "Folder contents"),
                     &self.list_focus,
                     theme,
                 )
@@ -464,14 +479,21 @@ impl Render for Files {
                 .child(list),
             )
             .child(
-                div()
+                mundane_ui::Role::Status
+                    .control("file-status", footer.clone())
                     .flex_none()
                     .px_3()
                     .py_1()
                     .text_sm()
                     .text_color(rgb(theme.secondary))
                     .child(footer),
-            )
+            );
+        div()
+            .relative()
+            .size_full()
+            .font_family("DejaVu Sans")
+            .text_color(rgb(self.theme.text))
+            .child(body)
             .children(self.dialog.as_ref().map(|d| self.dialog_view(d, cx)))
     }
 }

@@ -69,7 +69,7 @@ impl Files {
     pub(super) fn rows(
         &mut self,
         range: Range<usize>,
-        _: &mut Window,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) -> Vec<Stateful<Div>> {
         range
@@ -92,56 +92,66 @@ impl Files {
                 } else {
                     format!("{:.1} KiB", entry.bytes as f64 / 1024.)
                 };
-                mundane_ui::Role::ListItem
-                    .row(entry.name.to_string_lossy().into_owned(), i)
-                    .w_full()
-                    .h(px(46.))
-                    .px_3()
-                    .flex()
-                    .items_center()
-                    .gap_3()
-                    .when(selected, |el| {
-                        el.bg(rgb(theme.selection))
-                            .border_l_2()
-                            .border_color(rgb(theme.focus))
-                    })
-                    .when(!selected, |el| el.hover(move |s| s.bg(rgb(theme.panel))))
-                    .on_click(cx.listener(move |this, event: &ClickEvent, window, cx| {
-                        if this.loading || this.working || this.dialog.is_some() {
-                            return;
-                        }
-                        this.selected = Some(i);
-                        this.message = None;
-                        this.list_focus.focus(window, cx);
-                        if event.click_count() == 2 {
-                            this.activate(window, cx);
-                        }
-                        cx.notify();
-                    }))
-                    .child(
-                        div()
-                            .size(px(32.))
-                            .flex_none()
-                            .flex()
-                            .items_center()
-                            .justify_center()
-                            .when_some(visual.cloned(), |el, img_source| {
-                                el.child(img(img_source).object_fit(ObjectFit::Contain).size_full())
-                            }),
-                    )
-                    .child(
-                        div()
-                            .flex_1()
-                            .min_w_0()
-                            .truncate()
-                            .child(entry.name.to_string_lossy().into_owned()),
-                    )
-                    .child(
-                        div()
-                            .text_sm()
-                            .text_color(rgb(theme.secondary))
-                            .child(detail),
-                    )
+                mundane_ui::option(
+                    ElementId::Path(entry.path.clone().into()),
+                    entry.name.to_string_lossy().into_owned(),
+                    i,
+                    self.entries.len(),
+                    selected,
+                    self.list_focus.is_focused(window),
+                )
+                .w_full()
+                .h(px(46.))
+                .px_3()
+                .flex()
+                .items_center()
+                .gap_3()
+                .when(selected, |el| {
+                    el.bg(rgb(theme.selection))
+                        .border_l_2()
+                        .border_color(rgb(theme.focus))
+                })
+                .when(!selected, |el| el.hover(move |s| s.bg(rgb(theme.panel))))
+                .on_click(cx.listener(move |this, event: &ClickEvent, window, cx| {
+                    if this.loading || this.working || this.dialog.is_some() {
+                        return;
+                    }
+                    let Some(index) = this.entries.iter().position(|item| item.path == entry.path)
+                    else {
+                        return;
+                    };
+                    this.selected = Some(index);
+                    this.message = None;
+                    this.list_focus.focus(window, cx);
+                    if event.click_count() == 2 {
+                        this.activate(window, cx);
+                    }
+                    cx.notify();
+                }))
+                .child(
+                    div()
+                        .size(px(32.))
+                        .flex_none()
+                        .flex()
+                        .items_center()
+                        .justify_center()
+                        .when_some(visual.cloned(), |el, img_source| {
+                            el.child(img(img_source).object_fit(ObjectFit::Contain).size_full())
+                        }),
+                )
+                .child(
+                    div()
+                        .flex_1()
+                        .min_w_0()
+                        .truncate()
+                        .child(entry.name.to_string_lossy().into_owned()),
+                )
+                .child(
+                    div()
+                        .text_sm()
+                        .text_color(rgb(theme.secondary))
+                        .child(detail),
+                )
             })
             .collect()
     }

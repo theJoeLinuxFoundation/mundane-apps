@@ -1,3 +1,4 @@
+use crate::ControlRole as _;
 use crate::{Role, Theme, button_base};
 use gpui::{prelude::*, *};
 use std::{cell::Cell, rc::Rc};
@@ -78,14 +79,14 @@ impl WindowHeader {
         let drag = self.drag_origin.clone();
         let motion = drag.clone();
         let titlebar = Role::TitleBar
-            .control(title)
+            .control("titlebar", title)
             .h_full()
             .flex_1()
             .min_w_0()
             .flex()
             .items_center()
             .font_weight(FontWeight::SEMIBOLD)
-            .child(title)
+            .child(crate::heading("window-heading", title))
             .when(!visible.is_empty(), |el| {
                 el.on_mouse_down(MouseButton::Left, move |e, window, _| {
                     if e.click_count == 2 && can_zoom {

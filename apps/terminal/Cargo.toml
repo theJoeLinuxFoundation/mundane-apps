@@ -22,3 +22,10 @@ wayland-protocols-wlr = { version = "0.3", features = ["client"] }
 [[example]]
 name = "header-pointer"
 path = "../../tests/wayland/pointer.rs"
+
+[dependencies.accesskit]
+version = "0.24.1"
+
+[[example]]
+name = "accessible-fields"
+path = "../../tests/wayland/accessible_fields.rs"

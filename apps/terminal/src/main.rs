@@ -1,3 +1,4 @@
+use mundane_ui::ControlRole as _;
 mod grid;
 mod keys;
 
@@ -30,6 +31,7 @@ struct Terminal {
     grid_focus: FocusHandle,
     find_button: FocusHandle,
     header: WindowHeader,
+    content: mundane_ui::ApplicationContent,
     find: Option<Find>,
     layout: Layout,
     theme: Theme,
@@ -87,6 +89,7 @@ impl Terminal {
             session,
             grid_focus,
             find_button: cx.focus_handle().tab_stop(true),
+            content: Default::default(),
             header: WindowHeader::new(cx),
             find: None,
             layout,
@@ -122,6 +125,9 @@ impl Terminal {
     }
 
     fn open_find(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if self.find.is_some() {
+            return;
+        }
         let field = cx.new(|cx| TextField::new("Find text", self.theme, cx));
         let return_focus = window
             .focused(cx)
@@ -221,7 +227,7 @@ impl Terminal {
         cx.notify();
     }
 
-    fn terminal_grid(&self, cx: &Context<Self>) -> impl IntoElement {
+    fn terminal_grid(&self, window: &Window, cx: &Context<Self>) -> impl IntoElement {
         let view = cx.entity();
         let painter = view.clone();
         let surface = canvas(
@@ -249,10 +255,18 @@ impl Terminal {
         .size_full();
 
         focus_ring(
-            mundane_ui::Role::Terminal.control("Shell"),
+            mundane_ui::Role::Terminal.control("grid", "Shell"),
             &self.grid_focus,
             self.theme,
         )
+        .when(window.is_a11y_active(), |grid| {
+            let screen = self.session.screen.clone();
+            let layout = self.layout;
+            let scale = window.scale_factor();
+            grid.a11y_synthetic_children(move |tree| {
+                grid::accessible(tree, &screen.lock(), layout, scale)
+            })
+        })
         .flex_1()
         .min_h_0()
         .p(px(8.))
@@ -306,7 +320,8 @@ impl Terminal {
         let field = find.field.clone();
         let submit = find.submit.clone();
         mundane_ui::Role::Dialog
-            .control("Find in Terminal")
+            .control("find-dialog", "Find in Terminal")
+            .aria_description("Search the terminal scrollback")
             .absolute()
             .inset_0()
             .occlude()
@@ -341,7 +356,7 @@ impl Terminal {
                     .flex()
                     .flex_col()
                     .gap_2()
-                    .child("Find in terminal")
+                    .child(mundane_ui::heading("find-heading", "Find in terminal"))
                     .child(find.field.clone())
                     .when(find.missed, |el| el.child("No matching text"))
                     .child(button(
@@ -362,8 +377,9 @@ impl Render for Terminal {
         let find = button("Find", &self.find_button, self.theme, move |window, cx| {
             let _ = view.update(cx, |this, cx| this.open_find(window, cx));
         });
-        div()
-            .relative()
+        let body = self
+            .content
+            .render(self.find.is_some())
             .size_full()
             .flex()
             .flex_col()
@@ -374,10 +390,16 @@ impl Render for Terminal {
                 self.header
                     .render("Terminal", find, &self.grid_focus, self.theme, window),
             )
-            .child(self.terminal_grid(cx))
+            .child(self.terminal_grid(window, cx))
             .when(!self.composing.is_empty(), |el| {
                 el.child(self.composing.clone())
-            })
+            });
+        div()
+            .relative()
+            .size_full()
+            .font_family("DejaVu Sans")
+            .text_color(rgb(self.theme.text))
+            .child(body)
             .children(self.find.as_ref().map(|find| self.dialog(find, cx)))
     }
 }

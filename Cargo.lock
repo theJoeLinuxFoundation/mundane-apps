@@ -2837,6 +2837,7 @@ dependencies = [
 name = "mundane-terminal"
 version = "0.1.0"
 dependencies = [
+ "accesskit",
  "alacritty_terminal",
  "anyhow",
  "gpui",
@@ -2863,6 +2864,7 @@ dependencies = [
 name = "mundane-ui"
 version = "0.1.0"
 dependencies = [
+ "accesskit",
  "gpui",
  "unicode-segmentation",
 ]

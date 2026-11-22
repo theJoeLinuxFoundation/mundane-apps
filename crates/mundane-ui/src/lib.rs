@@ -6,48 +6,38 @@ pub use header::WindowHeader;
 mod text_field;
 pub use text_field::{TextField, bind_text_keys};
 
-/// Local control declarations. The GPUI accessibility adapter can consume the role
-/// and name here when its Linux API is available.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Role {
-    TitleBar,
-    Button,
-    TextInput,
-    MultilineTextInput,
-    Dialog,
-    List,
-    ListItem,
-    Terminal,
-    Status,
+pub use gpui::Role;
+
+pub trait ControlRole {
+    fn control(self, id: impl Into<ElementId>, name: impl Into<SharedString>) -> Stateful<Div>;
 }
 
-impl Role {
-    fn id(self, name: impl Into<SharedString>) -> ElementId {
-        let role = match self {
-            Self::TitleBar => "title bar",
-            Self::Button => "button",
-            Self::TextInput => "text input",
-            Self::MultilineTextInput => "multiline text input",
-            Self::Dialog => "dialog",
-            Self::List => "list",
-            Self::ListItem => "list item",
-            Self::Terminal => "terminal",
-            Self::Status => "status",
-        };
-        ElementId::NamedChild(std::sync::Arc::new(role.into()), name.into())
+impl ControlRole for Role {
+    fn control(self, id: impl Into<ElementId>, name: impl Into<SharedString>) -> Stateful<Div> {
+        div()
+            .id(id)
+            .role(self)
+            .aria_label(name)
+            .when(self == Role::Dialog, |el| {
+                el.a11y_synthetic_children(|tree| tree.parent_node().set_modal())
+            })
     }
+}
 
-    pub fn control(self, name: impl Into<SharedString>) -> Stateful<Div> {
-        div().id(self.id(name))
-    }
-
-    /// Distinguish rows whose displayed names coincide, including lossy Unix filenames.
-    pub fn row(self, name: impl Into<SharedString>, index: usize) -> Stateful<Div> {
-        div().id(ElementId::NamedChild(
-            std::sync::Arc::new(self.id(name)),
-            index.to_string().into(),
-        ))
-    }
+pub fn option(
+    id: ElementId,
+    name: impl Into<SharedString>,
+    index: usize,
+    count: usize,
+    selected: bool,
+    focused: bool,
+) -> Stateful<Div> {
+    Role::ListBoxOption
+        .control(id, name)
+        .aria_selected(selected)
+        .aria_position_in_set(index + 1)
+        .aria_size_of_set(count)
+        .when(selected && focused, |el| el.aria_active_descendant())
 }
 
 #[derive(Clone, Copy)]
@@ -116,11 +106,66 @@ fn button_base(
     theme: Theme,
     activate: impl Fn(&mut Window, &mut App) + 'static,
 ) -> Stateful<Div> {
-    focus_ring(Role::Button.control(label), focus, theme)
+    focus_ring(Role::Button.control(focus, label), focus, theme)
         .rounded_md()
         .cursor_pointer()
         .text_sm()
         .text_color(rgb(theme.text))
         .hover(move |style| style.bg(rgb(theme.selection)))
         .on_click(move |_, window, cx| activate(window, cx))
+}
+
+/// Orca browses the heading by level and reads its static label via AT-SPI Text.
+pub fn heading(id: &'static str, text: &'static str) -> Stateful<Div> {
+    Role::Heading.control(id, text).aria_level(1).child(
+        div()
+            .id("label")
+            .role(Role::Label)
+            .a11y_synthetic_children(move |tree| {
+                let run_id = tree.synthetic_node_id("text");
+                let mut run = accesskit::Node::new(Role::TextRun);
+                if let Some(bounds) = tree.parent_node().bounds() {
+                    run.set_bounds(bounds);
+                }
+                run.set_value(text);
+                run.set_character_lengths(
+                    text.chars().map(|c| c.len_utf8() as u8).collect::<Vec<_>>(),
+                );
+                tree.push_child(run_id, run);
+            })
+            .child(text),
+    )
+}
+
+/// Keep the modal's covered controls painted while excluding them from AT navigation.
+#[derive(Default)]
+pub struct ApplicationContent {
+    covered: bool,
+    generation: u64,
+}
+
+impl ApplicationContent {
+    pub fn render(&mut self, covered: bool) -> Stateful<Div> {
+        // AT-SPI clients retain defunct references. On remapping the content after
+        // a modal, give the new subtree a fresh lifetime, including its descendants.
+        if self.covered && !covered {
+            self.generation += 1;
+        }
+        self.covered = covered;
+        div()
+            .id(ElementId::NamedInteger(
+                "application-content".into(),
+                self.generation,
+            ))
+            .when(covered, |el| {
+                el.role(Role::Group)
+                    .a11y_synthetic_children(|tree| tree.parent_node().set_hidden())
+            })
+    }
+}
+
+pub fn unavailable(control: Stateful<Div>, disabled: bool) -> Stateful<Div> {
+    control.when(disabled, |el| {
+        el.a11y_synthetic_children(|tree| tree.parent_node().set_disabled())
+    })
 }

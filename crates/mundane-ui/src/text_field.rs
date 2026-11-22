@@ -2,6 +2,8 @@
 // See LICENSES/Apache-2.0.txt. Local changes integrate theme and focus roles,
 // Linux editing shortcuts, horizontal scrolling and composition range handling.
 use super::{Role, Theme, focus_ring};
+use crate::ControlRole as _;
+mod accessible;
 mod multiline;
 use multiline::Multiline;
 use std::ops::Range;
@@ -36,6 +38,8 @@ actions!(
 
 pub struct TextField {
     multi: Option<Multiline>,
+    password: bool,
+    accessible_layout: Option<accessible::Layout>,
     theme: Theme,
     focus_handle: FocusHandle,
     content: SharedString,
@@ -52,6 +56,8 @@ impl TextField {
     pub fn new(label: &'static str, theme: Theme, cx: &App) -> Self {
         Self {
             multi: None,
+            password: false,
+            accessible_layout: None,
             theme,
             focus_handle: cx.focus_handle().tab_stop(true),
             content: "".into(),
@@ -62,6 +68,32 @@ impl TextField {
             last_layout: None,
             last_bounds: None,
             is_selecting: false,
+        }
+    }
+
+    pub fn password(label: &'static str, theme: Theme, cx: &App) -> Self {
+        Self {
+            password: true,
+            ..Self::new(label, theme, cx)
+        }
+    }
+
+    fn display_offset(&self, byte: usize) -> usize {
+        if self.password {
+            self.content[..byte].graphemes(true).count() * "•".len()
+        } else {
+            byte
+        }
+    }
+
+    fn model_offset(&self, byte: usize) -> usize {
+        if self.password {
+            self.content
+                .grapheme_indices(true)
+                .nth(byte / "•".len())
+                .map_or(self.content.len(), |(i, _)| i)
+        } else {
+            byte
         }
     }
 
@@ -170,14 +202,14 @@ impl TextField {
     }
 
     fn copy(&mut self, _: &Copy, _: &mut Window, cx: &mut Context<Self>) {
-        if !self.selected_range.is_empty() {
+        if !self.password && !self.selected_range.is_empty() {
             cx.write_to_clipboard(ClipboardItem::new_string(
                 self.content[self.selected_range.clone()].to_string(),
             ));
         }
     }
     fn cut(&mut self, _: &Cut, window: &mut Window, cx: &mut Context<Self>) {
-        if !self.selected_range.is_empty() {
+        if !self.password && !self.selected_range.is_empty() {
             cx.write_to_clipboard(ClipboardItem::new_string(
                 self.content[self.selected_range.clone()].to_string(),
             ));
@@ -218,7 +250,7 @@ impl TextField {
         if position.y > bounds.bottom() {
             return self.content.len();
         }
-        line.closest_index_for_x(position.x - bounds.left())
+        self.model_offset(line.closest_index_for_x(position.x - bounds.left()))
     }
 
     fn select_to(&mut self, offset: usize, cx: &mut Context<Self>) {
@@ -316,6 +348,9 @@ impl EntityInputHandler for TextField {
     ) -> Option<String> {
         let range = self.range_from_utf16(&range_utf16);
         actual_range.replace(self.range_to_utf16(&range));
+        if self.password {
+            return None;
+        }
         Some(self.content[range].to_string())
     }
 
@@ -428,11 +463,11 @@ impl EntityInputHandler for TextField {
         let range = self.range_from_utf16(&range_utf16);
         Some(Bounds::from_corners(
             point(
-                bounds.left() + last_layout.x_for_index(range.start),
+                bounds.left() + last_layout.x_for_index(self.display_offset(range.start)),
                 bounds.top(),
             ),
             point(
-                bounds.left() + last_layout.x_for_index(range.end),
+                bounds.left() + last_layout.x_for_index(self.display_offset(range.end)),
                 bounds.bottom(),
             ),
         ))
@@ -450,11 +485,11 @@ impl EntityInputHandler for TextField {
         let line_point = self.last_bounds?.localize(&point)?;
         let last_layout = self.last_layout.as_ref()?;
 
-        if last_layout.text != self.content {
+        if !self.password && last_layout.text != self.content {
             return None;
         }
         let utf8_index = last_layout.index_for_x(line_point.x)?;
-        Some(self.offset_to_utf16(utf8_index))
+        Some(self.offset_to_utf16(self.model_offset(utf8_index)))
     }
 }
 
@@ -505,14 +540,22 @@ impl Element for TextElement {
     ) -> Self::PrepaintState {
         let input = self.input.read(cx);
         let content = input.content.clone();
-        let selected_range = input.selected_range.clone();
-        let cursor = input.cursor_offset();
+        let selected_range = input.display_offset(input.selected_range.start)
+            ..input.display_offset(input.selected_range.end);
+        let cursor = input.display_offset(input.cursor_offset());
         let style = window.text_style();
 
         let (display_text, text_color) = if content.is_empty() {
             (input.placeholder.clone(), rgb(input.theme.secondary).into())
         } else {
-            (content, style.color)
+            (
+                if input.password {
+                    "•".repeat(content.graphemes(true).count()).into()
+                } else {
+                    content
+                },
+                style.color,
+            )
         };
 
         let run = TextRun {
@@ -523,7 +566,8 @@ impl Element for TextElement {
             underline: None,
             strikethrough: None,
         };
-        let runs = if let Some(marked_range) = input.marked_range.as_ref() {
+        let runs = if let Some(mark) = input.marked_range.as_ref() {
+            let marked_range = input.display_offset(mark.start)..input.display_offset(mark.end);
             vec![
                 TextRun {
                     len: marked_range.start,
@@ -587,6 +631,11 @@ impl Element for TextElement {
                 None,
             )
         };
+        if let Some(layout) = &input.accessible_layout {
+            let mut geometry = layout.borrow_mut();
+            geometry.lines.clear();
+            geometry.lines.push((0, line.clone(), bounds));
+        }
         PrepaintState {
             text_bounds: bounds,
             line: Some(line),
@@ -639,67 +688,77 @@ impl Element for TextElement {
 }
 
 impl Render for TextField {
-    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let multi = self.multi.is_some();
         let role = if multi {
             Role::MultilineTextInput
+        } else if self.password {
+            Role::PasswordInput
         } else {
             Role::TextInput
         };
-        focus_ring(
-            role.control(self.placeholder.clone()),
+        let control = focus_ring(
+            role.control(&self.focus_handle, self.placeholder.clone())
+                .aria_placeholder(self.placeholder.clone()),
             &self.focus_handle,
             self.theme,
-        )
-        .w_full()
-        .overflow_hidden()
-        .rounded_md()
-        .flex()
-        .key_context(if multi {
-            "TextField DocumentText"
+        );
+        let control = if window.is_a11y_active() {
+            self.accessible(control, window.scale_factor(), cx)
         } else {
-            "TextField SingleLine"
-        })
-        .text_color(rgb(self.theme.text))
-        .cursor(CursorStyle::IBeam)
-        .on_action(cx.listener(Self::backspace))
-        .on_action(cx.listener(Self::delete))
-        .on_action(cx.listener(Self::left))
-        .on_action(cx.listener(Self::right))
-        .on_action(cx.listener(Self::select_left))
-        .on_action(cx.listener(Self::select_right))
-        .on_action(cx.listener(Self::select_all))
-        .on_action(cx.listener(Self::home))
-        .on_action(cx.listener(Self::end))
-        .on_action(cx.listener(Self::paste))
-        .on_action(cx.listener(Self::cut))
-        .on_action(cx.listener(Self::copy))
-        .on_mouse_down(MouseButton::Left, cx.listener(Self::on_mouse_down))
-        .on_mouse_up(MouseButton::Left, cx.listener(Self::on_mouse_up))
-        .on_mouse_up_out(MouseButton::Left, cx.listener(Self::on_mouse_up))
-        .on_mouse_move(cx.listener(Self::on_mouse_move))
-        .bg(rgb(self.theme.surface))
-        .line_height(px(24.))
-        .text_size(px(16. + self.multi.as_ref().map_or(0, |m| m.zoom) as f32))
-        .when(multi, |el| {
-            el.size_full()
-                .min_h_0()
-                .font_family("DejaVu Sans Mono")
-                .p_3()
-                .on_key_down(cx.listener(Self::document_keys))
-                .on_scroll(cx.listener(Self::scroll_document))
-                .child(self.paper(cx))
-        })
-        .when(!multi, |el| {
-            el.child(
-                div()
-                    .h(px(32.))
-                    .w_full()
-                    .p(px(4.))
-                    .overflow_hidden()
-                    .child(TextElement { input: cx.entity() }),
-            )
-        })
+            self.accessible_layout = None;
+            control
+        };
+        control
+            .w_full()
+            .overflow_hidden()
+            .rounded_md()
+            .flex()
+            .key_context(if multi {
+                "TextField DocumentText"
+            } else {
+                "TextField SingleLine"
+            })
+            .text_color(rgb(self.theme.text))
+            .cursor(CursorStyle::IBeam)
+            .on_action(cx.listener(Self::backspace))
+            .on_action(cx.listener(Self::delete))
+            .on_action(cx.listener(Self::left))
+            .on_action(cx.listener(Self::right))
+            .on_action(cx.listener(Self::select_left))
+            .on_action(cx.listener(Self::select_right))
+            .on_action(cx.listener(Self::select_all))
+            .on_action(cx.listener(Self::home))
+            .on_action(cx.listener(Self::end))
+            .on_action(cx.listener(Self::paste))
+            .on_action(cx.listener(Self::cut))
+            .on_action(cx.listener(Self::copy))
+            .on_mouse_down(MouseButton::Left, cx.listener(Self::on_mouse_down))
+            .on_mouse_up(MouseButton::Left, cx.listener(Self::on_mouse_up))
+            .on_mouse_up_out(MouseButton::Left, cx.listener(Self::on_mouse_up))
+            .on_mouse_move(cx.listener(Self::on_mouse_move))
+            .bg(rgb(self.theme.surface))
+            .line_height(px(24.))
+            .text_size(px(16. + self.multi.as_ref().map_or(0, |m| m.zoom) as f32))
+            .when(multi, |el| {
+                el.size_full()
+                    .min_h_0()
+                    .font_family("DejaVu Sans Mono")
+                    .p_3()
+                    .on_key_down(cx.listener(Self::document_keys))
+                    .on_scroll(cx.listener(Self::scroll_document))
+                    .child(self.paper(cx))
+            })
+            .when(!multi, |el| {
+                el.child(
+                    div()
+                        .h(px(32.))
+                        .w_full()
+                        .p(px(4.))
+                        .overflow_hidden()
+                        .child(TextElement { input: cx.entity() }),
+                )
+            })
     }
 }
 

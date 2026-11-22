@@ -242,3 +242,86 @@ mod tests {
         assert_eq!(term.grid()[Line(-1)][Column(2)].c, '界');
     }
 }
+
+/// Publish the same visible cells and scroll origin used by the grid painter.
+pub fn accessible<T: EventListener>(
+    tree: &mut gpui::A11ySubtreeBuilder,
+    term: &Term<T>,
+    layout: Layout,
+    scale: f32,
+) {
+    use accesskit::{Node, Role, TextPosition, TextSelection};
+    let offset = term.grid().display_offset() as i32;
+    let cursor = term.grid().cursor.point;
+    for row in 0..term.screen_lines() {
+        let line = Line(row as i32 - offset);
+        let id = tree.synthetic_node_id(line.0);
+        let mut node = Node::new(Role::TextRun);
+        let mut text = String::new();
+        let mut lengths = Vec::new();
+        let mut positions = Vec::new();
+        let mut widths = Vec::new();
+        let mut caret = 0;
+        for col in 0..term.columns() {
+            let cell = &term.grid()[line][Column(col)];
+            if cell.flags.contains(Flags::WIDE_CHAR_SPACER) {
+                continue;
+            }
+            if col <= cursor.column.0 {
+                caret = lengths.len();
+            }
+            let start = text.len();
+            text.push(cell.c);
+            if let Some(marks) = cell.zerowidth() {
+                text.extend(marks);
+            }
+            // The AT-SPI offsets are Unicode scalar offsets. Keep oversized combining
+            // sequences representable and give marks the same cell origin.
+            for (index, c) in text[start..].chars().enumerate() {
+                lengths.push(c.len_utf8() as u8);
+                positions.push(col as f32 * layout.width() * scale);
+                widths.push(if index == 0 {
+                    layout.width()
+                        * scale
+                        * if cell.flags.contains(Flags::WIDE_CHAR) {
+                            2.
+                        } else {
+                            1.
+                        }
+                } else {
+                    0.
+                });
+            }
+        }
+        if row + 1 < term.screen_lines() {
+            text.push('\n');
+            lengths.push(1);
+            positions.push(term.columns() as f32 * layout.width() * scale);
+            widths.push(0.);
+        }
+        let x = (f32::from(layout.bounds.left()) * scale) as f64;
+        let y = ((f32::from(layout.bounds.top()) + row as f32 * layout.height()) * scale) as f64;
+        node.set_bounds(accesskit::Rect {
+            x0: x,
+            y0: y,
+            x1: x + (term.columns() as f32 * layout.width() * scale) as f64,
+            y1: y + (layout.height() * scale) as f64,
+        });
+        node.set_value(text);
+        node.set_character_lengths(lengths);
+        node.set_character_positions(positions);
+        node.set_character_widths(widths);
+        node.set_text_direction(accesskit::TextDirection::LeftToRight);
+        tree.push_child(id, node);
+        if line == cursor.line {
+            let pos = TextPosition {
+                node: id,
+                character_index: caret,
+            };
+            tree.parent_node().set_text_selection(TextSelection {
+                anchor: pos,
+                focus: pos,
+            });
+        }
+    }
+}
