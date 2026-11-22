@@ -246,7 +246,7 @@ def exercise_monitor(args, scale, stack, app, app_id):
 def main():
     global OUTPUT
     parser = argparse.ArgumentParser()
-    parser.add_argument("--app", choices=["terminal", "files", "text-editor", "system-monitor", "image-viewer", "calculator", "document-viewer", "video", "packages"], default="terminal")
+    parser.add_argument("--app", choices=["terminal", "files", "text-editor", "system-monitor", "image-viewer", "calculator", "document-viewer", "video", "packages", "music"], default="terminal")
     parser.add_argument("--missing-video-decoder", action="store_true", help="inspect Video with the vpx plugin absent")
     parser.add_argument("--fields", action="store_true", help="exercise two-window activation, password and multiline fields")
     parser.add_argument("--cost", type=Path, help="directory containing the two release cost fixture binaries")
@@ -306,7 +306,7 @@ seat seat0 fallback true
         display = until(lambda: next((p for p in RUNTIME.glob("wayland-*") if p.is_socket()), None), "private Wayland socket")
         os.environ["WAYLAND_DISPLAY"] = display.name
         run("dbus-update-activation-environment", "WAYLAND_DISPLAY", "XDG_CURRENT_DESKTOP")
-        if args.app == "packages" or (args.at_spi and args.app in (
+        if args.app in ("packages", "music") or (args.at_spi and args.app in (
                 "terminal", "image-viewer", "calculator", "document-viewer", "video") and not args.cost):
             launch(stack, "wtype", "-k", "Shift_L", "-s", "300000", log="seat.log")
         if args.at_spi:
@@ -381,6 +381,17 @@ seat seat0 fallback true
         suite_app = args.app
         app_id = f"org.joelinux.mundane.{suite_app.title().replace('-', '')}"
         argv = [str(Path(os.environ.get(f"MUNDANE_{suite_app.upper().replace('-', '_')}_BIN", ROOT / f"target/debug/mundane-{suite_app}")).resolve())]
+        if suite_app == "music":
+            from video_audio import start, record, check_tone
+            from video_plugins import MUSIC_PLUGINS, configure, loaded_plugins
+            configure(RUNTIME / "gst-plugins", plugins=MUSIC_PLUGINS)
+            start(stack, RUNTIME, launch, until)
+            recording = record(stack, RUNTIME, launch, "flac")
+            tracks = ROOT / "tests/fixtures/music"
+            argv.extend(str(tracks / name) for name in ("01.flac", "03.ogg", "02.opus"))
+            launch(stack, "python3", str(HERE / "chooser_portal.py"), str(tracks / "Field recording.wav"),
+                   log="music-portal.log")
+            until((RUNTIME / "chooser-ready").exists, "private FileChooser")
         if suite_app == "packages":
             pkg_dir = RUNTIME / "packages"
             pkg_dir.mkdir()
@@ -437,6 +448,46 @@ seat seat0 fallback true
                 return "ack_configure" in (OUTPUT / log).read_text(errors="replace")
             return app_id in command("-t", "get_tree")
         until(mapped, f"mapped {suite_app}")
+        if suite_app == "music":
+            def playing(title):
+                return title + " — Music" in (OUTPUT / log).read_text(errors="replace")
+            until(lambda: playing("Ebb Tide"), "tagged FLAC playback")
+            check_tone(recording, until, 330)
+            key("o", "ctrl")
+            until((RUNTIME / "OpenFile").exists, "append WAV through private chooser")
+            key("Escape")
+            key("Down")
+            key("Down")
+            key("Up", "ctrl")
+            recording = record(stack, RUNTIME, launch, "opus")
+            key("n")
+            until(lambda: playing("Harbour Lights"), "skip in reordered queue")
+            check_tone(recording, until, 440)
+            key("space")
+            key("Home")
+            key("Right")
+            if args.profile == "contrast":
+                key("equal", "ctrl")
+            name = f"music-{args.compositor}-{args.profile}.png"
+            compare_screenshot(name, scale)
+            if args.at_spi:
+                inspect_accessibility(stack, app_id, app.pid)
+                key("Escape")  # Return from accessible reorder buttons to the queue.
+            recording = record(stack, RUNTIME, launch, "vorbis")
+            key("End")
+            key("space")
+            until(lambda: playing("North Channel"), "advance on real Opus EOS")
+            check_tone(recording, until, 550)
+            recording = record(stack, RUNTIME, launch, "wav")
+            key("End")
+            until(lambda: playing("Field recording.wav"), "untagged WAV filename")
+            check_tone(recording, until, 660)
+            loaded = loaded_plugins(app.pid)
+            assert loaded == set(MUSIC_PLUGINS), (loaded, MUSIC_PLUGINS)
+            key("w", "ctrl")
+            assert app.wait(timeout=8) == 0
+            print(f"Passed {name}, four audio formats, metadata, queue reorder, pause, EOS and private portal")
+            return
         if suite_app == "packages":
             def calls():
                 return [json.loads(line) for line in (pkg_dir / "calls.jsonl").read_text().splitlines()]

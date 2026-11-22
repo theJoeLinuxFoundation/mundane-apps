@@ -34,7 +34,7 @@ def record(stack, runtime, launch, tag):
     return process, path
 
 
-def check_tone(recording, until):
+def check_tone(recording, until, frequency=440):
     process, path = recording
     def detected():
         if not path.exists():
@@ -50,10 +50,10 @@ def check_tone(recording, until):
         for i in range(0, len(samples)-4800, 4800):
             chunk = samples[i:i+4800]
             crossings = sum(a <= 0 < b for a,b in zip(chunk, chunk[1:]))
-            if 42 <= crossings <= 46 and max(chunk)-min(chunk)>1500:
+            if abs(crossings - frequency / 10) <= 2 and max(chunk)-min(chunk)>1500:
                 return True
         return False
-    until(detected, "recorded 440 Hz tone on private PipeWire output")
+    until(detected, f"recorded {frequency} Hz tone on private PipeWire output")
     process.send_signal(signal.SIGINT)
     process.wait(timeout=4)
     with wave.open(str(path)) as wav:

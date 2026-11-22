@@ -14,6 +14,18 @@ use std::{
 
 use super::Frame;
 
+mod audio;
+pub use audio::{TrackInfo, inspect_audio};
+
+fn local_file(path: &Path) -> Result<File> {
+    let file = File::options()
+        .read(true)
+        .custom_flags(rustix::fs::OFlags::NONBLOCK.bits() as i32)
+        .open(path)?;
+    ensure!(file.metadata()?.is_file(), "Choose a regular media file.");
+    Ok(file)
+}
+
 fn factory(name: &str) -> Result<gst::Element> {
     gst::ElementFactory::make(name)
         .build()
@@ -57,18 +69,14 @@ fn attach(
 pub(super) struct Pipeline {
     pipeline: gst::Pipeline,
     pub bus: gst::Bus,
-    sink: AppSink,
+    sink: Option<AppSink>,
     _file: File,
 }
 
 impl Pipeline {
     pub fn open(path: &Path) -> Result<Self> {
         gst::init()?;
-        let file = File::options()
-            .read(true)
-            .custom_flags(rustix::fs::OFlags::NONBLOCK.bits() as i32)
-            .open(path)?;
-        ensure!(file.metadata()?.is_file(), "Choose a regular WebM file.");
+        let file = local_file(path)?;
         let pipeline = gst::Pipeline::new();
         let source = factory("fdsrc")?;
         source.set_property("fd", file.as_raw_fd());
@@ -140,6 +148,9 @@ impl Pipeline {
                 );
             }
         });
+        Self::prepare(pipeline, file, Some(sink))
+    }
+    fn prepare(pipeline: gst::Pipeline, file: File, sink: Option<AppSink>) -> Result<Self> {
         let player = Self {
             bus: pipeline.bus().unwrap(),
             pipeline,
@@ -185,8 +196,11 @@ impl Pipeline {
         Ok(())
     }
     pub fn frame(&self) -> Result<Option<Frame>> {
-        let preroll = self.sink.try_pull_preroll(gst::ClockTime::ZERO);
-        let Some(sample) = self.sink.try_pull_sample(gst::ClockTime::ZERO).or(preroll) else {
+        let Some(sink) = &self.sink else {
+            return Ok(None);
+        };
+        let preroll = sink.try_pull_preroll(gst::ClockTime::ZERO);
+        let Some(sample) = sink.try_pull_sample(gst::ClockTime::ZERO).or(preroll) else {
             return Ok(None);
         };
         let info = VideoInfo::from_caps(sample.caps().context("Video frame has no format")?)?;

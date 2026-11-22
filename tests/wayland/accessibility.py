@@ -203,6 +203,7 @@ tree = [(n.get_role_name(), n.get_name(), n.get_interfaces()) for n in walk(root
 print(json.dumps(tree, ensure_ascii=False), flush=True)
 expected = {"Terminal": ["Find in Terminal", "Find match", "Find text"],
             "Packages": ["Review package changes", "Install chartroom", "Cancel", "Apply changes"],
+            "Music": ["Harbour Lights", "Play", "Playback position", "Add tracks…", "Next track"],
             "Video": ["Coastal passage.webm", "Play", "Playback position", "Playback status"],
             "DocumentViewer": ["Page 2 of 2", "Page number", "Find text", "Document status"],
             "Calculator": ["Expression", "Result", "History", "Use result", "Clear history"],
@@ -224,6 +225,26 @@ if suite == "Packages":
     row = named(root, transition)
     assert row and Atspi.Text.get_text(row, 0, -1) == transition
     assert "Cached repository index" in dialog.get_description()
+if suite == "Music":
+    queue = next(n for n in walk(root) if n.get_role() == Atspi.Role.LIST_BOX)
+    rows = children(queue)
+    order = ["Ebb Tide", "Harbour Lights", "North Channel", "Field recording.wav"]
+    for row in rows:
+        pos = int(row.get_attributes()["posinset"])
+        assert row.get_attributes()["setsize"] == "4" and row.get_name() == order[pos-1]
+    assert rows[1].get_state_set().contains(Atspi.StateType.SELECTED)
+    assert "Current track" in rows[1].get_description() and "Soundings" in rows[1].get_description()
+    assert "Paused" in named(root, "Playback status").get_description()
+    slider = named(root, "Playback position")
+    assert abs(slider.get_current_value() - 5) < 0.01
+    assert named(root, "Move down").do_action(0)
+    def reordered():
+        queue.clear_cache()
+        return any(n.get_name() == "Harbour Lights" and n.get_attributes()["posinset"] == "3"
+                   for n in children(queue))
+    wait(reordered, "accessible reorder")
+    assert named(root, "Move up").do_action(0)
+    wait(lambda: not reordered(), "restored queue order")
 if suite == "Video":
     screen = named(root, "Coastal passage.webm")
     assert screen.get_state_set().contains(Atspi.StateType.FOCUSED)

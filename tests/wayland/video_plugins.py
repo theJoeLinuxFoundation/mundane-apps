@@ -7,11 +7,14 @@ PLUGINS = ("coreelements", "matroska", "vpx", "opus", "vorbis", "videoconvertsca
            "app", "audioconvert", "audioresample", "pipewire")
 
 
-def configure(directory, extra=(), omit=()):
+MUSIC_PLUGINS = ("coreelements", "ogg", "opus", "vorbis", "audioparsers", "flac",
+                 "wavparse", "audioconvert", "audioresample", "pipewire")
+
+def configure(directory, extra=(), omit=(), plugins=PLUGINS):
     directory.mkdir(parents=True, exist_ok=True)
     system = subprocess.check_output(["pkg-config", "--variable=pluginsdir", "gstreamer-1.0"], text=True).strip()
     roots = [Path(p) for p in os.environ.get("MUNDANE_TEST_GST_PLUGIN_DIRS", system).split(os.pathsep)]
-    for name in (*PLUGINS, *extra):
+    for name in (*plugins, *extra):
         if name in omit:
             continue
         target = f"libgst{name}.so"

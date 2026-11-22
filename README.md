@@ -120,6 +120,21 @@ Video plays local WebM files with VP8 or VP9 video and optional Opus or Vorbis a
 | Seek to start / end | Home / End |
 | Reach Open / return to the picture | F6 / Escape |
 
+## Music
+
+Music plays local FLAC, PCM WAV, Ogg Opus and Ogg Vorbis through PipeWire. **Add tracks…** appends files to the queue. A single click selects an entry for reordering or removal. Double-click or choose **Play selected** to start it. The current track shows its title, artist and album when tagged. [Music packaging and tests](docs/music-tests.md)
+
+| Action | Shortcut |
+| --- | --- |
+| Add tracks / close the window | Ctrl+O / Ctrl+W |
+| Select a queue entry / play it | Up or Down / Enter |
+| Move the selected entry / remove it | Ctrl+Up or Ctrl+Down / Delete |
+| Previous or next track | P / N |
+| Pause or resume with the queue focused | Space |
+| Seek five seconds / seek to start or end | Left or Right / Home or End |
+| Focus Add tracks / return to the queue | F6 / Escape |
+| Increase, decrease or reset text size | Ctrl++ / Ctrl+- / Ctrl+0 |
+
 ## Building
 
 Use a Rust toolchain with Cargo, a C/C++ toolchain, pkg-config, and the Linux development files for Wayland, xkbcommon and fontconfig. The release build was tested with Rust 1.100 on x86-64 Linux. Run Terminal in a Wayland session with Mesa, a Vulkan driver, installed fonts and xterm-256color terminfo.
@@ -135,6 +150,7 @@ cargo build --workspace --release --locked
 ./target/release/mundane-packages
 ./target/release/mundane-document-viewer "tests/fixtures/Coastal survey.pdf"
 ./target/release/mundane-video "tests/fixtures/Coastal passage.webm"
+./target/release/mundane-music tests/fixtures/music/01.flac tests/fixtures/music/02.opus
 ```
 
 Files uses the OpenURI desktop portal or GIO's default handler, GIO Trash, and GNU coreutils for recursive copies and cross-filesystem moves. Its desktop entry handles local directories. Text Editor accepts a local path and declares `text/plain`. Its Open and Save As dialogs use the FileChooser desktop portal. Distribution packaging and the joe image smoke test are pending. [Development plan](docs/plan.md)

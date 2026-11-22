@@ -1,10 +1,11 @@
-//! Local WebM playback. All GStreamer state changes and frame copies run off the UI thread.
+//! Local video and audio playback. All GStreamer state changes and frame copies run off the UI thread.
 mod pipeline;
 
 use anyhow::Result;
 use async_channel::Receiver;
 use gstreamer as gst;
 use pipeline::Pipeline;
+pub use pipeline::{TrackInfo, inspect_audio};
 use std::{
     path::PathBuf,
     sync::{Arc, Mutex, mpsc},
@@ -24,6 +25,7 @@ pub enum Phase {
 pub struct Status {
     pub phase: Phase,
     pub file: Option<PathBuf>,
+    pub audio_request: Option<u64>,
     pub position: u64,
     pub duration: Option<u64>,
     pub error: Option<String>,
@@ -35,6 +37,8 @@ pub struct Frame {
 }
 pub enum Command {
     Open(PathBuf),
+    OpenAudio { path: PathBuf, request: u64 },
+    Stop,
     Toggle,
     Seek(u64),
     Step(i64),
@@ -55,6 +59,13 @@ pub fn seek_position(fraction: f64, duration: u64) -> u64 {
 }
 impl Playback {
     pub fn start() -> Self {
+        Self::worker("pipewiresink")
+    }
+    #[cfg(feature = "test-audio")]
+    pub fn silent_for_test() -> Self {
+        Self::worker("fakesink")
+    }
+    fn worker(audio_sink: &'static str) -> Self {
         let (commands, rx) = mpsc::channel();
         let (signal, events) = async_channel::bounded(1);
         let latest = Arc::new(Mutex::new(Update::default()));
@@ -70,7 +81,7 @@ impl Playback {
                 match rx.recv_timeout(Duration::from_millis(wait)) {
                     Ok(command) => {
                         player.status.error = None;
-                        if let Err(e) = player.command(command) {
+                        if let Err(e) = player.command(command, audio_sink) {
                             player.status.error = Some(format!("{e:#}"));
                         }
                     }
@@ -126,7 +137,12 @@ struct Player {
     status: Status,
 }
 impl Player {
-    fn command(&mut self, cmd: Command) -> Result<()> {
+    fn command(&mut self, cmd: Command, audio_sink: &str) -> Result<()> {
+        if matches!(cmd, Command::Stop) {
+            self.media = None;
+            self.status = Status::default();
+            return Ok(());
+        }
         if let Command::Open(path) = cmd {
             let media = Pipeline::open(&path)?;
             media.play(true)?;
@@ -136,6 +152,21 @@ impl Player {
                 duration: media.duration(),
                 ..Default::default()
             };
+            self.media = Some(media);
+            return Ok(());
+        }
+        if let Command::OpenAudio { path, request } = cmd {
+            self.media = None;
+            self.status = Status {
+                file: Some(path.clone()),
+                audio_request: Some(request),
+                phase: Phase::Failed,
+                ..Default::default()
+            };
+            let (media, _) = Pipeline::audio(&path, audio_sink)?;
+            media.play(true)?;
+            self.status.duration = media.duration();
+            self.status.phase = Phase::Playing;
             self.media = Some(media);
             return Ok(());
         }
@@ -159,7 +190,7 @@ impl Player {
                     .saturating_add_signed(delta);
                 self.seek(ms)?;
             }
-            Command::Open(_) => unreachable!(),
+            Command::Stop | Command::Open(_) | Command::OpenAudio { .. } => unreachable!(),
         }
         Ok(())
     }

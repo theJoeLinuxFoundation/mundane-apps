@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Music
+Exec=mundane-music %F
+Icon=multimedia-audio-player
+Categories=AudioVideo;Audio;Player;
+MimeType=audio/flac;audio/x-flac;audio/ogg;audio/x-vorbis+ogg;audio/x-opus+ogg;audio/wav;audio/x-wav;
+Terminal=false
