@@ -205,6 +205,7 @@ expected = {"Terminal": ["Find in Terminal", "Find match", "Find text"],
             "Packages": ["Review package changes", "Install chartroom", "Cancel", "Apply changes"],
             "ArchiveManager": ["Archive entries", "Extract selected…", "Extract all…", "2 marked"],
             "DiskUsage": ["Folder contents", "Private records", "Show allocated space", "Rescan"],
+            "Disks": ["Drives and volumes", "Survey", "Unmount", "Refresh"],
             "Music": ["Harbour Lights", "Play", "Playback position", "Add tracks…", "Next track"],
             "Video": ["Coastal passage.webm", "Play", "Playback position", "Playback status"],
             "DocumentViewer": ["Page 2 of 2", "Page number", "Find text", "Document status"],
@@ -237,6 +238,12 @@ if suite == "DiskUsage":
     assert "permission denied" in row.get_description()
     assert "512.0 KiB" in named(root, "Charts").get_description()
     assert any("Incomplete scan" in n.get_name() for n in walk(root))
+if suite == "Disks":
+    row = named(root, "Survey")
+    assert row.get_state_set().contains(Atspi.StateType.SELECTED)
+    assert "Mounted at /run/media/joe/Survey" in row.get_description()
+    assert "Action" in named(root, "Unmount").get_interfaces()
+    assert named(root, "Coast Field Recorder") and named(root, "Transfer")
 if suite == "Music":
     queue = next(n for n in walk(root) if n.get_role() == Atspi.Role.LIST_BOX)
     rows = children(queue)

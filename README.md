@@ -143,6 +143,10 @@ Open a ZIP, tar or gzip-compressed tar archive with Ctrl+O. Use Up and Down to b
 
 Open a folder with Ctrl+O to see where its space goes. Enter or double-click opens a child folder. Backspace returns to its parent. Press A to switch between allocated space and logical file sizes, F5 to rescan, or Escape to cancel a scan. Unreadable folders stay visible and their totals are marked incomplete. [Accounting and tests](docs/usage-tests.md)
 
+## Disks
+
+Browse drives and partitions with Up and Down. Select a filesystem to see its mount state. The **Mount** or **Unmount** button, also available with Ctrl+M, asks UDisks to perform the operation under the system’s polkit policy. F5 refreshes the device list. [UDisks integration and tests](docs/disks-tests.md)
+
 ## Building
 
 Use a Rust toolchain with Cargo, a C/C++ toolchain, pkg-config, and the Linux development files for Wayland, xkbcommon and fontconfig. The release build was tested with Rust 1.100 on x86-64 Linux. Run Terminal in a Wayland session with Mesa, a Vulkan driver, installed fonts and xterm-256color terminfo.
@@ -159,6 +163,9 @@ cargo build --workspace --release --locked
 ./target/release/mundane-document-viewer "tests/fixtures/Coastal survey.pdf"
 ./target/release/mundane-video "tests/fixtures/Coastal passage.webm"
 ./target/release/mundane-music tests/fixtures/music/01.flac tests/fixtures/music/02.opus
+./target/release/mundane-archive-manager "tests/fixtures/archive/Coastal survey.zip"
+./target/release/mundane-disk-usage tests/fixtures
+./target/release/mundane-disks
 ```
 
 Files uses the OpenURI desktop portal or GIO's default handler, GIO Trash, and GNU coreutils for recursive copies and cross-filesystem moves. Its desktop entry handles local directories. Text Editor accepts a local path and declares `text/plain`. Its Open and Save As dialogs use the FileChooser desktop portal. Distribution packaging and the joe image smoke test are pending. [Development plan](docs/plan.md)

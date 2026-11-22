@@ -3083,6 +3083,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "mundane-disks"
+version = "0.1.0"
+dependencies = [
+ "gpui",
+ "mundane-services",
+ "mundane-ui",
+ "tempfile",
+]
+
+[[package]]
 name = "mundane-document-viewer"
 version = "0.1.0"
 dependencies = [
@@ -3163,6 +3173,7 @@ dependencies = [
  "serde_json",
  "tempfile",
  "url",
+ "zbus 5.19.0",
 ]
 
 [[package]]

@@ -246,7 +246,7 @@ def exercise_monitor(args, scale, stack, app, app_id):
 def main():
     global OUTPUT
     parser = argparse.ArgumentParser()
-    parser.add_argument("--app", choices=["terminal", "files", "text-editor", "system-monitor", "image-viewer", "calculator", "document-viewer", "video", "packages", "music", "archive-manager", "disk-usage"], default="terminal")
+    parser.add_argument("--app", choices=["terminal", "files", "text-editor", "system-monitor", "image-viewer", "calculator", "document-viewer", "video", "packages", "music", "archive-manager", "disk-usage", "disks"], default="terminal")
     parser.add_argument("--missing-video-decoder", action="store_true", help="inspect Video with the vpx plugin absent")
     parser.add_argument("--fields", action="store_true", help="exercise two-window activation, password and multiline fields")
     parser.add_argument("--cost", type=Path, help="directory containing the two release cost fixture binaries")
@@ -306,7 +306,7 @@ seat seat0 fallback true
         display = until(lambda: next((p for p in RUNTIME.glob("wayland-*") if p.is_socket()), None), "private Wayland socket")
         os.environ["WAYLAND_DISPLAY"] = display.name
         run("dbus-update-activation-environment", "WAYLAND_DISPLAY", "XDG_CURRENT_DESKTOP")
-        if args.app in ("packages", "music", "archive-manager", "disk-usage") or (args.at_spi and args.app in (
+        if args.app in ("packages", "music", "archive-manager", "disk-usage", "disks") or (args.at_spi and args.app in (
                 "terminal", "image-viewer", "calculator", "document-viewer", "video") and not args.cost):
             launch(stack, "wtype", "-k", "Shift_L", "-s", "300000", log="seat.log")
         if args.at_spi:
@@ -381,6 +381,14 @@ seat seat0 fallback true
         suite_app = args.app
         app_id = f"org.joelinux.mundane.{suite_app.title().replace('-', '')}"
         argv = [str(Path(os.environ.get(f"MUNDANE_{suite_app.upper().replace('-', '_')}_BIN", ROOT / f"target/debug/mundane-{suite_app}")).resolve())]
+        if suite_app == "disks":
+            fake_disks = RUNTIME / "udisks"
+            fake_disks.mkdir()
+            # Route the release binary's system-bus connection to this test's private daemon.
+            os.environ["DBUS_SYSTEM_BUS_ADDRESS"] = os.environ["DBUS_SESSION_BUS_ADDRESS"]
+            launch(stack, "python3", str(ROOT / "tests/disks/udisks.py"),
+                   os.environ["DBUS_SYSTEM_BUS_ADDRESS"], str(fake_disks), log="udisks.log")
+            until((fake_disks / "ready").exists, "fake UDisks bus owner")
         if suite_app == "disk-usage":
             survey = Path.home() / "Coastal survey"
             for name, size in [("Charts/soundings.bin", 512 * 1024), ("Photographs/coast.dat", 256 * 1024),
@@ -468,6 +476,34 @@ seat seat0 fallback true
                 return "ack_configure" in (OUTPUT / log).read_text(errors="replace")
             return app_id in command("-t", "get_tree")
         until(mapped, f"mapped {suite_app}")
+        if suite_app == "disks":
+            until((fake_disks / "listed").exists, "UDisks inventory")
+            key("Shift_L")
+            if labwc:
+                run("wlrctl", "toplevel", "waitfor", app_id, "state:active")
+            key("Home")
+            key("Down")
+            key("Down")
+            key("m", "ctrl")
+            until((fake_disks / "mounted").exists, "fake volume mounted")
+            if args.profile == "contrast":
+                key("equal", "ctrl")
+            name = f"disks-{args.compositor}-{args.profile}.png"
+            compare_screenshot(name, scale)
+            if args.at_spi:
+                inspect_accessibility(stack, app_id, app.pid)
+            key("m", "ctrl")
+            until(lambda: not (fake_disks / "mounted").exists(), "fake volume unmounted")
+            (fake_disks / "remove-during").touch()
+            key("m", "ctrl")
+            until((fake_disks / "removed").exists, "hot removal during requested mount")
+            calls = [json.loads(line) for line in (fake_disks / "calls.jsonl").read_text().splitlines()]
+            target = "/org/freedesktop/UDisks2/block_devices/testdisk1"
+            assert calls == [[target, op, True, {}] for op in ["Mount", "Unmount", "Mount"]], calls
+            key("w", "ctrl")
+            assert app.wait(timeout=8) == 0
+            print(f"Passed {name}, private UDisks mount, unmount and hot removal")
+            return
         if suite_app == "disk-usage":
             until(lambda: "Coastal survey — Disk Usage" in (OUTPUT / log).read_text(), "finished usage scan")
             key("Shift_L")

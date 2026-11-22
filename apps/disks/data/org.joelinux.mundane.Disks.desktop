@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Disks
+Exec=mundane-disks
+Icon=drive-harddisk
+Categories=System;Filesystem;
+Terminal=false

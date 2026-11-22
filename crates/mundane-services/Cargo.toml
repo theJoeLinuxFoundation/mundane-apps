@@ -6,6 +6,7 @@ license.workspace = true
 publish.workspace = true
 
 [dependencies]
+zbus = { version = "5.19", optional = true }
 serde = { version = "1", features = ["derive"], optional = true }
 serde_json = { version = "1", optional = true }
 anyhow = { workspace = true, optional = true }
@@ -26,6 +27,7 @@ tempfile = { version = "3", optional = true }
 url = { version = "2", optional = true }
 
 [features]
+disks = ["dep:zbus", "dep:anyhow"]
 usage = ["dep:rustix", "rustix/process"]
 archive = ["dep:anyhow", "dep:tempfile", "dep:rustix"]
 test-audio = ["video"]

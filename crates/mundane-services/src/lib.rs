@@ -20,3 +20,6 @@ pub mod archive;
 
 #[cfg(feature = "usage")]
 pub mod usage;
+
+#[cfg(feature = "disks")]
+pub mod disks;
