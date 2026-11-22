@@ -2,6 +2,8 @@
 
 On 22 November 2026, all 18 installed apps launched from their desktop entries in joe’s GNOME Wayland session, painted a window, and exited after Alt+F4. All eight registered file handlers opened their fixtures through GNOME’s **Open With** path. Disk Usage also scanned its folder fixture. The journal contained no app crashes across the 27 launches. Two package integration checks failed. [Machine-readable results](results.json) · [Reproduce the run](../../../tests/joe-vm/README.md)
 
+The [dave r3 image rerun](../182cd7c-dave-r3/README.md) verifies the package review, alarm watcher at login and desktop-specific MIME defaults.
+
 ## Changes for joe packaging
 
 - **Packages needs dave 0.4.0-r3 or later with the JSON interface and polkit action.** The image contains `0.4.0-r2`. As joe, `/usr/bin/dave list --json` exited 1 with empty stdout and reported that `list` does not take `--json`. Packages displayed the resulting error instead of the installed list. The image also lacks `/usr/share/polkit-1/actions/io.joelinux.dave.policy`. Require the JSON-capable package when composing the image. The smoke run made no package changes. [Packages screenshot](screenshots/packages-desktop.png)

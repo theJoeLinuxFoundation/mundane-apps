@@ -221,7 +221,7 @@ cargo build --workspace --release --locked
 ./target/release/mundane-maps
 ```
 
-Files uses the OpenURI desktop portal or GIO's default handler, GIO Trash, and GNU coreutils for recursive copies and cross-filesystem moves. Its desktop entry handles local directories. Text Editor accepts a local path and declares `text/plain`. Its Open and Save As dialogs use the FileChooser desktop portal. The joe package at `182cd7c` has been tested on GNOME Wayland. [Packaged-image smoke results](docs/vm/182cd7c/README.md) [Development plan](docs/plan.md)
+Files uses the OpenURI desktop portal or GIO's default handler, GIO Trash, and GNU coreutils for recursive copies and cross-filesystem moves. Its desktop entry handles local directories. Text Editor accepts a local path and declares `text/plain`. Its Open and Save As dialogs use the FileChooser desktop portal. The joe package at `182cd7c` has been tested on GNOME Wayland. [Packaged-image smoke results](docs/vm/182cd7c-dave-r3/README.md) [Development plan](docs/plan.md)
 
 ## Licence
 
