@@ -77,6 +77,7 @@ fn failed_save_from_close_keeps_edits(cx: &mut TestAppContext) {
     cx.simulate_keystrokes("end space e d i t");
     fs::write(&path, "external").unwrap();
     cx.simulate_keystrokes("ctrl-w shift-tab");
+    cx.simulate_keystrokes("enter");
     cx.simulate_event(gpui::KeyUpEvent {
         keystroke: gpui::Keystroke::parse("enter").unwrap(),
     });

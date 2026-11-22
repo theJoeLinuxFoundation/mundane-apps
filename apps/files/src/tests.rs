@@ -37,6 +37,7 @@ fn browse_rename_and_cancel_copy_conflict(cx: &mut TestAppContext) {
     cx.simulate_keystrokes("ctrl-v");
     cx.simulate_keystrokes("tab");
     // TestAppContext's keystroke simulator dispatches key-down only for buttons.
+    cx.simulate_keystrokes("enter");
     cx.simulate_event(gpui::KeyUpEvent {
         keystroke: gpui::Keystroke::parse("enter").unwrap(),
     });

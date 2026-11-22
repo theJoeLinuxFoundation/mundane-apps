@@ -284,7 +284,7 @@ impl Terminal {
                 cx.notify();
             }
         }))
-        .on_scroll_wheel(cx.listener(|this, ev: &ScrollWheelEvent, _, cx| {
+        .on_scroll(cx.listener(|this, ev: &ScrollEvent, _, cx| {
             let delta = match ev.delta {
                 ScrollDelta::Pixels(p) => f32::from(p.y) / this.layout.height(),
                 ScrollDelta::Lines(p) => p.y,

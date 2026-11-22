@@ -469,14 +469,6 @@ struct PrepaintState {
     selection: Option<PaintQuad>,
 }
 
-impl IntoElement for TextElement {
-    type Element = Self;
-
-    fn into_element(self) -> Self::Element {
-        self
-    }
-}
-
 impl Element for TextElement {
     type RequestLayoutState = ();
     type PrepaintState = PrepaintState;
@@ -695,7 +687,7 @@ impl Render for TextField {
                 .font_family("DejaVu Sans Mono")
                 .p_3()
                 .on_key_down(cx.listener(Self::document_keys))
-                .on_scroll_wheel(cx.listener(Self::scroll_document))
+                .on_scroll(cx.listener(Self::scroll_document))
                 .child(self.paper(cx))
         })
         .when(!multi, |el| {

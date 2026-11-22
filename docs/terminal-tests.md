@@ -29,7 +29,7 @@ With Terminal's Find dialog open, the test focuses the search field, moves focus
 
 With AT-SPI2 2.62.1 and Orca 51.1, the inspector found the GTK application, its frame and the button named “Probe button”. Orca listed the GTK application. Terminal had no application root in either inspection. Consequently neither tool could read the field text, observe focus changes, discover the dialog role or activate the button through AT-SPI. Keyboard selection and activation are covered separately by the GPUI and Wayland tests.
 
-At the pinned Zed revision, the GPUI Linux platform handles keyboard focus and text composition but has no AT-SPI adapter. The shared follow-up for mundaneDE is to connect GPUI's element tree to the Linux accessibility bus, publish roles, names, text and selection, emit focus changes and route accessible actions back to the controls. Repeat the probe with Orca when that bridge is available.
+Milestone 1 used Zed `deb48ceb`. The current revision, `f4fe0be1`, includes an AccessKit adapter. The existing probe uses a private accessibility bus. Enabling the adapter through the session bus and verifying control roles, text and actions with Orca belong to the shared accessibility milestone. [Accessibility gates](plan.md#accessibility)
 
 The joe Linux VM smoke test is pending until the distribution packages mundaneDE and Terminal together.
 

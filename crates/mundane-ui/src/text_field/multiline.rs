@@ -1,5 +1,5 @@
 use super::*;
-use gpui::{KeyDownEvent, ScrollWheelEvent, TextAlign, canvas};
+use gpui::{KeyDownEvent, ScrollEvent, TextAlign, canvas};
 use std::collections::VecDeque;
 
 struct Snapshot {
@@ -275,7 +275,7 @@ impl TextField {
 
     pub(super) fn scroll_document(
         &mut self,
-        event: &ScrollWheelEvent,
+        event: &ScrollEvent,
         _: &mut Window,
         cx: &mut Context<Self>,
     ) {

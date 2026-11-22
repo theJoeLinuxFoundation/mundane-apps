@@ -15,7 +15,7 @@ Terminal runs the user's shell in a PTY. It supports scrollback, text selection,
 | Focus the header or return to the shell | F6 |
 | Dismiss Find | Escape |
 
-Set `MUNDANE_HIGH_CONTRAST=1` for the high-contrast palette. Keyboard input and focus work in Terminal, but the pinned GPUI Linux backend does not expose its controls to AT-SPI. [Accessibility probe and test instructions](docs/terminal-tests.md)
+Set `MUNDANE_HIGH_CONTRAST=1` for the high-contrast palette. The suite now uses GPUI’s upstream AccessKit bridge. Screen-reader support for the shared controls is pending the accessibility milestone. [Accessibility probe and test instructions](docs/terminal-tests.md)
 
 ## Files
 
@@ -59,7 +59,7 @@ System Monitor samples visible processes every two seconds. CPU is measured acro
 
 ## Building
 
-Use a Rust toolchain with Cargo, a C/C++ toolchain, pkg-config, and the Linux development files for Wayland, xkbcommon and fontconfig. The release build was tested with Rust 1.95 on x86-64 Linux. Run Terminal in a Wayland session with Mesa, a Vulkan driver, installed fonts and xterm-256color terminfo.
+Use a Rust toolchain with Cargo, a C/C++ toolchain, pkg-config, and the Linux development files for Wayland, xkbcommon and fontconfig. The release build was tested with Rust 1.100 on x86-64 Linux. Run Terminal in a Wayland session with Mesa, a Vulkan driver, installed fonts and xterm-256color terminfo.
 
 ```sh
 cargo build --workspace --release --locked

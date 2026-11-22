@@ -127,7 +127,13 @@ def compare_screenshot(name, scale):
     baseline = HERE / name
     if not baseline.exists():
         raise RuntimeError(f"Review {image} and supply {name}")
-    run("magick", "compare", "-metric", "AE", str(baseline), str(image), "null:")
+    # PAM includes the dimensions and uncompressed RGBA samples. Compare bytes
+    # directly so even a one-level change in one channel fails the reference.
+    def raster(path):
+        return subprocess.check_output(
+            ["magick", str(path), "-alpha", "on", "-depth", "8", "pam:-"], timeout=15)
+    if raster(baseline) != raster(image):
+        raise AssertionError(f"Pixel mismatch: compare {image} with {baseline}")
 
 
 def check_window_actions(log):

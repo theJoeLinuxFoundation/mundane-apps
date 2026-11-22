@@ -9,8 +9,8 @@ license = "BSD-3-Clause"
 publish = false
 
 [workspace.dependencies]
-gpui = { git = "https://github.com/zed-industries/zed", rev = "deb48ceb47125223df73902d1c3b72f2f442222b", default-features = false, features = ["wayland"] }
-gpui_linux = { git = "https://github.com/zed-industries/zed", rev = "deb48ceb47125223df73902d1c3b72f2f442222b", default-features = false, features = ["wayland"] }
+gpui = { git = "https://github.com/zed-industries/zed", rev = "f4fe0be1f8c7974db07e01c5cd05bee0cf4eb8d9", default-features = false, features = ["wayland"] }
+gpui_linux = { git = "https://github.com/zed-industries/zed", rev = "f4fe0be1f8c7974db07e01c5cd05bee0cf4eb8d9", default-features = false, features = ["wayland"] }
 anyhow = "1"
 async-channel = "2"
 alacritty_terminal = { version = "0.26", default-features = false }
