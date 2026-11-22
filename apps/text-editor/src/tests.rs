@@ -91,3 +91,27 @@ fn failed_save_from_close_keeps_edits(cx: &mut TestAppContext) {
     assert_eq!(fs::read(path).unwrap(), b"external");
     assert!(!cx.simulate_close());
 }
+
+#[gpui::test]
+fn composition_offsets_preserve_selection_and_cancel(cx: &mut TestAppContext) {
+    use gpui::EntityInputHandler;
+    let (editor, cx) = cx.add_window_view(Editor::new);
+    cx.update(|window, cx| {
+        let field = editor.read(cx).body.clone();
+        field.update(cx, |field, cx| {
+            field.set_document("a😀e\u{301}\r\nz".into(), cx);
+            field.replace_and_mark_text_in_range(Some(1..3), "候😀", Some(1..3), window, cx);
+            assert_eq!(field.text(), "a候😀e\u{301}\r\nz");
+            assert_eq!(field.marked_text_range(window, cx), Some(1..4));
+            let selected = field.selected_text_range(false, window, cx).unwrap();
+            assert_eq!(selected.range, 2..4);
+            field.replace_text_in_range(None, "確", window, cx);
+            assert_eq!(field.text(), "a確e\u{301}\r\nz");
+            assert_eq!(field.marked_text_range(window, cx), None);
+            field.replace_and_mark_text_in_range(None, "仮", None, window, cx);
+            field.replace_and_mark_text_in_range(None, "", None, window, cx);
+            assert_eq!(field.text(), "a確e\u{301}\r\nz");
+            assert_eq!(field.marked_text_range(window, cx), None);
+        });
+    });
+}

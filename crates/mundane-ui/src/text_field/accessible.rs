@@ -65,7 +65,13 @@ impl TextField {
         let action_positions = positions.clone();
         let entity = cx.weak_entity();
         let current = text.clone();
+        let value = if password {
+            "•".repeat(text.graphemes(true).count()).into()
+        } else {
+            text.clone()
+        };
         control
+            .aria_value(value)
             .on_a11y_action(Action::SetTextSelection, move |data, _, cx| {
                 let Some(ActionData::SetTextSelection(s)) = data else {
                     return;
@@ -97,6 +103,7 @@ impl TextField {
                 }
             })
             .a11y_synthetic_children(move |tree| {
+                tree.parent_node().set_clips_children();
                 let mut runs = positions.borrow_mut();
                 runs.clear();
                 let layout = layout.borrow();

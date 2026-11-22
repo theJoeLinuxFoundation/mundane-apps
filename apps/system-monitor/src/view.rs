@@ -117,14 +117,20 @@ impl Monitor {
                 let id = p.id;
                 let selected = self.selected == Some(id);
                 let theme = self.theme;
+                let cpu = p
+                    .cpu_percent
+                    .map_or_else(|| "—".into(), |v| format!("{v:.1}%"));
+                let resident = memory(p.resident_bytes);
                 mundane_ui::option(
                     ElementId::NamedInteger(id.pid.to_string().into(), id.start_ticks),
                     format!("{} (PID {})", p.name, id.pid),
                     index,
-                    self.rows.len(),
                     selected,
                     self.list_focus.is_focused(window),
                 )
+                .when(window.is_a11y_active(), |el| {
+                    el.aria_description(format!("CPU {cpu}, memory {resident}"))
+                })
                 .w_full()
                 .h(px(self.text_size + 21.))
                 .px_3()
@@ -144,13 +150,8 @@ impl Monitor {
                 }))
                 .child(cell(Column::Name).truncate().child(p.name.clone()))
                 .child(cell(Column::Pid).child(id.pid.to_string()))
-                .child(
-                    cell(Column::Cpu).child(
-                        p.cpu_percent
-                            .map_or_else(|| "—".into(), |v| format!("{v:.1}%")),
-                    ),
-                )
-                .child(cell(Column::Memory).child(memory(p.resident_bytes)))
+                .child(cell(Column::Cpu).child(cpu))
+                .child(cell(Column::Memory).child(resident))
             })
             .collect()
     }
@@ -258,7 +259,9 @@ impl Render for Monitor {
             .child(self.headings(cx))
             .child(
                 focus_ring(
-                    Role::ListBox.control("processes", "Processes"),
+                    Role::ListBox
+                        .control("processes", "Processes")
+                        .aria_size_of_set(self.rows.len()),
                     &self.list_focus,
                     theme,
                 )

@@ -92,14 +92,17 @@ impl Files {
                 } else {
                     format!("{:.1} KiB", entry.bytes as f64 / 1024.)
                 };
+                let name: SharedString = entry.name.to_string_lossy().into_owned().into();
                 mundane_ui::option(
                     ElementId::Path(entry.path.clone().into()),
-                    entry.name.to_string_lossy().into_owned(),
+                    name.clone(),
                     i,
-                    self.entries.len(),
                     selected,
                     self.list_focus.is_focused(window),
                 )
+                .when(window.is_a11y_active(), |el| {
+                    el.aria_description(detail.clone())
+                })
                 .w_full()
                 .h(px(46.))
                 .px_3()
@@ -139,13 +142,7 @@ impl Files {
                             el.child(img(img_source).object_fit(ObjectFit::Contain).size_full())
                         }),
                 )
-                .child(
-                    div()
-                        .flex_1()
-                        .min_w_0()
-                        .truncate()
-                        .child(entry.name.to_string_lossy().into_owned()),
-                )
+                .child(div().flex_1().min_w_0().truncate().child(name))
                 .child(
                     div()
                         .text_sm()

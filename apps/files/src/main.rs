@@ -464,7 +464,9 @@ impl Render for Files {
             )
             .child(
                 focus_ring(
-                    mundane_ui::Role::ListBox.control("folder", "Folder contents"),
+                    mundane_ui::Role::ListBox
+                        .control("folder", "Folder contents")
+                        .aria_size_of_set(self.entries.len()),
                     &self.list_focus,
                     theme,
                 )

@@ -28,15 +28,13 @@ pub fn option(
     id: ElementId,
     name: impl Into<SharedString>,
     index: usize,
-    count: usize,
     selected: bool,
     focused: bool,
 ) -> Stateful<Div> {
     Role::ListBoxOption
         .control(id, name)
         .aria_selected(selected)
-        .aria_position_in_set(index + 1)
-        .aria_size_of_set(count)
+        .aria_position_in_set(index)
         .when(selected && focused, |el| el.aria_active_descendant())
 }
 
@@ -166,6 +164,9 @@ impl ApplicationContent {
 
 pub fn unavailable(control: Stateful<Div>, disabled: bool) -> Stateful<Div> {
     control.when(disabled, |el| {
-        el.a11y_synthetic_children(|tree| tree.parent_node().set_disabled())
+        el.a11y_synthetic_children(|tree| {
+            tree.parent_node().set_disabled();
+            tree.parent_node().remove_action(accesskit::Action::Click);
+        })
     })
 }

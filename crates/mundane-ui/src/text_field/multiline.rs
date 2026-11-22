@@ -101,18 +101,18 @@ impl TextField {
     }
 
     pub fn set_document(&mut self, text: SharedString, cx: &mut Context<Self>) {
-        assert!(
-            !self.password,
-            "a password field cannot display a multiline document"
-        );
-        let mut layout = Multiline {
-            crlf: text.find('\n').is_some_and(|i| text[..i].ends_with('\r')),
-            zoom: self.multi.as_ref().map_or(0, |m| m.zoom),
-            ..Default::default()
-        };
-        layout.reindex(&text);
-        self.multi = Some(layout);
-        self.content = text;
+        if self.password {
+            self.content = self.insertion(&text).into();
+        } else {
+            let mut layout = Multiline {
+                crlf: text.find('\n').is_some_and(|i| text[..i].ends_with('\r')),
+                zoom: self.multi.as_ref().map_or(0, |m| m.zoom),
+                ..Default::default()
+            };
+            layout.reindex(&text);
+            self.multi = Some(layout);
+            self.content = text;
+        }
         self.selected_range = 0..0;
         self.selection_reversed = false;
         self.marked_range = None;

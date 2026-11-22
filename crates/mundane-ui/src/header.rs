@@ -68,7 +68,7 @@ impl WindowHeader {
         content_focus: &FocusHandle,
         theme: Theme,
         window: &Window,
-    ) -> Div {
+    ) -> Stateful<Div> {
         let visible = controls(
             window.window_decorations(),
             window.window_controls(),
@@ -78,8 +78,7 @@ impl WindowHeader {
         let can_zoom = visible.contains(&Control::Maximize) || visible.contains(&Control::Restore);
         let drag = self.drag_origin.clone();
         let motion = drag.clone();
-        let titlebar = Role::TitleBar
-            .control("titlebar", title)
+        let drag_area = div()
             .h_full()
             .flex_1()
             .min_w_0()
@@ -111,7 +110,8 @@ impl WindowHeader {
                 })
             });
         let content_focus = content_focus.clone();
-        div()
+        Role::TitleBar
+            .control("titlebar", title)
             .w_full()
             .h(px(42.))
             .flex_none()
@@ -132,7 +132,7 @@ impl WindowHeader {
                 }
                 cx.stop_propagation();
             })
-            .child(titlebar)
+            .child(drag_area)
             .child(actions)
             .children(visible.into_iter().map(|control| {
                 let (label, focus) = match control {

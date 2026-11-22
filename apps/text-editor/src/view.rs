@@ -71,10 +71,14 @@ impl Editor {
             .bg(rgb(self.theme.panel))
             .child(div().flex_1().min_w(px(100.)).child(self.query.clone()))
             .when(!term.is_empty(), |el| {
-                el.child(div().text_sm().child(format!(
-                    "{total} {}",
-                    if total == 1 { "match" } else { "matches" }
-                )))
+                let label: SharedString =
+                    format!("{total} {}", if total == 1 { "match" } else { "matches" }).into();
+                el.child(
+                    Role::Status
+                        .control("match-count", label.clone())
+                        .text_sm()
+                        .child(label),
+                )
             })
             .child(self.tool(Command::Next, &self.find_buttons[0], cx))
             .child(self.tool(Command::Done, &self.find_buttons[1], cx))

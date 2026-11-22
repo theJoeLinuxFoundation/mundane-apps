@@ -358,14 +358,18 @@ impl Terminal {
                     .gap_2()
                     .child(mundane_ui::heading("find-heading", "Find in terminal"))
                     .child(find.field.clone())
-                    .when(find.missed, |el| el.child("No matching text"))
-                    .child(button(
-                        "Find match",
-                        &find.submit,
-                        self.theme,
-                        move |window, cx| {
+                    .when(find.missed, |el| {
+                        el.child(
+                            mundane_ui::Role::Status
+                                .control("find-status", "No matching text")
+                                .child("No matching text"),
+                        )
+                    })
+                    .child(mundane_ui::unavailable(
+                        button("Find match", &find.submit, self.theme, move |window, cx| {
                             let _ = view.update(cx, |this, cx| this.find_text(window, cx));
-                        },
+                        }),
+                        find.field.read(cx).text().is_empty(),
                     )),
             )
     }
