@@ -11,6 +11,10 @@ struct View {
     service: Weather,
     cities: Vec<Location>,
     visible: Vec<Location>,
+    saved: Vec<Location>,
+    daily: bool,
+    day_focus: FocusHandle,
+    here: FocusHandle,
     location: Option<Location>,
     report: Option<Report>,
     choosing: bool,
@@ -37,6 +41,10 @@ impl View {
         .detach();
         let location = service.selected();
         let mut v = Self {
+            saved: service.saved().unwrap_or_default(),
+            daily: false,
+            day_focus: cx.focus_handle().tab_stop(true),
+            here: cx.focus_handle().tab_stop(true),
             service,
             cities: weather::cities(),
             visible: vec![],
@@ -65,7 +73,12 @@ impl View {
         if self.loading {
             return;
         }
+        self.saved = self.service.saved().unwrap_or_default();
         self.choosing = true;
+        self.query.update(cx, |f, cx| {
+            f.select_match(0..f.text().len(), cx);
+            f.replace_text_in_range(None, "", w, cx);
+        });
         self.filter(cx);
         self.query.focus_handle(cx).focus(w, cx);
         self.query
@@ -73,10 +86,17 @@ impl View {
     }
     fn filter(&mut self, cx: &mut Context<Self>) {
         let q = self.query.read(cx).text().trim().to_lowercase();
+        let matches =
+            |l: &Location| l.name.to_lowercase().contains(&q) || l.zone.to_lowercase().contains(&q);
         self.visible = self
-            .cities
+            .saved
             .iter()
-            .filter(|l| l.name.to_lowercase().contains(&q) || l.zone.to_lowercase().contains(&q))
+            .filter(|l| matches(l))
+            .chain(
+                self.cities
+                    .iter()
+                    .filter(|l| matches(l) && !self.saved.contains(l)),
+            )
             .cloned()
             .collect();
         if let Ok(l) = Location::custom(self.query.read(cx).text()) {
@@ -86,9 +106,13 @@ impl View {
             self.visible
                 .iter()
                 .map(|l| BrowserRow {
-                    key: l.zone.clone().into(),
+                    key: format!("{}:{}:{}", l.zone, l.lat, l.lon).into(),
                     label: l.name.clone(),
-                    detail: l.zone.clone(),
+                    detail: if self.saved.contains(l) {
+                        format!("Saved · {}", l.zone)
+                    } else {
+                        l.zone.clone()
+                    },
                     value: format!("{:.2}°, {:.2}°", l.lat, l.lon),
                     fraction: None,
                     depth: 0,
@@ -159,27 +183,82 @@ impl View {
             .iter()
             .position(|h| h.time >= (provider::now() as i64 / 3600) * 3600)
             .unwrap_or(0);
-        self.list.replace(
-            hours[start..]
-                .iter()
-                .map(|h| BrowserRow {
-                    key: h.time.to_string().into(),
-                    label: weather::local(h.time, &l.zone).unwrap_or_default(),
-                    detail: weather::condition_label(&h.condition),
-                    value: format!(
-                        "{:.1} °C{}",
-                        h.temperature,
-                        h.wind
-                            .map(|v| format!("   ·   {v:.1} m/s"))
-                            .unwrap_or_default()
-                    ),
-                    depth: 0,
-                    fraction: None,
-                })
-                .collect(),
-        );
+        if self.daily {
+            let days = weather::daily(&hours[start..], &l.zone).unwrap_or_default();
+            self.list.replace(
+                days.into_iter()
+                    .map(|d| BrowserRow {
+                        key: d.label.clone().into(),
+                        label: d.label,
+                        detail: d.condition,
+                        value: format!("{:.1} – {:.1} °C", d.low, d.high),
+                        fraction: None,
+                        depth: 0,
+                    })
+                    .collect(),
+            );
+        } else {
+            self.list.replace(
+                hours[start..]
+                    .iter()
+                    .map(|h| BrowserRow {
+                        key: h.time.to_string().into(),
+                        label: weather::local(h.time, &l.zone).unwrap_or_default(),
+                        detail: weather::condition_label(&h.condition),
+                        value: format!(
+                            "{:.1} °C{}",
+                            h.temperature,
+                            h.wind
+                                .map(|v| format!("   ·   {v:.1} m/s"))
+                                .unwrap_or_default()
+                        ),
+                        depth: 0,
+                        fraction: None,
+                    })
+                    .collect(),
+            );
+        }
         w.set_window_title(&format!("{} — Weather", l.name));
         cx.notify()
+    }
+    fn locate(&mut self, w: &mut Window, cx: &mut Context<Self>) {
+        if self.loading {
+            return;
+        }
+        self.loading = true;
+        self.status = "Waiting for location permission…".into();
+        cx.notify();
+        cx.spawn_in(w, async move |v, cx| {
+            let result = mundane_services::location::locate(true).await;
+            let _ = v.update_in(cx, |v, w, cx| {
+                v.loading = false;
+                match result {
+                    Ok((lat, lon)) => {
+                        v.location = Some(Location {
+                            name: "Current location".into(),
+                            lat,
+                            lon,
+                            zone: weather::system_zone(),
+                        });
+                        v.report = None;
+                        v.choosing = false;
+                        v.list.focus.focus(w, cx);
+                        v.refresh(false, w, cx);
+                    }
+                    Err(e) => {
+                        v.status = format!("Location unavailable · {e}");
+                        cx.notify();
+                    }
+                }
+            });
+        })
+        .detach();
+    }
+    fn toggle_days(&mut self, w: &mut Window, cx: &mut Context<Self>) {
+        if self.report.is_some() && !self.choosing {
+            self.daily = !self.daily;
+            self.show(w, cx);
+        }
     }
     fn keys(&mut self, e: &KeyDownEvent, w: &mut Window, cx: &mut Context<Self>) {
         let k = &e.keystroke;
@@ -190,6 +269,8 @@ impl View {
                 &self.change
             }
             .focus(w, cx),
+            ("d", true) => self.toggle_days(w, cx),
+            ("g", true) => self.locate(w, cx),
             ("l", true) => self.choose(w, cx),
             ("f5", false) if !self.choosing => self.refresh(false, w, cx),
             ("escape", false) if self.choosing && self.report.is_some() => {
@@ -242,7 +323,11 @@ impl Render for View {
             if choose {
                 "Locations"
             } else {
-                "Forecast periods"
+                if self.daily {
+                    "Daily forecast"
+                } else {
+                    "Forecast periods"
+                }
             },
             t,
             w,
@@ -296,6 +381,26 @@ impl Render for View {
                         .when(!choose, |e| {
                             e.child(mundane_ui::unavailable(change, self.loading))
                         })
+                        .when(!choose && self.report.is_some(), |el| {
+                            let v = cx.weak_entity();
+                            el.child(button(
+                                if self.daily { "Hourly" } else { "Daily" },
+                                &self.day_focus,
+                                t,
+                                move |w, cx| {
+                                    let _ = v.update(cx, |v, cx| v.toggle_days(w, cx));
+                                },
+                            ))
+                        })
+                        .when(choose, |el| {
+                            let v = cx.weak_entity();
+                            el.child(mundane_ui::unavailable(
+                                button("Current location", &self.here, t, move |w, cx| {
+                                    let _ = v.update(cx, |v, cx| v.locate(w, cx));
+                                }),
+                                self.loading,
+                            ))
+                        })
                         .child(mundane_ui::unavailable(
                             action,
                             self.loading || choose && self.visible.is_empty(),
@@ -346,14 +451,25 @@ impl Render for View {
     }
 }
 fn main() {
-    let Ok(dir) = provider::cache_dir("weather") else {
+    let (Ok(dir), Ok(data)) = (
+        provider::cache_dir("weather"),
+        provider::data_dir("weather"),
+    ) else {
         eprintln!("Weather needs a cache directory.");
         return;
     };
     let endpoint =
         std::env::var("MUNDANE_WEATHER_ENDPOINT").unwrap_or_else(|_| weather::ENDPOINT.into());
     browser_window("Weather", "org.joelinux.mundane.Weather", move |w, cx| {
-        View::new(Weather { dir, endpoint }, w, cx)
+        View::new(
+            Weather {
+                dir,
+                data,
+                endpoint,
+            },
+            w,
+            cx,
+        )
     })
 }
 #[cfg(test)]

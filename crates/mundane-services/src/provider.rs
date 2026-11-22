@@ -23,6 +23,14 @@ pub fn cache_dir(app: &str) -> Result<PathBuf> {
         .context("No cache directory available")?;
     Ok(root.join(format!("mundane-{app}")))
 }
+pub fn data_dir(app: &str) -> Result<PathBuf> {
+    let root = std::env::var_os("XDG_DATA_HOME")
+        .map(PathBuf::from)
+        .filter(|p| p.is_absolute())
+        .or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".local/share")))
+        .context("No user data directory available")?;
+    Ok(root.join(format!("mundane-{app}")))
+}
 pub fn key(s: &str) -> String {
     format!("{:x}", Sha256::digest(s.as_bytes()))
 }

@@ -31,3 +31,6 @@ pub mod clocks;
 pub mod provider;
 #[cfg(feature = "weather")]
 pub mod weather;
+
+#[cfg(feature = "location")]
+pub mod location;

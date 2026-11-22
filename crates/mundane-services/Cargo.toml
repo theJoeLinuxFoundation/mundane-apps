@@ -6,6 +6,8 @@ license.workspace = true
 publish.workspace = true
 
 [dependencies]
+futures-lite = { version="2", optional=true }
+async-io = { version="2", optional=true }
 dirs = {version="6", optional=true}
 curl = { version = "0.4", default-features = false, optional = true }
 httpdate = { version = "1", optional = true }
@@ -32,8 +34,9 @@ tempfile = { version = "3", optional = true }
 url = { version = "2", optional = true }
 
 [features]
+location = ["ashpd/location", "dep:futures-lite", "dep:async-io", "dep:serde_json", "dep:anyhow"]
 provider = ["dep:curl", "dep:httpdate", "dep:sha2", "dep:url", "dep:tempfile", "dep:serde", "dep:serde_json", "dep:anyhow"]
-weather = ["provider", "dep:jiff"]
+weather = ["provider", "location", "dep:jiff"]
 clocks = ["dep:serde", "dep:serde_json", "dep:jiff", "dep:zbus", "dep:anyhow", "dep:tempfile", "dep:rustix", "rustix/time"]
 disks = ["dep:zbus", "dep:anyhow"]
 usage = ["dep:rustix", "rustix/process"]

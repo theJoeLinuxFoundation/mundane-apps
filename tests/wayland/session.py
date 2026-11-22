@@ -434,6 +434,10 @@ seat seat0 fallback true
         if suite_app == "system-monitor" and args.round_three:
             argv = [str(Path(argv[0]).parent / "examples/monitor-fixture")]
         if suite_app in ("weather", "maps"):
+            if args.round_four:
+                (RUNTIME / "multi-day").touch()
+                launch(stack, "python3", str(ROOT / "tests/providers/location_portal.py"), log="location-portal.log")
+                until((RUNTIME / "location-ready").exists, "private location portal")
             provider = launch(stack, "python3", str(ROOT / "tests/providers/server.py"), str(RUNTIME), log="provider.log")
             address = until(lambda: (RUNTIME / "address").exists() and (RUNTIME / "address").read_text(), "loopback provider")
             if suite_app == "weather":
@@ -601,6 +605,9 @@ seat seat0 fallback true
             elif suite_app == "clocks":
                 from round_four import clocks
                 clocks(args.round_four, app, ROOT, key, type_text, until, compare_screenshot)
+            elif suite_app == "weather":
+                from round_four import weather
+                weather(args.round_four, ROOT, OUTPUT / log, key, type_text, until, compare_screenshot)
             else:
                 raise ValueError(f"No round-four scenario for {suite_app}")
             return

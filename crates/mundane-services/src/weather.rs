@@ -235,8 +235,44 @@ pub fn local(time: i64, zone: &str) -> Result<String> {
 }
 #[derive(Clone)]
 pub struct Weather {
+    pub data: PathBuf,
     pub dir: PathBuf,
     pub endpoint: String,
+}
+pub struct Day {
+    pub label: String,
+    pub low: f64,
+    pub high: f64,
+    pub condition: String,
+}
+pub fn daily(hours: &[Hour], zone: &str) -> Result<Vec<Day>> {
+    let zone = TimeZone::get(zone)?;
+    let mut groups = std::collections::BTreeMap::new();
+    for h in hours {
+        let local = Timestamp::from_second(h.time)?.to_zoned(zone.clone());
+        let (day, distance) = groups.entry(local.date()).or_insert_with(|| {
+            (
+                Day {
+                    label: local.strftime("%a %d %b").to_string(),
+                    low: h.temperature,
+                    high: h.temperature,
+                    condition: String::new(),
+                },
+                i8::MAX,
+            )
+        });
+        day.low = day.low.min(h.temperature);
+        day.high = day.high.max(h.temperature);
+        let d = (local.hour() - 12).abs();
+        if d < *distance && !h.condition.is_empty() {
+            *distance = d;
+            day.condition = condition_label(&h.condition);
+        }
+    }
+    Ok(groups.into_values().map(|(d, _)| d).collect())
+}
+pub fn system_zone() -> String {
+    TimeZone::system().iana_name().unwrap_or("UTC").to_owned()
 }
 pub struct Report {
     pub forecast: Forecast,
@@ -244,13 +280,28 @@ pub struct Report {
 }
 impl Weather {
     pub fn selected(&self) -> Option<Location> {
-        read::<Location>(&self.dir.join("location.json"), 8192)
+        read::<Location>(&self.data.join("location.json"), 8192)
+            .or_else(|_| read(&self.dir.join("location.json"), 8192))
             .ok()
             .filter(|l| l.validate().is_ok())
     }
+    pub fn saved(&self) -> Result<Vec<Location>> {
+        let path = self.data.join("places.json");
+        if path.try_exists()? {
+            read(&path, 256 * 1024)
+        } else {
+            Ok(self.selected().into_iter().collect())
+        }
+    }
     pub fn select(&self, l: &Location) -> Result<()> {
         l.validate()?;
-        store(&self.dir.join("location.json"), l)
+        let _lock = net::lock(&self.data.join("places.lock"))?;
+        let mut places = self.saved()?;
+        places.retain(|p| p != l);
+        places.insert(0, l.clone());
+        places.truncate(128);
+        store(&self.data.join("places.json"), &places)?;
+        store(&self.data.join("location.json"), l)
     }
     pub fn fetch(&self, l: &Location) -> Result<Report> {
         l.validate()?;

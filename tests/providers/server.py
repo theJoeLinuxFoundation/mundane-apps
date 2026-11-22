@@ -20,6 +20,14 @@ def forecast():
         hours.append({"time": (start + timedelta(hours=i)).isoformat(), "data": {
             "instant": {"details": {"air_temperature": 4.5+i, "wind_speed": 3.2}},
             "next_1_hours": {"summary": {"symbol_code": symbol+"_day"}}}})
+    if (work/"multi-day").exists():
+        for day in range(1,5):
+            for i in [0,3]:
+                import copy
+                step=copy.deepcopy(hours[i])
+                step["time"]=(start+timedelta(days=day,hours=i)).isoformat()
+                step["data"]["instant"]["details"]["air_temperature"] += day
+                hours.append(step)
     return {"properties":{"meta":{"updated_at":"2025-03-09T06:00:00Z",
             "units":{"air_temperature":"celsius","wind_speed":"m/s"}}, "timeseries":hours}}
 

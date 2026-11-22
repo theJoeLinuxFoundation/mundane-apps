@@ -8,6 +8,7 @@ fn conditional_cache_units_timezone_and_locations() {
     let f = fixture::Server::new();
     let service = Weather {
         endpoint: format!("{}/forecast", f.address),
+        data: f.dir.path().join("data"),
         dir: f.dir.path().join("cache"),
     };
     let city = Location::custom("40.71289 -74.00601 America/New_York").unwrap();
@@ -38,6 +39,7 @@ fn select_and_reopen_offline(cx: &mut TestAppContext) {
     let mut f = fixture::Server::new();
     let service = Weather {
         endpoint: format!("{}/forecast", f.address),
+        data: f.dir.path().join("data"),
         dir: f.dir.path().join("cache"),
     };
     let (v, ui) = cx.add_window_view(|w, cx| View::new(service.clone(), w, cx));
@@ -52,4 +54,31 @@ fn select_and_reopen_offline(cx: &mut TestAppContext) {
         v.read_with(ui, |v, _| v.status == "Offline · stale cached forecast"
             && v.list.rows.len() == 6)
     );
+}
+
+#[test]
+fn daily_groups_by_local_date_and_saved_custom_places_survive_restart() {
+    use mundane_services::weather::{Hour, daily};
+    let hours =
+        [(1741494600, 3.), (1741500000, 9.), (1741503600, 11.)].map(|(time, temperature)| Hour {
+            time,
+            temperature,
+            condition: "cloudy".into(),
+            wind: None,
+        });
+    let days = daily(&hours, "America/New_York").unwrap();
+    assert_eq!(days.len(), 2);
+    assert_eq!((days[1].low, days[1].high), (9., 11.));
+    let f = fixture::Server::new();
+    let s = Weather {
+        data: f.dir.path().join("data"),
+        dir: f.dir.path().join("cache"),
+        endpoint: f.address.clone(),
+    };
+    let a = Location::custom("1 1 UTC").unwrap();
+    let b = Location::custom("2 2 UTC").unwrap();
+    for l in [&a, &b, &a] {
+        s.select(l).unwrap();
+    }
+    assert_eq!(s.saved().unwrap(), vec![a, b]);
 }

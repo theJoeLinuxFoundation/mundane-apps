@@ -156,3 +156,26 @@ def clocks(side, app, root, key, type_text, until, compare):
         finally:
             worker.terminate()
             worker.wait(timeout=5)
+
+
+def weather(side, root, log, key, type_text, until, compare):
+    key("Shift_L")
+    for i,name in enumerate(["Oslo","London"]):
+        if i:
+            key("l", "ctrl")
+        type_text(name)
+        key("Return")
+        until(lambda: name + " — Weather" in log.read_text(), "forecast for " + name)
+    key("d", "ctrl")
+    compare("weather-daily.png", 1, root / "docs/parity/round-4" / side)
+    key("l", "ctrl")
+    compare("weather-places.png", 1, root / "docs/parity/round-4" / side)
+    if side == "after":
+        runtime = Path(os.environ["XDG_RUNTIME_DIR"])
+        (runtime/"location-deny").touch()
+        key("g", "ctrl")
+        until((runtime/"location-closed").exists, "closed refused location session")
+        assert "Current location — Weather" not in log.read_text()
+        (runtime/"location-deny").unlink()
+        key("g", "ctrl")
+        until(lambda: "Current location — Weather" in log.read_text(), "permitted location forecast")
