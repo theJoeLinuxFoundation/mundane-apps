@@ -3206,6 +3206,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "mundane-system-monitor"
+version = "0.1.0"
+dependencies = [
+ "gpui",
+ "gpui_linux",
+ "mundane-services",
+ "mundane-ui",
+]
+
+[[package]]
 name = "mundane-terminal"
 version = "0.1.0"
 dependencies = [

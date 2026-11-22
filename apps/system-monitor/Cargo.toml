@@ -1,0 +1,19 @@
+[package]
+name = "mundane-system-monitor"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+gpui.workspace = true
+gpui_linux.workspace = true
+mundane-ui = { path = "../../crates/mundane-ui" }
+mundane-services = { path = "../../crates/mundane-services", features = ["monitor"] }
+
+[dev-dependencies]
+gpui = { workspace = true, features = ["test-support"] }
+
+[[example]]
+name = "monitor-fixture"
+path = "../../tests/wayland/monitor_fixture.rs"
