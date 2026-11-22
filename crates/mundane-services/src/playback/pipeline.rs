@@ -4,7 +4,10 @@ use gstreamer_app::AppSink;
 use gstreamer_video::{VideoFrameRef, VideoInfo, prelude::*};
 use std::{
     fs::File,
-    os::{fd::AsRawFd, unix::fs::OpenOptionsExt},
+    os::{
+        fd::AsRawFd,
+        unix::fs::{FileExt, OpenOptionsExt},
+    },
     path::Path,
     sync::{
         Arc,
@@ -32,14 +35,19 @@ fn factory(name: &str) -> Result<gst::Element> {
         .with_context(|| format!("GStreamer element {name} is unavailable"))
 }
 
-fn decoder(caps: &str) -> Result<&'static str> {
+fn decoder(stream: &gst::StructureRef) -> Result<&'static str> {
+    let caps = stream.name().as_str();
     match caps {
+        "video/x-h264" => Ok("openh264dec"),
         "video/x-vp8" => Ok("vp8dec"),
         "video/x-vp9" => Ok("vp9dec"),
         "audio/x-opus" => Ok("opusdec"),
         "audio/x-vorbis" => Ok("vorbisdec"),
+        "audio/mpeg" if matches!(stream.get::<i32>("mpegversion"), Ok(2 | 4)) => {
+            bail!("This video has an AAC soundtrack. This build supports Opus and Vorbis audio.")
+        }
         _ => bail!(
-            "Unsupported codec {caps}. Use WebM with VP8 or VP9 video and optional Opus or Vorbis audio."
+            "Unsupported codec {caps}. Video supports H.264, VP8 and VP9 with optional Opus or Vorbis audio."
         ),
     }
 }
@@ -78,9 +86,23 @@ impl Pipeline {
         gst::init()?;
         let file = local_file(path)?;
         let pipeline = gst::Pipeline::new();
-        let source = factory("fdsrc")?;
-        source.set_property("fd", file.as_raw_fd());
-        let demux = factory("matroskademux")?;
+        let mut header = [0; 8];
+        let is_mp4 = file.read_exact_at(&mut header, 0).is_ok()
+            && matches!(
+                &header[4..],
+                b"ftyp" | b"moov" | b"mdat" | b"free" | b"wide"
+            );
+        let (source, demux) = if is_mp4 {
+            // A movie index can follow the media data. Allow qtdemux to pull
+            // from the same opened inode even if the path is replaced.
+            let source = factory("filesrc")?;
+            source.set_property("location", format!("/proc/self/fd/{}", file.as_raw_fd()));
+            (source, factory("qtdemux")?)
+        } else {
+            let source = factory("fdsrc")?;
+            source.set_property("fd", file.as_raw_fd());
+            (source, factory("matroskademux")?)
+        };
         let converter = factory("videoconvertscale")?;
         let sink = factory("appsink")?.downcast::<AppSink>().unwrap();
         sink.set_caps(Some(
@@ -109,11 +131,8 @@ impl Pipeline {
                 let caps = pad
                     .current_caps()
                     .context("Stream has no codec information")?;
-                let kind = caps
-                    .structure(0)
-                    .context("Empty stream caps")?
-                    .name()
-                    .as_str();
+                let stream = caps.structure(0).context("Empty stream caps")?;
+                let kind = stream.name().as_str();
                 let is_video = kind.starts_with("video/");
                 if is_video {
                     if video.swap(true, Ordering::Relaxed) {
@@ -122,10 +141,14 @@ impl Pipeline {
                 } else if !kind.starts_with("audio/") || audio.swap(true, Ordering::Relaxed) {
                     return Ok(());
                 }
-                let name = decoder(kind)?;
+                let name = decoder(stream)?;
                 let codec =
                     factory(name).with_context(|| format!("Missing decoder {name} for {kind}"))?;
-                let mut chain = vec![factory("queue")?, codec];
+                let mut chain = vec![factory("queue")?];
+                if kind == "video/x-h264" {
+                    chain.push(factory("h264parse")?);
+                }
+                chain.push(codec);
                 if is_video {
                     attach(&pipeline, pad, &chain, Some(&converter))
                 } else {
@@ -168,7 +191,7 @@ impl Pipeline {
         if let gst::MessageView::Error(e) = msg.view() {
             let error = e.error();
             if player.sink.is_some() && error.matches(gst::StreamError::Demux) {
-                bail!("Could not read the WebM video. The file may be damaged.");
+                bail!("Could not read the video. The file may be damaged.");
             }
             bail!("{error}");
         }
@@ -248,13 +271,23 @@ mod tests {
     use super::*;
     #[test]
     fn unsupported_codec_names_the_stream() {
+        gst::init().unwrap();
+        let av1 = gst::Structure::new_empty("video/x-av1");
         assert!(
-            decoder("video/x-h264")
+            decoder(&av1)
                 .unwrap_err()
                 .to_string()
-                .contains("video/x-h264")
+                .contains("video/x-av1")
         );
-        gst::init().unwrap();
+        let aac = gst::Structure::builder("audio/mpeg")
+            .field("mpegversion", 4i32)
+            .build();
+        assert!(
+            decoder(&aac)
+                .unwrap_err()
+                .to_string()
+                .contains("AAC soundtrack")
+        );
         assert!(
             factory("mundane-nonexistent-decoder")
                 .unwrap_err()

@@ -61,7 +61,22 @@ def encode(output, count, video, audio=None):
         subprocess.run(args,check=True)
 
 
+def encode_mp4():
+    # Reuse the suite's own WebM picture and Opus tone. mp4mux puts its movie
+    # index after the media by default, exercising random access on open.
+    subprocess.run([
+        "gst-launch-1.0", "-q", "filesrc", f"location={HERE/'Coastal passage.webm'}",
+        "!", "matroskademux", "name=d",
+        "d.video_0", "!", "queue", "!", "vp8dec", "!", "videoconvert",
+        "!", "video/x-raw,format=I420", "!", "openh264enc", "gop-size=10",
+        "!", "h264parse", "!", "queue", "!", "m.video_0",
+        "d.audio_0", "!", "queue", "!", "m.audio_0",
+        "mp4mux", "name=m", "!", "filesink", f"location={HERE/'Passage.mp4'}"
+    ], check=True)
+
+
 if __name__=="__main__":
     encode(HERE/"Coastal passage.webm",120,"vp8enc","opusenc")
     encode(HERE/"Harbour.webm",24,"vp9enc","vorbisenc")
     encode(HERE/"Silent passage.webm",80,"vp8enc")
+    encode_mp4()

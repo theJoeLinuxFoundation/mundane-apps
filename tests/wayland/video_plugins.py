@@ -7,6 +7,8 @@ PLUGINS = ("coreelements", "matroska", "vpx", "opus", "vorbis", "videoconvertsca
            "app", "audioconvert", "audioresample", "pipewire")
 
 
+MP4_PLUGINS = ("isomp4", "videoparsersbad", "openh264")
+
 MUSIC_PLUGINS = ("coreelements", "ogg", "opus", "vorbis", "audioparsers", "flac",
                  "wavparse", "audioconvert", "audioresample", "pipewire")
 

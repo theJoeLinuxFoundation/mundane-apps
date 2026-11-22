@@ -45,6 +45,15 @@ fn open_seek_pause_and_replay(cx: &mut TestAppContext) {
     });
     cx.simulate_keystrokes("space");
     until(&view, cx, |v| v.status.phase == Phase::Paused);
+    cx.simulate_keystrokes("f11");
+    cx.update(|w, cx| {
+        assert!(w.is_fullscreen());
+        assert!(view.read(cx).screen.is_focused(w));
+    });
+    cx.simulate_keystrokes("f6");
+    cx.update(|w, cx| assert!(view.read(cx).fullscreen_button.is_focused(w)));
+    cx.simulate_keystrokes("escape");
+    cx.update(|w, _| assert!(!w.is_fullscreen()));
     cx.simulate_keystrokes("home");
     until(&view, cx, |v| v.status.position < 10);
     cx.simulate_keystrokes("right");

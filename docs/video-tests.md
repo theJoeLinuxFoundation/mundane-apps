@@ -1,6 +1,6 @@
 # Video playback and packaging
 
-Video opens a regular local file through the FileChooser portal or the `video/webm` desktop entry. It plays the first video track and the first audio track, if present. Pause holds the picture, seeking preserves the current play/pause state, and Replay starts at zero after end of stream. A failed Open reports the error and preserves the current clip.
+Video opens a regular local file through the FileChooser portal or the desktop entry for WebM and MP4. It plays the first video track and the first audio track, if present. Pause holds the picture, seeking preserves the current play/pause state, and Replay starts at zero after end of stream. A failed Open reports the error and preserves the current clip.
 
 ## What joe must ship
 
@@ -9,6 +9,8 @@ Build against GStreamer 1.22 or newer, the Base development libraries for app an
 | Supplier | GStreamer plugin | Required elements and purpose |
 | --- | --- | --- |
 | GStreamer core | `coreelements` | `fdsrc` reads the open file and `queue` decouples the tracks |
+| Good | `isomp4` | `qtdemux` reads MP4, including files with the index at the end |
+| Bad | `videoparsersbad`, `openh264` | `h264parse` converts AVC to byte-stream input for `openh264dec` |
 | Good | `matroska` | `matroskademux` reads the WebM container |
 | Good | `vpx` | `vp8dec` and `vp9dec` use libvpx |
 | Base | `opus`, `vorbis` | `opusdec` and `vorbisdec` use libopus and libvorbis |
@@ -16,7 +18,11 @@ Build against GStreamer 1.22 or newer, the Base development libraries for app an
 | Base | `audioconvert`, `audioresample` | Negotiate sample format, channels and rate with the output |
 | PipeWire | `pipewire` | `pipewiresink` sends audio directly to the session’s PipeWire server and default output |
 
-The pipeline constructs these elements by name. There is no codec autoplugging or external media-player process. Core, Base and Good plugins in this list report LGPL; the PipeWire plugin reports MIT/X11. libvpx, libopus and libvorbis are BSD-licensed. The test makes only these ten plugin modules visible, plays both codec combinations, then checks the plugin mappings in the running release process. The shipping list excludes Ugly, x264 and gst-libav. [GStreamer licensing](https://gstreamer.freedesktop.org/documentation/plugin-development/appendix/licensing-advisory.html) · [VP8 decoder](https://gstreamer.freedesktop.org/documentation/vpx/vp8dec.html) · [Matroska demuxer](https://gstreamer.freedesktop.org/documentation/matroska/matroskademux.html)
+The pipeline constructs these elements by name. There is no codec autoplugging or external media-player process. Core, Base and Good plugins in this list report LGPL; the PipeWire plugin reports MIT/X11. libvpx, libopus and libvorbis are BSD-licensed. The WebM tests isolate their ten plugin modules. The MP4 test adds only the ISO container plugin, the video parsers and OpenH264. It checks the loaded modules in the live release process and records the Opus soundtrack through private PipeWire. The shipping list excludes Ugly, x264 and gst-libav. [GStreamer licensing](https://gstreamer.freedesktop.org/documentation/plugin-development/appendix/licensing-advisory.html) · [VP8 decoder](https://gstreamer.freedesktop.org/documentation/vpx/vp8dec.html) · [Matroska demuxer](https://gstreamer.freedesktop.org/documentation/matroska/matroskademux.html)
+
+The OpenH264 plugin uses BSD-licensed OpenH264. joe already builds this system decoder and enables GStreamer’s OpenH264 element. The H.264 fixture uses the suite’s drawing, OpenH264 encoder and original Opus tone. [joe OpenH264 recipe](https://github.com/theJoeLinuxFoundation/joe-linux/blob/ceacd093/packages/openh264/build.sh) · [OpenH264 decoder formats](https://gstreamer.freedesktop.org/documentation/openh264/openh264dec.html)
+
+AAC remains a packaging decision. joe builds FFmpeg with GPL enabled, and its gst-libav uses that FFmpeg. The current app reports an unsupported AAC soundtrack and preserves the previous clip. The fdkaac GStreamer plugin requires a new dependency in joe under Fraunhofer’s own licence. An isolated LGPL-only decoder build would be a different distribution package. [joe FFmpeg build](https://github.com/theJoeLinuxFoundation/joe-linux/blob/ceacd093/packages/ffmpeg/build.sh) · [joe gst-libav build](https://github.com/theJoeLinuxFoundation/joe-linux/blob/ceacd093/packages/gst-libav/build.sh) · [FDK AAC licence](https://github.com/mstorsjo/fdk-aac/blob/master/NOTICE)
 
 Pipeline state changes, bus errors and frame reads run on a worker thread. Decoded BGRA is limited to 1920 × 1080, row padding is removed, and the UI receives the most recent frame. The clock, play/pause/replay button, step buttons and seek slider are in mundane-ui for reuse by Music. The slider exposes its range, position and value setter through AccessKit.
 

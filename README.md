@@ -132,11 +132,13 @@ Open a local PDF from Files, the command line, or the **Open** button. Jump to a
 
 ## Video
 
-Video plays local WebM files with VP8 or VP9 video and optional Opus or Vorbis audio. Sound goes directly to PipeWire. Click or drag the seek slider, use the five-second step buttons, or operate the player by keyboard. At the end of a clip, **Replay** starts it again. [GStreamer packaging list and Video tests](docs/video-tests.md)
+Video plays local WebM (VP8 or VP9) and MP4 (H.264). Soundtracks can use Opus or Vorbis. AAC is pending a distribution packaging decision. Sound goes directly to PipeWire. Click or drag the seek slider, use the five-second step buttons, or operate the player by keyboard. At the end of a clip, **Replay** starts it again. [GStreamer packaging list and Video tests](docs/video-tests.md)
 
 | Action | Shortcut |
 | --- | --- |
 | Open / close | Ctrl+O / Ctrl+W |
+| Enter fullscreen / leave fullscreen | F11 / Escape |
+| Show controls in fullscreen | Click the picture or press F6 |
 | Play or pause with the picture focused | Space |
 | Step back / forward five seconds | Left / Right |
 | Seek to start / end | Home / End |

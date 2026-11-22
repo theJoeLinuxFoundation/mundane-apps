@@ -4,5 +4,5 @@ Name=Video
 Exec=mundane-video %f
 Icon=video-x-generic
 Categories=AudioVideo;Video;Player;
-MimeType=video/webm;
+MimeType=video/webm;video/mp4;
 Terminal=false

@@ -22,6 +22,8 @@ struct Video {
     transport: PlaybackControls,
     screen: FocusHandle,
     open_button: FocusHandle,
+    fullscreen_button: FocusHandle,
+    show_fullscreen_controls: bool,
     choosing: bool,
     notice: Option<String>,
 }
@@ -40,6 +42,8 @@ impl Video {
             transport: PlaybackControls::new(cx),
             screen,
             open_button: cx.focus_handle().tab_stop(true),
+            fullscreen_button: cx.focus_handle().tab_stop(true),
+            show_fullscreen_controls: false,
             choosing: false,
             notice: None,
         }
@@ -139,6 +143,12 @@ impl Video {
         };
         self.player.send(command);
     }
+    fn fullscreen(&mut self, w: &mut Window, cx: &mut Context<Self>) {
+        self.show_fullscreen_controls = false;
+        self.screen.focus(w, cx);
+        w.toggle_fullscreen();
+        cx.notify();
+    }
     fn keyboard(&mut self, e: &KeyDownEvent, w: &mut Window, cx: &mut Context<Self>) {
         match (e.keystroke.key.as_str(), e.keystroke.modifiers.control) {
             ("o", true) => self.choose(w, cx),
@@ -150,6 +160,12 @@ impl Video {
             ("right", false) => self.transport(TransportAction::Step(5000)),
             ("home", false) => self.transport(TransportAction::Seek(0.)),
             ("end", false) => self.transport(TransportAction::Seek(1.)),
+            ("f11", false) => self.fullscreen(w, cx),
+            ("f6" | "tab", false) if w.is_fullscreen() && !self.show_fullscreen_controls => {
+                self.show_fullscreen_controls = true;
+                self.fullscreen_button.focus(w, cx);
+                cx.notify();
+            }
             ("f6", false) => self.open_button.focus(w, cx),
             ("escape", false) => self.screen.focus(w, cx),
             ("tab", false) if e.keystroke.modifiers.shift => w.focus_prev(cx),
@@ -168,6 +184,21 @@ impl Render for Video {
         let open = button("Open", &self.open_button, theme, move |w, cx| {
             let _ = view.update(cx, |this, cx| this.choose(w, cx));
         });
+        let fullscreen = w.is_fullscreen();
+        let controls = !fullscreen || self.show_fullscreen_controls;
+        let view = cx.weak_entity();
+        let header_actions = div().flex().gap_1().child(open).child(button(
+            if fullscreen {
+                "Exit fullscreen"
+            } else {
+                "Fullscreen"
+            },
+            &self.fullscreen_button,
+            theme,
+            move |w, cx| {
+                let _ = view.update(cx, |this, cx| this.fullscreen(w, cx));
+            },
+        ));
         let state = TransportState {
             available: matches!(
                 self.status.phase,
@@ -204,10 +235,15 @@ impl Render for Video {
         .flex()
         .items_center()
         .justify_center()
-        .on_mouse_down(
-            MouseButton::Left,
-            cx.listener(|this, _, w, cx| this.screen.focus(w, cx)),
-        );
+        .on_click(cx.listener(|this, event: &ClickEvent, w, cx| {
+            this.screen.focus(w, cx);
+            if event.click_count() == 2 {
+                this.fullscreen(w, cx);
+            } else if w.is_fullscreen() {
+                this.show_fullscreen_controls = !this.show_fullscreen_controls;
+                cx.notify();
+            }
+        }));
         let screen = if let Some(image) = self.frame.clone() {
             let (width, height) = self.dimensions;
             let paint_view = cx.weak_entity();
@@ -245,7 +281,7 @@ impl Render for Video {
                 if self.status.phase == Phase::Failed || self.status.error.is_some() {
                     "Video unavailable"
                 } else {
-                    "Open a WebM video"
+                    "Open a video"
                 },
             )
         };
@@ -256,10 +292,22 @@ impl Render for Video {
             .font_family("DejaVu Sans")
             .bg(rgb(theme.surface))
             .text_color(rgb(theme.text))
+            .capture_key_down(cx.listener(|this, e: &KeyDownEvent, w, cx| {
+                if w.is_fullscreen() && e.keystroke.key == "escape" {
+                    this.fullscreen(w, cx);
+                    w.prevent_default();
+                    cx.stop_propagation();
+                }
+            }))
             .on_key_down(cx.listener(Self::keyboard))
-            .child(self.header.render("Video", open, &self.screen, theme, w))
+            .when(controls, |el| {
+                el.child(
+                    self.header
+                        .render("Video", header_actions, &self.screen, theme, w),
+                )
+            })
             .child(screen)
-            .when(!name.is_empty(), |el| {
+            .when(controls && !name.is_empty(), |el| {
                 el.child(
                     Role::Status
                         .control("status", "Playback status")
@@ -288,9 +336,11 @@ impl Render for Video {
                         ),
                 )
             })
-            .child(self.transport.render(state, theme, move |cmd, _, cx| {
-                let _ = view.update(cx, |this, _| this.transport(cmd));
-            }))
+            .when(controls, |el| {
+                el.child(self.transport.render(state, theme, move |cmd, _, cx| {
+                    let _ = view.update(cx, |this, _| this.transport(cmd));
+                }))
+            })
             .when_some(
                 self.notice.clone().or_else(|| self.status.error.clone()),
                 |el, msg| {
