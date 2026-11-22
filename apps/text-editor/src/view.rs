@@ -49,6 +49,32 @@ impl Editor {
                     self.command(Command::Jump, window, cx)
                 }
                 ("escape", false) if self.going => self.command(Command::Done, window, cx),
+                ("tab", false)
+                    if !key.modifiers.shift
+                        && self.replacing
+                        && self.query.read(cx).focus_handle(cx).is_focused(window) =>
+                {
+                    self.replacement.read(cx).focus_handle(cx).focus(window, cx)
+                }
+                ("p", true) => self.command(Command::Recent, window, cx),
+                ("h", true) => self.command(Command::Replace, window, cx),
+                ("escape", false) if self.showing_recent => self.command(Command::Done, window, cx),
+                ("enter", false) if self.showing_recent => {
+                    if let Some(i) = self.recent.selected {
+                        self.open_recent(i, window, cx);
+                    }
+                }
+                (k, false) if self.showing_recent && self.recent.navigate(k) => cx.notify(),
+                ("enter", false)
+                    if self.replacing
+                        && self
+                            .replacement
+                            .read(cx)
+                            .focus_handle(cx)
+                            .is_focused(window) =>
+                {
+                    self.command(Command::ReplaceOne, window, cx)
+                }
                 ("o", true) => self.command(Command::Open, window, cx),
                 ("s", true) if key.modifiers.shift => self.command(Command::SaveAs, window, cx),
                 ("s", true) => self.command(Command::Save, window, cx),
@@ -97,6 +123,9 @@ impl Editor {
                         .text_sm()
                         .child(label),
                 )
+            })
+            .when(!self.replacing, |el| {
+                el.child(self.tool(Command::Replace, &self.replace_tools[0], cx))
             })
             .child(self.tool(Command::Next, &self.find_buttons[0], cx))
             .child(self.tool(Command::Done, &self.find_buttons[1], cx))
@@ -159,6 +188,7 @@ impl Render for Editor {
         let tools = div()
             .flex()
             .gap_1()
+            .child(self.tool(Command::Recent, &self.recent_focus, cx))
             .child(self.tool(Command::New, &self.new_focus, cx))
             .children(
                 [Command::Open, Command::Find, Command::Save, Command::SaveAs]
@@ -166,6 +196,18 @@ impl Render for Editor {
                     .zip(&self.tools)
                     .map(|(cmd, focus)| self.tool(cmd, focus, cx)),
             );
+        let recent_view = cx.weak_entity();
+        let recent = self
+            .recent
+            .render("Recent files", theme, window, move |i, open, w, cx| {
+                let _ = recent_view.update(cx, |e, cx| {
+                    e.recent.select(i);
+                    if open {
+                        e.open_recent(i, w, cx);
+                    }
+                    cx.notify();
+                });
+            });
         let body = self
             .content
             .render(self.confirmation.is_some() || self.busy.is_some())
@@ -223,7 +265,44 @@ impl Render for Editor {
                         .child(self.tool(Command::Done, &self.find_buttons[1], cx)),
                 )
             })
+            .when(self.page().recovered, |el| {
+                el.child(
+                    Role::Status
+                        .control("recovered", "Recovered draft")
+                        .px_3()
+                        .child("Recovered draft · Save to keep these changes."),
+                )
+            })
+            .when(self.showing_recent, |el| {
+                el.child(
+                    div()
+                        .h(px(150.))
+                        .flex()
+                        .flex_col()
+                        .child("Recent files")
+                        .when(self.recent.rows.is_empty(), |el| {
+                            el.child("No recent files.")
+                        })
+                        .child(recent),
+                )
+            })
             .when(self.searching, |el| el.child(self.find_bar(cx)))
+            .when(self.searching && self.replacing, |el| {
+                el.child(
+                    div()
+                        .flex()
+                        .items_center()
+                        .gap_2()
+                        .px_3()
+                        .py_1()
+                        .child(div().flex_1().child(self.replacement.clone()))
+                        .child(self.tool(Command::ReplaceOne, &self.replace_tools[1], cx))
+                        .child(self.tool(Command::ReplaceAll, &self.replace_tools[2], cx))
+                        .when_some(self.result.clone(), |el, s| {
+                            el.child(Role::Status.control("replaced", s.clone()).child(s))
+                        }),
+                )
+            })
             .child(
                 div()
                     .flex_1()

@@ -290,6 +290,7 @@ def main():
     parser.add_argument("--profile", choices=["standard", "fractional", "contrast"], default="standard")
     parser.add_argument("--compositor", choices=["sway", "labwc"], default="sway")
     parser.add_argument("--mundanede-echo", type=Path, metavar="CHECKOUT", help="test physical typing echo in a scratch build of mundaneDE")
+    parser.add_argument("--round-two", choices=["before","after"], help="daily-use round two workflow")
     args = parser.parse_args()
     if args.mundanede_echo:
         args.at_spi = True
@@ -528,6 +529,9 @@ seat seat0 fallback true
         if suite_app == "text-editor":
             document = Path.home() / "Field notes.txt"
             original = "Coastal survey\r\n\r\nStation 04   東京\r\nWater temperature   12 °C\r\n\r\n".encode()
+            if args.round_two:
+                document=Path.home()/"survey.py"
+                original=b'# A coastal weather report\nstation = "North quay"\n\ndef report(station):\n    return f"Forecast for {station}"\n'
             document.write_bytes(original)
             (Path.home() / "Second.txt").write_text("Second document\n")
             launch(stack, "python3", str(HERE / "chooser_portal.py"), log=f"chooser-{args.profile}.log")
@@ -549,6 +553,14 @@ seat seat0 fallback true
                 return "ack_configure" in (OUTPUT / log).read_text(errors="replace")
             return app_id in command("-t", "get_tree")
         until(mapped, f"mapped {suite_app}")
+        if args.round_two:
+            from round_two import exercise
+            def restart():
+                app.kill()
+                app.wait(timeout=5)
+                return launch(stack, argv[0], log="recovered.log",env={**os.environ,"WAYLAND_DEBUG":"client"})
+            exercise(suite_app,args.round_two,key,type_text,until,compare_screenshot,ROOT,OUTPUT/log,restart)
+            return
         if args.parity:
             from parity import exercise
             exercise(suite_app, args.parity == "before", folder if suite_app == "files" else None,

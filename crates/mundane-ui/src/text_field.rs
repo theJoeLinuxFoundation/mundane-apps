@@ -6,6 +6,7 @@ use crate::ControlRole as _;
 mod accessible;
 mod multiline;
 use multiline::Multiline;
+pub use multiline::SyntaxRole;
 use std::ops::Range;
 
 use gpui::{

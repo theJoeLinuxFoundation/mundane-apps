@@ -190,3 +190,79 @@ fn open_keeps_a_dirty_draft_and_a_reopened_file_keeps_its_caret(cx: &mut TestApp
     );
     assert!(!cx.simulate_close());
 }
+
+#[gpui::test]
+fn replace_all_is_one_undo_and_preserves_unmatched_line_endings(cx: &mut TestAppContext) {
+    cx.update(mundane_ui::bind_text_keys);
+    let (view, cx) = cx.add_window_view(Editor::new);
+    cx.update(|_, cx| {
+        view.read(cx)
+            .page()
+            .body
+            .clone()
+            .update(cx, |f, cx| f.set_document("猫 x\r\nx\nz".into(), cx))
+    });
+    cx.simulate_keystrokes("ctrl-h x tab y");
+    cx.update(|w, cx| view.update(cx, |e, cx| e.command(super::Command::ReplaceAll, w, cx)));
+    assert_eq!(
+        view.read_with(cx, |e, cx| e.page().body.read(cx).snapshot())
+            .as_str(),
+        "猫 y\r\ny\nz"
+    );
+    cx.simulate_keystrokes("escape ctrl-z");
+    assert_eq!(
+        view.read_with(cx, |e, cx| e.page().body.read(cx).snapshot())
+            .as_str(),
+        "猫 x\r\nx\nz"
+    );
+}
+
+#[test]
+fn recover_only_abandoned_drafts_and_preserve_external_change_guard() {
+    use super::{document::Document, state::*};
+    let dir = tempfile::tempdir().unwrap();
+    let file = dir.path().join("source.py");
+    fs::write(&file, b"\xef\xbb\xbfpass\r\n").unwrap();
+    let doc = Document::open(file.clone()).unwrap();
+    let draft = Draft::new(&doc, "# edited\r\n").unwrap();
+    let slot = Slot::create(dir.path()).unwrap();
+    let generation = slot.next();
+    slot.write(generation, &draft).unwrap();
+    assert!(recover(dir.path()).unwrap().is_empty());
+    drop(slot);
+    let (slot, saved) = recover(dir.path()).unwrap().pop().unwrap();
+    let (base, text) = saved.into_document().unwrap();
+    assert_eq!(text, "# edited\r\n");
+    assert!(base.bom);
+    fs::write(&file, "changed outside").unwrap();
+    assert!(base.save(file.clone(), text.into()).is_err());
+    assert_eq!(fs::read_to_string(&file).unwrap(), "changed outside");
+    let stale = slot.next();
+    slot.clear().unwrap();
+    slot.write(stale, &draft).unwrap();
+    drop(slot);
+    assert!(recover(dir.path()).unwrap().is_empty());
+    remember(dir.path(), &file).unwrap();
+    let next = dir.path().join("notes");
+    remember(dir.path(), &next).unwrap();
+    remember(dir.path(), &file).unwrap();
+    assert_eq!(recent(dir.path()).unwrap(), vec![file, next]);
+}
+
+#[test]
+fn supported_grammars_highlight_unicode_and_multiline_strings() {
+    for (lang, text) in [
+        ("Python", "name = '''東京\nquay'''"),
+        ("Rust", "let name = r#\"波\"#;"),
+        ("JSON", "{\"name\": \"東京\"}"),
+    ] {
+        let spans = super::syntax::spans(lang, text);
+        assert!(
+            spans
+                .iter()
+                .any(|(r, role)| *role == mundane_ui::SyntaxRole::String
+                    && text[r.clone()].contains(['東', '波']))
+        );
+        assert!(spans.windows(2).all(|s| s[0].0.end <= s[1].0.start));
+    }
+}

@@ -60,3 +60,18 @@ Recent files, syntax highlighting, indentation settings, search and replace, aut
 ## Reproduce the comparisons
 
 Build the three apps with `cargo build --locked -p mundane-files -p mundane-terminal -p mundane-text-editor`. Run `tests/wayland/run --app files --parity after` and repeat with `terminal` and `text-editor`. The runner uses a disposable home, private D-Bus and headless Sway with software rendering. The tests compare pixels and exercise the workflows. For the before images, use the same runner with `--parity before` and set the corresponding `MUNDANE_FILES_BIN`, `MUNDANE_TERMINAL_BIN` or `MUNDANE_TEXT_EDITOR_BIN` to a binary built from `7854078`. [Wayland test dependencies](terminal-tests.md#software-rendered-wayland-tests)
+
+## Round two · Text Editor
+
+**Recent** (Ctrl+P) lists the last 20 local files opened or saved, most recent first. Ctrl+H opens literal, case-sensitive Find and replace. Tab moves from the query to the replacement. Replace all is one undo step. Rust, Python and JSON files use the MIT-licensed Tree-sitter highlighter and grammars. Other files retain plain text. [Tree-sitter](https://github.com/tree-sitter/tree-sitter)
+
+While editing, the app checkpoints dirty tabs in private files under `$XDG_STATE_HOME/mundane-text-editor` (normally `~/.local/state/mundane-text-editor`). A restarted editor restores abandoned drafts, skips drafts owned by a live instance, and preserves the original file version for conflict detection. Save and Discard retire the recovery copy. Edits since the last checkpoint can be lost in a crash. Indentation settings, reopening closed tabs and printing remain open.
+
+| Workflow | Before | After |
+| --- | --- | --- |
+| Open a recent file | [Original window](parity/round-2/before/text-editor-recent.png) | [Recent files](parity/round-2/after/text-editor-recent.png) |
+| Read Python | [Plain text](parity/round-2/before/text-editor-syntax.png) | [Syntax highlighting](parity/round-2/after/text-editor-syntax.png) |
+| Replace a name | [Find](parity/round-2/before/text-editor-replace.png) | [Find and replace](parity/round-2/after/text-editor-replace.png) |
+| Restart after a forced exit | [Empty document](parity/round-2/before/text-editor-recovery.png) | [Restored draft](parity/round-2/after/text-editor-recovery.png) |
+
+Use `tests/wayland/run --app text-editor --round-two after` to replay this round. The before variant uses a binary built from `f9b9512`.

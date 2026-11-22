@@ -10,6 +10,14 @@ gpui.workspace = true
 mundane-ui = { path = "../../crates/mundane-ui" }
 tempfile = "3"
 rustix = { version = "1", features = ["fs"] }
+tree-sitter-highlight = "0.26"
+tree-sitter-rust = "0.24.2"
+tree-sitter-python = "0.25.0"
+tree-sitter-json = "0.24.8"
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.154"
+dirs = "6"
+url = "2.5.9"
 
 [dev-dependencies]
 gpui = { workspace = true, features = ["test-support"] }

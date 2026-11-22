@@ -1,4 +1,7 @@
 mod document;
+mod editing;
+mod state;
+mod syntax;
 mod tabs;
 use tabs::Page;
 #[cfg(test)]
@@ -20,6 +23,10 @@ enum Pending {
 
 #[derive(Clone, Copy)]
 enum Command {
+    Recent,
+    Replace,
+    ReplaceOne,
+    ReplaceAll,
     New,
     CloseTab,
     Line,
@@ -37,6 +44,10 @@ enum Command {
 impl Command {
     fn label(self) -> &'static str {
         match self {
+            Self::Recent => "Recent",
+            Self::Replace => "Find and replace",
+            Self::ReplaceOne => "Replace",
+            Self::ReplaceAll => "Replace all",
             Self::New => "New tab",
             Self::Line => "Go to line",
             Self::Jump => "Go",
@@ -60,6 +71,13 @@ struct Confirmation {
 }
 
 struct Editor {
+    recent: mundane_ui::BrowserList,
+    showing_recent: bool,
+    recent_focus: FocusHandle,
+    replacement: Entity<TextField>,
+    replacing: bool,
+    replace_tools: [FocusHandle; 3],
+    result: Option<String>,
     pages: Vec<Page>,
     active: usize,
     next_id: usize,
@@ -109,7 +127,14 @@ impl Editor {
                 this.request(Pending::CloseWindow, window, cx)
             });
         });
-        Self {
+        let mut editor = Self {
+            recent: mundane_ui::BrowserList::new(cx),
+            showing_recent: false,
+            recent_focus: cx.focus_handle().tab_stop(true),
+            replacement: cx.new(|cx| TextField::new("Replacement text", theme, cx)),
+            replacing: false,
+            replace_tools: std::array::from_fn(|_| cx.focus_handle().tab_stop(true)),
+            result: None,
             pages: vec![page],
             active: 0,
             next_id: 2,
@@ -130,7 +155,9 @@ impl Editor {
             busy: None,
             busy_focus: cx.focus_handle(),
             error: None,
-        }
+        };
+        editor.restore(window, cx);
+        editor
     }
 
     fn dirty(&self, cx: &App) -> bool {
@@ -155,6 +182,13 @@ impl Editor {
             {
                 self.switch(i, window, cx);
             } else {
+                if pending == Pending::CloseWindow
+                    && let Err(e) = self.pages.iter().try_for_each(Page::clear_draft)
+                {
+                    self.error = Some(format!("Could not clear the recovery copy. {e}"));
+                    cx.notify();
+                    return false;
+                }
                 return true;
             }
         }
@@ -178,6 +212,11 @@ impl Editor {
     }
 
     fn proceed(&mut self, pending: Pending, window: &mut Window, cx: &mut Context<Self>) {
+        if let Err(e) = self.page().clear_draft() {
+            self.error = Some(format!("Could not clear the recovery copy. {e}"));
+            cx.notify();
+            return;
+        }
         if self.pages.len() == 1 {
             window.remove_window();
             return;
@@ -279,6 +318,7 @@ impl Editor {
                         this.searching = false;
                         this.going = false;
                         this.pages[this.active].document = doc;
+                        this.file_ready(cx);
                     }
                     Err(err) => this.error = Some(format!("Could not open file. {err}")),
                 }
@@ -315,6 +355,7 @@ impl Editor {
                 match result {
                     Ok(doc) => {
                         this.pages[this.active].document = doc;
+                        this.file_ready(cx);
                         if let Some(action) = after {
                             this.request(action, window, cx);
                         }
@@ -364,6 +405,14 @@ impl Editor {
         } else {
             match command {
                 Command::Open => self.choose(false, None, window, cx),
+                Command::Recent => self.show_recent(window, cx),
+                Command::Replace => {
+                    self.command(Command::Find, window, cx);
+                    self.replacing = true;
+                }
+                Command::ReplaceOne | Command::ReplaceAll => {
+                    self.replace(matches!(command, Command::ReplaceAll), window, cx)
+                }
                 Command::New => self.new_tab(window, cx),
                 Command::CloseTab => self.request(Pending::CloseTab, window, cx),
                 Command::Line => {
@@ -395,6 +444,9 @@ impl Editor {
                 Command::Find => {
                     self.going = false;
                     self.searching = true;
+                    self.showing_recent = false;
+                    self.replacing = false;
+                    self.result = None;
                     self.query.update(cx, |field, cx| {
                         field.select_match(0..field.text().len(), cx)
                     });
@@ -403,6 +455,9 @@ impl Editor {
                 }
                 Command::Next => self.find_match(true, cx),
                 Command::Done => {
+                    self.showing_recent = false;
+                    self.replacing = false;
+                    self.result = None;
                     self.going = false;
                     self.error = None;
                     self.searching = false;

@@ -5,6 +5,10 @@ pub(super) struct Page {
     pub body: Entity<TextField>,
     focus: FocusHandle,
     untitled: usize,
+    pub slot: Option<std::sync::Arc<state::Slot>>,
+    pub seen: Option<(SharedString, Option<&'static str>)>,
+    pub pending: bool,
+    pub recovered: bool,
 }
 
 impl Page {
@@ -12,15 +16,26 @@ impl Page {
         let theme = Theme::current(cx);
         let body =
             cx.new(|cx| TextField::multiline("Document text", theme, cx).with_line_numbers());
-        cx.observe(&body, |_, _, cx| cx.notify()).detach();
+        cx.observe(&body, |editor, field, cx| editor.changed(field, cx))
+            .detach();
         Self {
             body,
+            slot: None,
+            seen: None,
+            pending: false,
+            recovered: false,
             document: Document::default(),
             focus: cx.focus_handle().tab_stop(true),
             untitled,
         }
     }
 
+    pub fn clear_draft(&self) -> std::io::Result<()> {
+        if let Some(s) = &self.slot {
+            s.clear()?;
+        }
+        Ok(())
+    }
     pub fn dirty(&self, cx: &App) -> bool {
         self.body.read(cx).text() != self.document.saved.as_str()
     }
@@ -50,6 +65,9 @@ impl Editor {
         self.active = i;
         self.scroll.scroll_to_item(i);
         self.searching = false;
+        self.replacing = false;
+        self.showing_recent = false;
+        self.result = None;
         self.going = false;
         self.error = None;
         self.focus_body(w, cx);

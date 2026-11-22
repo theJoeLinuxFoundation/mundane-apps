@@ -2,6 +2,33 @@ use super::*;
 use gpui::{KeyDownEvent, ScrollEvent, TextAlign, canvas};
 use std::collections::VecDeque;
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SyntaxRole {
+    Keyword,
+    String,
+    Comment,
+    Literal,
+    Name,
+}
+impl SyntaxRole {
+    fn color(self, t: Theme) -> u32 {
+        if t.high_contrast {
+            return t.text;
+        }
+        match (self, t.light) {
+            (Self::Keyword, true) => 0x733684,
+            (Self::Keyword, false) => 0xe7a6ed,
+            (Self::String, true) => 0x27612d,
+            (Self::String, false) => 0xa5dfaa,
+            (Self::Comment, _) => t.secondary,
+            (Self::Literal, true) => 0x824514,
+            (Self::Literal, false) => 0xf2be87,
+            (Self::Name, true) => 0x1d547d,
+            (Self::Name, false) => 0x9dceff,
+        }
+    }
+}
+
 struct Snapshot {
     text: SharedString,
     selection: Range<usize>,
@@ -11,6 +38,7 @@ struct Snapshot {
 #[derive(Default)]
 pub(super) struct Multiline {
     starts: Vec<usize>,
+    syntax: Vec<(Range<usize>, SyntaxRole)>,
     numbered: bool,
     pub(super) zoom: i32,
     top: usize,
@@ -28,6 +56,7 @@ pub(super) struct Multiline {
 impl Multiline {
     pub(super) fn reindex(&mut self, text: &str) {
         self.lines.clear();
+        self.syntax.clear();
         self.starts.clear();
         self.starts.push(0);
         self.starts
@@ -142,6 +171,37 @@ impl TextField {
         self.selection_reversed = false;
         self.marked_range = None;
         cx.notify();
+    }
+
+    pub fn set_highlights(
+        &mut self,
+        spans: Vec<(Range<usize>, SyntaxRole)>,
+        cx: &mut Context<Self>,
+    ) {
+        if let Some(layout) = &mut self.multi {
+            layout.syntax = spans;
+            cx.notify();
+        }
+    }
+
+    /// Apply a literal replace-all as one undo step, retaining untouched line endings.
+    pub fn replace_all(&mut self, query: &str, replacement: &str, cx: &mut Context<Self>) -> usize {
+        if query.is_empty() {
+            return 0;
+        }
+        let count = self.content.matches(query).count();
+        if count > 0 {
+            self.save_undo();
+            let replacement = self.insertion(replacement);
+            let end = self.content.find(query).unwrap() + replacement.len();
+            self.content = self.content.replace(query, &replacement).into();
+            self.marked_range = None;
+            if let Some(m) = &mut self.multi {
+                m.reindex(&self.content);
+            }
+            self.move_to(end, cx);
+        }
+        count
     }
 
     pub fn snapshot(&self) -> SharedString {
@@ -380,10 +440,40 @@ impl TextField {
                 underline: None,
                 strikethrough: None,
             };
+            let mut runs = Vec::new();
+            let mut cursor = range.start;
+            let first = m
+                .syntax
+                .partition_point(|(span, _)| span.end <= range.start);
+            for (span, role) in m.syntax[first..]
+                .iter()
+                .take_while(|(span, _)| span.start < range.end)
+            {
+                let start = span.start.max(range.start);
+                let end = span.end.min(range.end);
+                if cursor < start {
+                    runs.push(TextRun {
+                        len: start - cursor,
+                        ..run.clone()
+                    });
+                }
+                runs.push(TextRun {
+                    len: end - start,
+                    color: rgb(role.color(self.theme)).into(),
+                    ..run.clone()
+                });
+                cursor = end;
+            }
+            if cursor < range.end || runs.is_empty() {
+                runs.push(TextRun {
+                    len: range.end - cursor,
+                    ..run
+                });
+            }
             let line = window.text_system().shape_line(
                 text,
                 style.font_size.to_pixels(window.rem_size()),
-                &[run],
+                &runs,
                 None,
             );
             if row == caret_row && m.reveal {

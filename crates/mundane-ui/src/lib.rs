@@ -4,7 +4,7 @@ use gpui::{prelude::*, *};
 mod header;
 pub use header::WindowHeader;
 mod text_field;
-pub use text_field::{TextField, bind_text_keys};
+pub use text_field::{SyntaxRole, TextField, bind_text_keys};
 
 pub use gpui::Role;
 

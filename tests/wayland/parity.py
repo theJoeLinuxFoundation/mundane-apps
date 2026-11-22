@@ -5,7 +5,10 @@ import time
 
 def exercise(app, before, folder, key, type_text, until, compare, root, log):
     def shot(state):
-        compare(f"{app}-{state}.png", 1, root / "docs/parity" / ("before" if before else "after"))
+        references = root / "docs/parity" / ("before" if before else "after")
+        if not before and (root / "tests/wayland/parity" / f"{app}-{state}.png").exists():
+            references = root / "tests/wayland/parity"
+        compare(f"{app}-{state}.png", 1, references)
     key("Shift_L")
     if app == "files":
         thumbs = Path(os.environ["XDG_CACHE_HOME"]) / "thumbnails/normal"
