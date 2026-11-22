@@ -14,6 +14,7 @@ impl Server {
         let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
         let dir = tempfile::tempdir_in(root.join("target")).unwrap();
         let child = Command::new("python3")
+            .env("PYTHONDONTWRITEBYTECODE", "1")
             .arg(root.join("tests/providers/server.py"))
             .arg(dir.path())
             .spawn()

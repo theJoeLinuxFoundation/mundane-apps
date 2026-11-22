@@ -3,7 +3,9 @@ from datetime import datetime, timezone, timedelta
 from email.utils import format_datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+import gzip
 import json
+from vector_tile import harbour
 import sys
 import time
 from urllib.parse import urlsplit, parse_qs
@@ -38,6 +40,25 @@ class Handler(BaseHTTPRequestHandler):
             self.end_headers()
             if not checked:
                 self.wfile.write(json.dumps(forecast()).encode())
+        elif url.path == "/tilejson":
+            self.send_response(200)
+            self.end_headers()
+            self.wfile.write(json.dumps({"tilejson":"3.0.0", "minzoom":0, "maxzoom":14,
+                             "tiles":["/tiles/{z}/{x}/{y}.pbf"]}).encode())
+        elif url.path.startswith("/tiles/") and not (work / "missing").exists():
+            z, x, y = map(int, url.path.removesuffix(".pbf").split("/")[2:])
+            self.send_response(200)
+            self.send_header("Content-Encoding", "gzip")
+            self.end_headers()
+            self.wfile.write(gzip.compress(harbour(z,x,y)))
+        elif url.path == "/search":
+            assert parse_qs(url.query)["format"] == ["jsonv2"]
+            self.send_response(200)
+            self.end_headers()
+            self.wfile.write(json.dumps([
+                {"display_name":"Tide Pool, Survey Coast", "lat":"59.926", "lon":"10.72"},
+                {"display_name":"Harbour Point, Survey Coast", "lat":"59.9139", "lon":"10.7522"}
+            ]).encode())
         else:
             self.send_error(404)
 

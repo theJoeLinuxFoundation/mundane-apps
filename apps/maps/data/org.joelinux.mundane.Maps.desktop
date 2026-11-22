@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Maps
+Exec=mundane-maps
+Icon=mark-location
+Categories=Education;Geography;
+Terminal=false

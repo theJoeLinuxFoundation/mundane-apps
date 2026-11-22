@@ -163,6 +163,10 @@ Browse installed families with Up and Down, then use Left and Right to preview a
 
 Choose a city or enter coordinates and an IANA time zone. Ctrl+L changes location and F5 checks the forecast. Weather keeps the last forecast available offline and shows its update time. [Weather provider and tests](docs/weather-tests.md)
 
+## Maps
+
+Ctrl+F focuses place search. Submit with Enter, then choose a result. Drag or use the arrow keys to pan, and use + and − to zoom. Ctrl+S saves the visible area at its current zoom. Ctrl+O opens the saved area or returns online. [Maps providers, limits and tests](docs/maps-tests.md)
+
 ## Building
 
 Use a Rust toolchain with Cargo, a C/C++ toolchain, pkg-config, and the Linux development files for Wayland, xkbcommon and fontconfig. The release build was tested with Rust 1.100 on x86-64 Linux. Run Terminal in a Wayland session with Mesa, a Vulkan driver, installed fonts and xterm-256color terminfo.
@@ -186,6 +190,7 @@ cargo build --workspace --release --locked
 ./target/release/mundane-characters
 ./target/release/mundane-fonts
 ./target/release/mundane-weather
+./target/release/mundane-maps
 ```
 
 Files uses the OpenURI desktop portal or GIO's default handler, GIO Trash, and GNU coreutils for recursive copies and cross-filesystem moves. Its desktop entry handles local directories. Text Editor accepts a local path and declares `text/plain`. Its Open and Save As dialogs use the FileChooser desktop portal. Distribution packaging and the joe image smoke test are pending. [Development plan](docs/plan.md)

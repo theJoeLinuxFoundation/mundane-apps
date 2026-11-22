@@ -246,7 +246,7 @@ def exercise_monitor(args, scale, stack, app, app_id):
 def main():
     global OUTPUT
     parser = argparse.ArgumentParser()
-    parser.add_argument("--app", choices=["terminal", "files", "text-editor", "system-monitor", "image-viewer", "calculator", "document-viewer", "video", "packages", "music", "archive-manager", "disk-usage", "disks", "clocks", "characters", "fonts", "weather"], default="terminal")
+    parser.add_argument("--app", choices=["terminal", "files", "text-editor", "system-monitor", "image-viewer", "calculator", "document-viewer", "video", "packages", "music", "archive-manager", "disk-usage", "disks", "clocks", "characters", "fonts", "weather", "maps"], default="terminal")
     parser.add_argument("--missing-video-decoder", action="store_true", help="inspect Video with the vpx plugin absent")
     parser.add_argument("--fields", action="store_true", help="exercise two-window activation, password and multiline fields")
     parser.add_argument("--cost", type=Path, help="directory containing the two release cost fixture binaries")
@@ -306,7 +306,7 @@ seat seat0 fallback true
         display = until(lambda: next((p for p in RUNTIME.glob("wayland-*") if p.is_socket()), None), "private Wayland socket")
         os.environ["WAYLAND_DISPLAY"] = display.name
         run("dbus-update-activation-environment", "WAYLAND_DISPLAY", "XDG_CURRENT_DESKTOP")
-        if args.app in ("packages", "music", "archive-manager", "disk-usage", "disks", "clocks", "characters", "fonts", "weather") or (args.at_spi and args.app in (
+        if args.app in ("packages", "music", "archive-manager", "disk-usage", "disks", "clocks", "characters", "fonts", "weather", "maps") or (args.at_spi and args.app in (
                 "terminal", "image-viewer", "calculator", "document-viewer", "video") and not args.cost):
             launch(stack, "wtype", "-k", "Shift_L", "-s", "300000", log="seat.log")
         if args.at_spi:
@@ -381,10 +381,14 @@ seat seat0 fallback true
         suite_app = args.app
         app_id = f"org.joelinux.mundane.{suite_app.title().replace('-', '')}"
         argv = [str(Path(os.environ.get(f"MUNDANE_{suite_app.upper().replace('-', '_')}_BIN", ROOT / f"target/debug/mundane-{suite_app}")).resolve())]
-        if suite_app == "weather":
+        if suite_app in ("weather", "maps"):
             provider = launch(stack, "python3", str(ROOT / "tests/providers/server.py"), str(RUNTIME), log="provider.log")
             address = until(lambda: (RUNTIME / "address").exists() and (RUNTIME / "address").read_text(), "loopback provider")
-            os.environ["MUNDANE_WEATHER_ENDPOINT"] = address + "/forecast"
+            if suite_app == "weather":
+                os.environ["MUNDANE_WEATHER_ENDPOINT"] = address + "/forecast"
+            else:
+                os.environ["MUNDANE_MAPS_TILEJSON"] = address + "/tilejson"
+                os.environ["MUNDANE_MAPS_SEARCH"] = address + "/search"
         if suite_app == "clocks":
             argv = [str(Path(argv[0]).parent / "examples/clocks-fixture")]
             launch(stack, "python3", str(ROOT / "tests/clocks/notifications.py"), log="notifications.log")
@@ -484,6 +488,43 @@ seat seat0 fallback true
                 return "ack_configure" in (OUTPUT / log).read_text(errors="replace")
             return app_id in command("-t", "get_tree")
         until(mapped, f"mapped {suite_app}")
+        if suite_app == "maps":
+            key("Shift_L")
+            if labwc:
+                run("wlrctl", "toplevel", "waitfor", app_id, "state:active")
+            def titled(title):
+                return title in (OUTPUT / log).read_text()
+            until(lambda: titled("Map · Zoom 2 — Maps"), "initial vector map")
+            key("f", "ctrl")
+            type_text("harbour")
+            assert "/search?" not in (RUNTIME / "requests").read_text()
+            key("Return")
+            until(lambda: titled("Place results — Maps"), "explicit place search")
+            key("Down")
+            key("Return")
+            until(lambda: titled("Harbour Point · Zoom 12 — Maps"), "selected place")
+            key("Right")
+            key("equal")
+            until(lambda: titled("Harbour Point · Zoom 13 — Maps"), "zoomed harbour")
+            if args.profile == "contrast":
+                key("equal", "ctrl")
+            name = f"maps-{args.compositor}-{args.profile}.png"
+            compare_screenshot(name, scale)
+            if args.at_spi:
+                inspect_accessibility(stack, app_id, app.pid)
+            key("s", "ctrl")
+            until(lambda: list((Path(os.environ["XDG_CACHE_HOME"]) / "mundane-maps").glob("*.area")), "saved offline area")
+            calls = (RUNTIME / "requests").read_text().splitlines()
+            assert sum("/search?" in line for line in calls) == 1
+            assert all("mundane-maps/" in line for line in calls)
+            provider.terminate()
+            provider.wait(timeout=5)
+            key("o", "ctrl")
+            until(lambda: titled("Harbour Point · Zoom 13 · Offline — Maps"), "reopened view with the provider stopped")
+            key("w", "ctrl")
+            assert app.wait(timeout=8) == 0
+            print(f"Passed {name}, explicit search, panning, zoom and offline area")
+            return
         if suite_app == "weather":
             key("Shift_L")
             if labwc:

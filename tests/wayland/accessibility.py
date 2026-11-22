@@ -205,6 +205,7 @@ expected = {"Terminal": ["Find in Terminal", "Find match", "Find text"],
             "Packages": ["Review package changes", "Install chartroom", "Cancel", "Apply changes"],
             "ArchiveManager": ["Archive entries", "Extract selected…", "Extract all…", "2 marked"],
             "DiskUsage": ["Folder contents", "Private records", "Show allocated space", "Rescan"],
+            "Maps": ["Find a place", "Search", "Map view", "Zoom in", "Zoom out", "Save area", "OpenFreeMap", "© OpenMapTiles", "Data from OpenStreetMap", "© OpenStreetMap contributors · ODbL"],
             "Weather": ["Locations", "Refresh", "Forecast periods", "Offline · stale cached forecast", "MET Norway", "CC BY 4.0"],
             "Fonts": ["Font families", "Edit sample", "Next face", "Previous face", "Preview in DejaVu Sans · Bold", "All sample characters covered."],
             "Characters": ["Copy character", "Name or code point", "Matching characters", "BLACK STAR", "Copied U+2605"],
@@ -242,6 +243,11 @@ if suite == "DiskUsage":
     assert "permission denied" in row.get_description()
     assert "512.0 KiB" in named(root, "Charts").get_description()
     assert any("Incomplete scan" in n.get_name() for n in walk(root))
+if suite == "Maps":
+    description = named(root, "Map view").get_description()
+    assert "Zoom 13" in description and "Harbour Point, Survey Coast" in description
+    for label in ["OpenFreeMap", "© OpenMapTiles", "Data from OpenStreetMap", "© OpenStreetMap contributors · ODbL"]:
+        assert named(root, label).get_role() == Atspi.Role.LINK
 if suite == "Weather":
     assert named(root, "MET Norway").get_role() == Atspi.Role.LINK
     assert named(root, "CC BY 4.0").get_role() == Atspi.Role.LINK
