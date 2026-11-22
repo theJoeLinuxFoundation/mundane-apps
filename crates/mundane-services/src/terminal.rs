@@ -53,6 +53,7 @@ pub struct Session {
     channel: EventLoopSender,
     size: WindowSize,
     pid: u32,
+    master: std::fs::File,
 }
 
 impl Session {
@@ -72,6 +73,7 @@ impl Session {
         )));
         let pty = tty::new(&options, size, 0)?;
         let pid = pty.child().id();
+        let master = pty.file().try_clone()?;
         let io = EventLoop::new(screen.clone(), events, pty, true, false)?;
         let channel = io.channel();
         io.spawn();
@@ -80,10 +82,45 @@ impl Session {
                 screen,
                 channel,
                 pid,
+                master,
                 size,
             },
             rx,
         ))
+    }
+
+    /// The foreground job can have a different process group; a shell waiting at
+    /// its prompt may still own background or stopped children.
+    pub fn running_job(&self) -> Option<String> {
+        let fg = rustix::termios::tcgetpgrp(&self.master)
+            .ok()
+            .map(|p| p.as_raw_nonzero().get() as u32);
+        if let Some(pid) = fg.filter(|&p| p != self.pid) {
+            return Some(
+                std::fs::read_to_string(format!("/proc/{pid}/comm"))
+                    .map(|s| s.trim().to_owned())
+                    .unwrap_or_else(|_| "Foreground job".into()),
+            );
+        }
+        let children =
+            match std::fs::read_to_string(format!("/proc/{0}/task/{0}/children", self.pid)) {
+                Ok(s) => s,
+                Err(e) if e.kind() == io::ErrorKind::NotFound => return None,
+                Err(_) => return Some("Job status unavailable".into()),
+            };
+        for pid in children.split_whitespace() {
+            if let Ok(stat) = std::fs::read_to_string(format!("/proc/{pid}/stat"))
+                && let Some((name, tail)) = stat.rsplit_once(") ")
+                && !tail.starts_with("Z ")
+            {
+                return Some(
+                    name.split_once('(')
+                        .map_or(name, |(_, comm)| comm)
+                        .to_string(),
+                );
+            }
+        }
+        None
     }
 
     pub fn working_directory(&self) -> Option<std::path::PathBuf> {

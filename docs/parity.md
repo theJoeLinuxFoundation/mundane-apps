@@ -75,3 +75,14 @@ While editing, the app checkpoints dirty tabs in private files under `$XDG_STATE
 | Restart after a forced exit | [Empty document](parity/round-2/before/text-editor-recovery.png) | [Restored draft](parity/round-2/after/text-editor-recovery.png) |
 
 Use `tests/wayland/run --app text-editor --round-two after` to replay this round. The before variant uses a binary built from `f9b9512`.
+
+## Round two · Terminal
+
+**Profiles** (Ctrl+Shift+P) saves named font families, sizes, scrollback limits and Desktop, Light or Dark colors in the user’s configuration directory. Save and use applies to the current tab and sets the default for future shells. Existing tabs keep their own profile and zoom. Desktop high contrast takes precedence. To create another profile, enter a new name. To remove one, select it and choose Delete.
+
+Closing a tab checks its PTY foreground process group and the shell’s live children, including background and stopped jobs. Closing the window checks every tab. Cancel keeps the shells running. New-window controls, detachable tabs, custom shortcuts and per-profile startup commands remain open.
+
+| Workflow | Before | After |
+| --- | --- | --- |
+| Configure a shell | [Original terminal](parity/round-2/before/terminal-profiles.png) | [Profile settings](parity/round-2/after/terminal-profiles.png) |
+| Close a tab running sleep | [Running job](parity/round-2/before/terminal-running-job.png) | [Cancel or close](parity/round-2/after/terminal-running-job.png) |

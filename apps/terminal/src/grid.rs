@@ -179,7 +179,7 @@ impl Frame {
         }
     }
 
-    pub fn paint(self, window: &mut Window, cx: &mut App) {
+    pub fn paint(self, family: gpui::SharedString, window: &mut Window, cx: &mut App) {
         let height = px(self.layout.height());
         for glyph in self.glyphs {
             if glyph.bg != self.theme.surface {
@@ -191,7 +191,7 @@ impl Frame {
             if glyph.flags.contains(Flags::HIDDEN) {
                 continue;
             }
-            let mut face = font("DejaVu Sans Mono");
+            let mut face = font(family.clone());
             if glyph.flags.contains(Flags::BOLD) {
                 face.weight = FontWeight::BOLD;
             }

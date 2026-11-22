@@ -161,3 +161,32 @@ fn only_web_links_are_opened() {
         assert!(super::links::web_url(value).is_none(), "{value}");
     }
 }
+
+#[gpui::test]
+fn closing_checks_jobs_in_background_tabs(cx: &mut TestAppContext) {
+    cx.executor().allow_parking();
+    let options = Options {
+        shell: Some(Shell::new("/bin/sh".into(), vec!["-s".into()])),
+        ..Default::default()
+    };
+    let (view, cx) = cx.add_window_view(|w, cx| Terminal::new(options, w, cx).unwrap());
+    view.read_with(cx, |v, _| v.tabs[0].session.write(b"sleep 60 &\n".to_vec()));
+    let deadline = Instant::now() + Duration::from_secs(5);
+    while !view.read_with(cx, |v, _| {
+        v.tabs[0].session.running_job().as_deref() == Some("sleep")
+    }) {
+        assert!(Instant::now() < deadline);
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    cx.simulate_keystrokes("ctrl-shift-t");
+    assert!(!cx.simulate_close());
+    cx.simulate_keystrokes("escape ctrl-shift-w");
+    assert_eq!(view.read_with(cx, |v, _| v.tabs.len()), 1);
+    cx.simulate_keystrokes("ctrl-shift-w");
+    assert!(view.read_with(cx, |v, _| v.warning.is_some()));
+    cx.simulate_keystrokes("escape");
+    // Reap the fixture's background process before the PTY shuts down.
+    view.read_with(cx, |v, _| {
+        v.tabs[0].session.write(b"kill $!; wait\n".to_vec())
+    });
+}

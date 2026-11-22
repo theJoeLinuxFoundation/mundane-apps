@@ -33,5 +33,22 @@ def exercise(app, side, key, type_text, until, compare, root, log, restart):
             until(lambda: "Untitled — Text Editor" in (log.parent/"recovered.log").read_text(), "empty document")
         assert b"Unsaved observations" not in (Path.home()/"survey.py").read_bytes()
         shot("recovery")
+    elif app == "terminal":
+        until(lambda: (Path.home()/".prompt-ready").exists(), "shell prompt")
+        if after:
+            key("p","ctrl","shift")
+        shot("profiles")
+        key("Escape")
+        type_text("sleep 120")
+        key("Return")
+        if after:
+            key("w","ctrl","shift")
+        shot("running-job")
+        if after:
+            key("Escape")
+            key("c","ctrl")
+            type_text("touch survived")
+            key("Return")
+            until(lambda: (Path.home()/"survived").exists(), "job warning cancelled")
     else:
         raise ValueError(app)

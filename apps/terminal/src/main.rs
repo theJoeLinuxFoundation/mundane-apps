@@ -1,4 +1,7 @@
 use mundane_ui::ControlRole as _;
+mod closing;
+mod profiles;
+use closing::Target;
 mod grid;
 mod keys;
 mod links;
@@ -29,6 +32,10 @@ struct Find {
 }
 
 struct Terminal {
+    profiles: profiles::Profiles,
+    form: Option<profiles::Form>,
+    warning: Option<closing::Warning>,
+    profile_focus: FocusHandle,
     tabs: Vec<tabs::ShellTab>,
     active: usize,
     next_id: u64,
@@ -49,11 +56,30 @@ struct Terminal {
 
 impl Terminal {
     fn new(options: Options, window: &mut Window, cx: &mut Context<Self>) -> anyhow::Result<Self> {
-        let layout = Layout {
+        let (profiles, notice) = match profiles::Profiles::load() {
+            Ok(p) => (p, None),
+            Err(e) => (
+                Default::default(),
+                Some(format!("Could not load profiles. {e}")),
+            ),
+        };
+        let mut layout = Layout {
             bounds: Bounds::new(Point::default(), window.viewport_size()),
             font_size: BODY_FONT,
         };
-        let first = Self::shell(1, options.clone(), layout, window, cx)?;
+        layout.font_size = profiles.selected().size.into();
+        let mut first = Self::shell(1, options.clone(), layout, window, cx)?;
+        first.apply_profile(profiles.selected().clone());
+        let v = cx.weak_entity();
+        window.on_window_should_close(cx, move |w, cx| {
+            v.update(cx, |s, cx| s.allow_close(Target::Window, w, cx))
+                .unwrap_or(true)
+        });
+        let v = cx.weak_entity();
+        let header = WindowHeader::new(cx).on_close(move |w, cx| {
+            let _ = v.update(cx, |s, cx| s.request_close(Target::Window, w, cx));
+        });
+
         let grid_focus = cx.focus_handle().tab_stop(true);
         grid_focus.focus(window, cx);
         Ok(Self {
@@ -64,11 +90,15 @@ impl Terminal {
             tab_scroll: ScrollHandle::new(),
             new_focus: cx.focus_handle().tab_stop(true),
             close_focus: cx.focus_handle().tab_stop(true),
-            notice: None,
+            profiles,
+            notice,
+            form: None,
+            warning: None,
+            profile_focus: cx.focus_handle().tab_stop(true),
             grid_focus,
             find_button: cx.focus_handle().tab_stop(true),
             content: Default::default(),
-            header: WindowHeader::new(cx),
+            header,
             find: None,
             layout,
             wheel_remainder: 0.,
@@ -210,7 +240,7 @@ impl Terminal {
                 .scroll_display(Scroll::PageDown),
             ("+" | "=", true, _) => self.layout.font_size = (self.layout.font_size + 2.).min(40.),
             ("-", true, _) => self.layout.font_size = (self.layout.font_size - 2.).max(10.),
-            ("0", true, _) => self.layout.font_size = BODY_FONT,
+            ("0", true, _) => self.layout.font_size = self.tabs[self.active].profile.size.into(),
             ("f6", false, _) => self.find_button.focus(window, cx),
             _ => {
                 let app_cursor = self.tabs[self.active]
@@ -225,6 +255,7 @@ impl Terminal {
                 self.input(bytes);
             }
         }
+        self.tabs[self.active].zoom = self.layout.font_size;
         window.prevent_default();
         cx.stop_propagation();
         cx.notify();
@@ -233,21 +264,23 @@ impl Terminal {
     fn terminal_grid(&self, window: &Window, cx: &Context<Self>) -> impl IntoElement {
         let view = cx.entity();
         let painter = view.clone();
+        let family: SharedString = self.tabs[self.active].profile.family.clone().into();
+        let palette = self.tabs[self.active].profile.theme(Theme::current(cx));
         let surface = canvas(
             move |bounds, window, cx| {
-                view.update(cx, |this, cx| {
+                view.update(cx, |this, _| {
                     this.layout.bounds = bounds;
                     this.tabs[this.active].session.resize(this.layout.size());
                     Frame::read(
                         &this.tabs[this.active].session.screen.lock(),
                         this.layout,
-                        Theme::current(cx),
+                        palette,
                         this.grid_focus.is_focused(window),
                     )
                 })
             },
             move |bounds, frame, window, cx| {
-                frame.paint(window, cx);
+                frame.paint(family.clone(), window, cx);
                 window.handle_input(
                     &painter.read(cx).grid_focus,
                     ElementInputHandler::new(bounds, painter.clone()),
@@ -270,6 +303,7 @@ impl Terminal {
                 grid::accessible(tree, &screen.lock(), layout, scale)
             })
         })
+        .bg(rgb(palette.surface))
         .flex_1()
         .min_h_0()
         .p(px(8.))
@@ -394,16 +428,25 @@ impl Render for Terminal {
             let _ = view.update(cx, |this, cx| this.open_find(window, cx));
         });
         let v = cx.weak_entity();
+        let profiles_view = cx.weak_entity();
         let tools = div()
             .flex()
             .gap_1()
+            .child(button(
+                "Profiles",
+                &self.profile_focus,
+                theme,
+                move |w, cx| {
+                    let _ = profiles_view.update(cx, |s, cx| s.edit_profiles(w, cx));
+                },
+            ))
             .child(button("New tab", &self.new_focus, theme, move |w, cx| {
                 let _ = v.update(cx, |t, cx| t.add_tab(w, cx));
             }))
             .child(find);
         let body = self
             .content
-            .render(self.find.is_some())
+            .render(self.find.is_some() || self.form.is_some() || self.warning.is_some())
             .size_full()
             .flex()
             .flex_col()
@@ -427,6 +470,12 @@ impl Render for Terminal {
             .font_family("DejaVu Sans")
             .text_color(rgb(theme.text))
             .child(body)
+            .children(
+                self.warning
+                    .as_ref()
+                    .map(|warn| self.warning_dialog(warn, cx)),
+            )
+            .children(self.form.as_ref().map(|form| self.profile_dialog(form, cx)))
             .children(self.find.as_ref().map(|find| self.dialog(find, cx)))
     }
 }
