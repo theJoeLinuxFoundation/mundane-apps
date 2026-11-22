@@ -30,7 +30,20 @@ Files browses local directories, opens files in the preferred application, and c
 | Refresh / show or hide hidden items | F5 / Ctrl+H |
 | Cycle focus / dismiss a dialog | Tab or Shift+Tab / Escape |
 
-Both apps use the shared window header. With client-side decorations, F6 reaches the header and Tab reaches the available window controls. Drag the title to move the window or double-click it to maximize or restore. [Files test report](docs/files-tests.md)
+All three apps use the shared window header. With client-side decorations, F6 reaches the header and Tab reaches the available window controls. Drag the title to move the window or double-click it to maximize or restore. [Files test report](docs/files-tests.md)
+
+## Text Editor
+
+Open a local UTF-8 file or start with an untitled document. Find highlights a match and wraps at the end of the document. The title shows unsaved changes. Close or open another file to choose Save, Discard or Cancel. If a file changes on disk, Save As lets you keep your edits in another file. [Text Editor tests](docs/editor-tests.md)
+
+| Action | Shortcut |
+| --- | --- |
+| Open / save / save as | Ctrl+O / Ctrl+S / Ctrl+Shift+S |
+| Find / next match / leave Find | Ctrl+F / Enter in Find or F3 / Escape |
+| Undo / redo | Ctrl+Z / Ctrl+Shift+Z |
+| Start or end of line / document | Home or End / Ctrl+Home or Ctrl+End |
+| Increase / decrease / reset document text size | Ctrl++ / Ctrl+- / Ctrl+0 |
+| Close document | Ctrl+W |
 
 ## Building
 
@@ -40,9 +53,10 @@ Use a Rust toolchain with Cargo, a C/C++ toolchain, pkg-config, and the Linux de
 cargo build --workspace --release --locked
 ./target/release/mundane-terminal
 ./target/release/mundane-files "$HOME"
+./target/release/mundane-text-editor
 ```
 
-Files uses the OpenURI desktop portal or GIO's default handler, GIO Trash, and GNU coreutils for recursive copies and cross-filesystem moves. Its desktop entry handles local directories. Distribution packaging and the joe image smoke test are pending. [Development plan](docs/plan.md)
+Files uses the OpenURI desktop portal or GIO's default handler, GIO Trash, and GNU coreutils for recursive copies and cross-filesystem moves. Its desktop entry handles local directories. Text Editor accepts a local path and declares `text/plain`. Its Open and Save As dialogs use the FileChooser desktop portal. Distribution packaging and the joe image smoke test are pending. [Development plan](docs/plan.md)
 
 ## Licence
 

@@ -213,7 +213,7 @@ def exercise_files(folder, scale, profile, labwc):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--app", choices=["terminal", "files"], default="terminal")
+    parser.add_argument("--app", choices=["terminal", "files", "text-editor"], default="terminal")
     parser.add_argument("--at-spi", action="store_true")
     parser.add_argument("--profile", choices=["standard", "fractional", "contrast"], default="standard")
     parser.add_argument("--compositor", choices=["sway", "labwc"], default="sway")
@@ -277,8 +277,8 @@ seat seat0 fallback true
         if labwc:
             resize(800, 500)
         suite_app = args.app
-        app_id = f"org.joelinux.mundane.{suite_app.title()}"
-        argv = [str(Path(os.environ.get(f"MUNDANE_{suite_app.upper()}_BIN", ROOT / f"target/debug/mundane-{suite_app}")).resolve())]
+        app_id = f"org.joelinux.mundane.{suite_app.title().replace('-', '')}"
+        argv = [str(Path(os.environ.get(f"MUNDANE_{suite_app.upper().replace('-', '_')}_BIN", ROOT / f"target/debug/mundane-{suite_app}")).resolve())]
         if suite_app == "files":
             os.environ["GSETTINGS_BACKEND"] = "keyfile"
             run("gsettings", "set", "org.gnome.desktop.interface", "icon-theme", "Papirus")
@@ -287,6 +287,14 @@ seat seat0 fallback true
                 launch(stack, "python3", str(HERE / "open_portal.py"), log=f"portal-{args.profile}.log")
                 until((RUNTIME / "portal-ready").exists, "private OpenURI portal")
             argv.append(str(folder))
+        if suite_app == "text-editor":
+            document = Path.home() / "Field notes.txt"
+            original = "Coastal survey\r\n\r\nStation 04   東京\r\nWater temperature   12 °C\r\n\r\n".encode()
+            document.write_bytes(original)
+            (Path.home() / "Second.txt").write_text("Second document\n")
+            launch(stack, "python3", str(HERE / "chooser_portal.py"), log=f"chooser-{args.profile}.log")
+            until((RUNTIME / "chooser-ready").exists, "private FileChooser")
+            argv.append(str(document))
         log = f"{suite_app}-{args.compositor}-{args.profile}.log"
         app = launch(stack, *argv,
                      log=log, env={**os.environ, "WAYLAND_DEBUG": "client"})
@@ -297,6 +305,59 @@ seat seat0 fallback true
                 return "ack_configure" in (OUTPUT / log).read_text(errors="replace")
             return app_id in command("-t", "get_tree")
         until(mapped, f"mapped {suite_app}")
+        if suite_app == "text-editor":
+            resize(720, 440)
+            until(lambda: "Field notes.txt" in (OUTPUT / log).read_text(errors="replace"), "document title")
+            # The first virtual keyboard establishes the seat on a headless output.
+            key("Shift_L")
+            if labwc:
+                run("wlrctl", "toplevel", "waitfor", app_id, "state:active")
+            key("End", "ctrl")
+            if contrast:
+                key("equal", "ctrl")
+            edit = "Inspect the tide pools."
+            type_text(edit)
+            key("f", "ctrl")
+            type_text("tide pools")
+            key("Return")
+            name = f"editor-{args.compositor}-{args.profile}.png"
+            compare_screenshot(name, scale)
+            if args.at_spi:
+                inspect_accessibility(stack, app_id, app.pid)
+                command(f'[app_id="{app_id}"] focus')
+            key("Escape")
+            key("c", "ctrl")
+            until(lambda: clipboard() == "tide pools", "selected search match")
+            if labwc:
+                key("F6")
+                for _ in range(6):  # Open, Find, Save, Save As, Minimize, Restore, Close
+                    key("Tab")
+                key("Return")
+                key("Escape")
+                assert app.poll() is None
+            # Exercise a real compositor close request on a modified document.
+            if labwc:
+                run("wlrctl", "toplevel", "close", app_id)
+            else:
+                command(f'[app_id="{app_id}"] kill')
+            key("Escape")
+            assert app.poll() is None and document.read_bytes() == original
+            key("s", "ctrl")
+            saved = original + edit.encode()
+            until(lambda: document.read_bytes() == saved, "saved CRLF document")
+            key("s", "ctrl", "shift")
+            copy = Path.home() / "Saved copy.txt"
+            until(lambda: copy.is_file() and copy.read_bytes() == saved, "portal Save As")
+            (RUNTIME / "cancel-choice").touch()
+            key("o", "ctrl")
+            until((RUNTIME / "OpenFile").exists, "cancelled Open")
+            (RUNTIME / "cancel-choice").unlink()
+            key("o", "ctrl")
+            until(lambda: 'Second.txt — Text Editor' in (OUTPUT / log).read_text(errors="replace"), "portal Open")
+            key("w", "ctrl")
+            assert app.wait(timeout=8) == 0
+            print(f"Passed {name}, find, unsaved close, save and portal choices")
+            return
         if suite_app == "files":
             resize(720, 440)
             exercise_files(folder, scale, args.profile, labwc)

@@ -48,7 +48,7 @@ fn edit_find_dismiss_close_and_save(cx: &mut TestAppContext) {
 fn untitled_save_cancel_and_retry(cx: &mut TestAppContext) {
     cx.update(mundane_ui::bind_text_keys);
     let (view, cx) = cx.add_window_view(Editor::new);
-    cx.simulate_keystrokes("a enter b ctrl-z ctrl-shift-z ctrl-s");
+    cx.simulate_keystrokes("a enter tab b ctrl-z ctrl-shift-z ctrl-s");
     cx.simulate_new_path_selection(|_| None);
     cx.run_until_parked();
     assert!(view.read_with(cx, |e, cx| e.dirty(cx)));
@@ -58,7 +58,7 @@ fn untitled_save_cancel_and_retry(cx: &mut TestAppContext) {
     cx.simulate_keystrokes("ctrl-s");
     cx.simulate_new_path_selection(|_| Some(dest.clone()));
     cx.run_until_parked();
-    assert_eq!(fs::read(dest).unwrap(), b"a\nb");
+    assert_eq!(fs::read(dest).unwrap(), b"a\n\tb");
     assert!(cx.simulate_close());
 }
 

@@ -1,4 +1,4 @@
-use crate::{Theme, button_base};
+use crate::{Role, Theme, button_base};
 use gpui::{prelude::*, *};
 use std::{cell::Cell, rc::Rc};
 
@@ -77,8 +77,8 @@ impl WindowHeader {
         let can_zoom = visible.contains(&Control::Maximize) || visible.contains(&Control::Restore);
         let drag = self.drag_origin.clone();
         let motion = drag.clone();
-        let titlebar = div()
-            .id("window-title")
+        let titlebar = Role::TitleBar
+            .control(title)
             .h_full()
             .flex_1()
             .min_w_0()

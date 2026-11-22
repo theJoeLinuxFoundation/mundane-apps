@@ -1,0 +1,33 @@
+"""Private FileChooser replies for the Text Editor's native Open and Save As paths."""
+import os
+from pathlib import Path
+from gi.repository import Gio, GLib
+
+runtime = Path(os.environ["XDG_RUNTIME_DIR"])
+service = "org.freedesktop.portal.Desktop"
+desktop = "/org/freedesktop/portal/desktop"
+methods = "".join(f'<method name="{method}"><arg type="s" direction="in"/><arg type="s" direction="in"/>'
+                  '<arg type="a{sv}" direction="in"/><arg type="o" direction="out"/></method>'
+                  for method in ("OpenFile", "SaveFile"))
+node = Gio.DBusNodeInfo.new_for_xml(f'<node><interface name="org.freedesktop.portal.FileChooser">'
+                                    f'{methods}<property name="version" type="u" access="read"/></interface></node>')
+
+
+def choose(bus, sender, path, iface, method, args, call):
+    _, _, options = args.unpack()
+    handle = f"{desktop}/request/{sender[1:].replace('.', '_')}/{options['handle_token']}"
+    call.return_value(GLib.Variant("(o)", (handle,)))
+    dest = Path.home() / ("Saved copy.txt" if method == "SaveFile" else "Second.txt")
+    cancel = (runtime / "cancel-choice").exists()
+    bus.emit_signal(sender, handle, "org.freedesktop.portal.Request", "Response",
+                    GLib.Variant("(ua{sv})", (1, {}) if cancel else (0, {"uris": GLib.Variant("as", [dest.as_uri()])})))
+    (runtime / method).touch()
+
+
+def start(bus, _):
+    bus.register_object(desktop, node.interfaces[0], choose, lambda *_: GLib.Variant("u", 4), None)
+
+
+Gio.bus_own_name(Gio.BusType.SESSION, service, Gio.BusNameOwnerFlags.NONE, start,
+                 lambda *_: (runtime / "chooser-ready").touch(), None)
+GLib.MainLoop().run()

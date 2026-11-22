@@ -226,6 +226,10 @@ impl TextField {
                 self.history(true, cx);
                 None
             }
+            "tab" if !ctrl && !shift => {
+                self.replace_text_in_range(None, "\t", window, cx);
+                None
+            }
             "enter" if !ctrl => {
                 self.replace_text_in_range(None, "\n", window, cx);
                 None

@@ -25,7 +25,7 @@ Pin GPUI and its Linux platform crates together at Zed revision `deb48ceb4712522
 
 ## Acceptance tests
 
-Terminal and Files have passed their service, GPUI headless and software-rendered Wayland acceptance tests. The shared header has also been exercised with client and server decorations. Text Editor is next. The target-image smoke tests are pending until joe Linux packages mundaneDE and the suite together, when they will run in joe’s VM tests. [Terminal report](terminal-tests.md) · [Files report](files-tests.md)
+Terminal, Files and Text Editor have passed their model or service tests, GPUI headless tests and software-rendered Wayland acceptance tests. The shared header has also been exercised with client and server decorations. System Monitor is next. The target-image smoke tests are pending until joe Linux packages mundaneDE and the suite together, when they will run in joe’s VM tests. [Terminal report](terminal-tests.md) · [Files report](files-tests.md) · [Text Editor report](editor-tests.md)
 
 Each numbered row is a milestone in delivery order. For every row, run its model or service tests, drive its user interaction in a GPUI headless test context, then capture the specified state from the actual Wayland client under a nested or headless compositor. The headless interaction test asserts state and focus. The compositor test checks the rendered result against a reviewed reference image.
 
@@ -52,6 +52,8 @@ Use temporary XDG directories, private fixture data, fixed fonts, locale, time z
 | 17. Weather | Choose a location, show its forecast and identify stale data offline. | Check forecast units, time zone and cache expiry with a fixture provider. | Select a city and reopen its cached forecast offline. | Forecast with its last update time and offline status. |
 | 18. Maps | Find a place, pan and zoom the map, and display provider attribution. | Check coordinate bounds, tile selection and missing tiles with a fixture source. | Select a search result, pan and zoom by keyboard. | Selected place with legible attribution. |
 
+A later Files polish pass will add Replace to the name-conflict dialog and show the size and modification date of both items.
+
 The application inventory follows joe Linux's `packages/joe-desktop/package.zon`. For Weather and Maps, settle provider terms, attribution and caching permissions before connecting a live service. Acceptance tests use redistributable local fixtures.
 
 ### dave interface dependency
@@ -63,6 +65,8 @@ Run queries as the desktop user. Pass arguments directly to dave, show the full 
 ## Accessibility
 
 Use the keyboard to reach and operate every action. Give controls accessible names, roles and state in their shared definitions. Keep a visible focus indicator, return focus to the invoking control after a dialog closes, and label errors and selections with text or shape as well as colour. Test the primary workflow of each app by keyboard, including Escape and reverse tab order.
+
+Shared controls declare their role and name in `mundane-ui`. The GPUI team is planning the AccessKit-to-AT-SPI bridge and will define its declaration API.
 
 In the first Terminal milestone, probe the pinned GPUI Linux platform for a route to AT-SPI. Try a named button, an editable field and a dialog in an AT-SPI inspector and with Orca. Verify focus, text, role and activation. If a platform bridge is needed, record the missing pieces and track bridge work with mundaneDE before claiming screen-reader support. Test high contrast, 100%, 150% and 200% output scaling, and increased text size for clipping, readable focus and reachable dialog actions.
 

@@ -10,6 +10,7 @@ pub use text_field::{TextField, bind_text_keys};
 /// and name here when its Linux API is available.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Role {
+    TitleBar,
     Button,
     TextInput,
     MultilineTextInput,
@@ -23,6 +24,7 @@ pub enum Role {
 impl Role {
     fn id(self, name: impl Into<SharedString>) -> ElementId {
         let role = match self {
+            Self::TitleBar => "title bar",
             Self::Button => "button",
             Self::TextInput => "text input",
             Self::MultilineTextInput => "multiline text input",
