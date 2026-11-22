@@ -52,9 +52,9 @@ impl Book {
         let mut bytes = Vec::new();
         file.take(MAX_BYTES + 1).read_to_end(&mut bytes)?;
         ensure!(bytes.len() as u64 <= MAX_BYTES, "PDF exceeds 128 MiB.");
-        let doc = engine()?
-            .load_pdf_from_byte_vec(bytes, None)
-            .context("Cannot read PDF (invalid or password-protected file).")?;
+        let doc = engine()?.load_pdf_from_byte_vec(bytes, None).map_err(|_| {
+            anyhow::anyhow!("Cannot read PDF. The file may be damaged or password-protected.")
+        })?;
         let pages = doc.pages().len();
         ensure!(pages > 0, "The PDF has no pages.");
         Ok(Self {

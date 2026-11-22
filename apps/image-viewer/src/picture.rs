@@ -31,7 +31,8 @@ pub fn open(path: &Path) -> Result<RgbaImage> {
 }
 
 fn decode(bytes: &[u8]) -> Result<RgbaImage> {
-    let format = image::guess_format(bytes).context("Choose a PNG or JPEG image.")?;
+    let format = image::guess_format(bytes)
+        .context("The file does not contain a readable PNG or JPEG image.")?;
     let complete = match format {
         ImageFormat::Jpeg => jpeg_complete(&bytes[2..]),
         ImageFormat::Png => png_complete(&bytes[8..]),

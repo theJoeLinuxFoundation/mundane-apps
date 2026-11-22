@@ -238,6 +238,7 @@ impl Fonts {
     fn keys(&mut self, e: &KeyDownEvent, w: &mut Window, cx: &mut Context<Self>) {
         let k = &e.keystroke;
         match (k.key.as_str(), k.modifiers.control) {
+            ("f6", false) => self.edit.focus(w, cx),
             ("f", true) => {
                 self.search.focus_handle(cx).focus(w, cx);
                 self.search

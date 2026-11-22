@@ -38,6 +38,10 @@ def create():
     folder = Path.home() / "Documents"
     (folder / "Archive").mkdir(parents=True)
     (folder / "draft.txt").write_text("Field notes\n")
+    old = folder / "Archive/notes.txt"
+    old.write_text("Earlier survey notes\n")
+    os.utime(old, (1736326800, 1736326800))
+    os.utime(folder / "draft.txt", (1736503200, 1736503200))
     png(folder / "palette.png", 160, 100,
         lambda x, y: (*[(52, 98, 99), (230, 180, 114), (193, 110, 92)][(x//40 + y//30) % 3], 255))
     return folder

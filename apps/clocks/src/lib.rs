@@ -254,6 +254,7 @@ impl Clocks {
     fn keys(&mut self, e: &KeyDownEvent, w: &mut Window, cx: &mut Context<Self>) {
         let k = &e.keystroke;
         match (k.key.as_str(), k.modifiers.control) {
+            ("f6", false) => self.navigation.focus(w, cx),
             ("n", true) => self.page(Page::Search, w, cx),
             ("t", true) => self.page(Page::Timer, w, cx),
             ("escape", false) => self.page(Page::World, w, cx),
@@ -353,7 +354,20 @@ impl Render for Clocks {
             .font_family("DejaVu Sans")
             .bg(rgb(t.surface))
             .text_color(rgb(t.text))
-            .child(self.header.render("Clocks", tools, &self.list.focus, t, w))
+            .child(self.header.render(
+                "Clocks",
+                tools,
+                &match self.page {
+                    Page::World => self.list.focus.clone(),
+                    Page::Search => self.search.focus_handle(cx),
+                    Page::Timer if self.countdown == Countdown::Idle => {
+                        self.duration.focus_handle(cx)
+                    }
+                    Page::Timer => self.action.clone(),
+                },
+                t,
+                w,
+            ))
             .child(
                 div()
                     .bg(rgb(t.panel))
@@ -413,9 +427,17 @@ impl Render for Clocks {
         let msg = if !self.notice.is_empty() {
             self.notice.clone()
         } else if world {
-            format!("{} saved cities", self.cities.len())
+            match self.cities.len() {
+                0 => "No saved cities. Choose Add city to add a clock.".into(),
+                1 => "1 saved city".into(),
+                n => format!("{n} saved cities"),
+            }
         } else if search {
-            format!("{} matching time zones", self.list.rows.len())
+            match self.list.rows.len() {
+                0 => "No matching time zones. Try a different city.".into(),
+                1 => "1 matching time zone".into(),
+                n => format!("{n} matching time zones"),
+            }
         } else {
             String::new()
         };

@@ -83,3 +83,17 @@ The joe Linux packaging maintainer will add recipes in the distribution. Supply 
 Install each binary under `/usr/bin` and its desktop entry under `/usr/share/applications`. Test launching from the menu and opening a representative file through its registered handler on a clean image. Replace each GNOME application in the desktop package after its corresponding milestone passes on the image. Check reverse dependencies before retiring shared services such as GVfs.
 
 Use system icon themes, fonts, sounds and codecs. Review the licence and provenance of every proposed bundled asset or fixture before adding it. Keep original project files under BSD-3-Clause, use BSD-compatible bundled assets and preserve required third-party licences and notices, including Apache-2.0 notices for any adapted GPUI code.
+
+### Vendored source archive
+
+From a checkout at the commit joe intends to package, run `tools/dist.sh`. It reads the version from the committed workspace manifest, archives that Git tree and vendors every registry and Git source in `Cargo.lock`. Cargo writes the source replacements to `.cargo/config.toml` inside the archive. The script prints the SHA-256 digest of `target/dist/mundane-apps-VERSION.tar.xz`.
+
+Creating the archive requires Git, Bash, Python 3.11 or later, Cargo, GNU tar, coreutils and xz. Cargo needs access to the locked sources during vendoring. With a populated Cargo cache, `CARGO_NET_OFFLINE=true tools/dist.sh` also works. For repeat builds use the same commit and tool versions. Archive entries are sorted, have fixed ownership and permissions, and use the Git commit timestamp. Set `SOURCE_DATE_EPOCH` to override the timestamp. Compression uses a fixed block size and thread count.
+
+For a distribution build, unpack the archive, enter its top-level directory and run the following with the Rust toolchain and the suite’s Linux development libraries installed. Cargo reads dependencies from the included `vendor/` directory, including GPUI and wgpu.
+
+```sh
+cargo build --locked --offline
+```
+
+The workspace builds all 18 binaries by default. Add `--release` for an optimized distribution build. The per-app notes above list runtime libraries, providers and desktop services.

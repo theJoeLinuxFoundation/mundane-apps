@@ -1,5 +1,7 @@
 //! Local file operations. Call these on a background executor.
+mod replace;
 mod thumbnail;
+pub use replace::{Conflict, replace};
 use rustix::fs::{CWD, RenameFlags, renameat_with};
 use std::{
     ffi::{OsStr, OsString},

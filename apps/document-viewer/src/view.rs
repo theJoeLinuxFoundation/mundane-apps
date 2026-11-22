@@ -119,6 +119,8 @@ impl Viewer {
                 .justify_center()
                 .child(if self.state.is_some() {
                     "Page unavailable"
+                } else if self.error.is_some() {
+                    "Document unavailable"
                 } else {
                     "Open a PDF document"
                 });

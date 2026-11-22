@@ -1,4 +1,4 @@
-use super::{Files, Job, Paste};
+use super::{Files, Job, Paste, PasteAction};
 use gpui::{prelude::*, *};
 use mundane_ui::ControlRole as _;
 use mundane_ui::{TextField, button};
@@ -8,13 +8,14 @@ pub(super) enum Prompt {
     Location,
     Rename(PathBuf),
     Trash(PathBuf),
-    Conflict(Paste),
+    Conflict(Paste, mundane_services::files::Conflict),
 }
 pub(super) struct Dialog {
     pub(super) prompt: Prompt,
     field: Option<Entity<TextField>>,
     pub(super) cancel: FocusHandle,
     accept: FocusHandle,
+    replace: FocusHandle,
     return_focus: FocusHandle,
 }
 
@@ -50,6 +51,7 @@ impl Files {
             field,
             cancel,
             accept,
+            replace: cx.focus_handle(),
             return_focus,
         });
         cx.notify();
@@ -85,7 +87,9 @@ impl Files {
                 }
             }
             Prompt::Trash(path) => self.execute(Job::Trash(path), window, cx),
-            Prompt::Conflict(paste) => self.execute(Job::Paste(paste, true), window, cx),
+            Prompt::Conflict(paste, _) => {
+                self.execute(Job::Paste(paste, PasteAction::KeepBoth), window, cx)
+            }
         }
     }
 
@@ -95,24 +99,61 @@ impl Files {
             Prompt::Location => ("Open folder", None, "Open"),
             Prompt::Rename(_) => ("Rename item", None, "Rename"),
             Prompt::Trash(path) => ("Move to Trash?", Some(name(path)), "Move to Trash"),
-            Prompt::Conflict(paste) => (
+            Prompt::Conflict(paste, _) => (
                 "Name already in use",
                 Some(format!("“{}” already exists here.", name(&paste.dest))),
                 "Keep both",
             ),
         };
+        let review = if let Prompt::Conflict(_, info) = &dialog.prompt {
+            Some(info)
+        } else {
+            None
+        };
+        let can_replace = review.is_some_and(|r| r.reason.is_none());
+        let comparison = review.map(|r| {
+            let mut rows = div().flex().flex_col().gap_2();
+            for (id, label, info) in [
+                ("incoming", "Incoming", &r.incoming),
+                ("existing", "Existing", &r.existing),
+            ] {
+                let summary = info.description();
+                let text = format!("{label} · {summary}");
+                rows = rows.child(
+                    mundane_ui::text_label(id, text)
+                        .flex()
+                        .flex_col()
+                        .child(div().font_weight(FontWeight::SEMIBOLD).child(label))
+                        .child(div().text_sm().child(summary)),
+                );
+            }
+            rows.children(r.reason)
+        });
         let mut stops: Vec<_> = dialog
             .field
             .iter()
             .map(|f| f.read(cx).focus_handle(cx))
             .collect();
         stops.extend([dialog.cancel.clone(), dialog.accept.clone()]);
+        if can_replace {
+            stops.push(dialog.replace.clone())
+        }
         let field = dialog.field.clone();
         let cancel = cx.weak_entity();
         let accept = cancel.clone();
+        let replace_view = cancel.clone();
         mundane_ui::Role::Dialog
             .control("file-dialog", title)
-            .aria_description(detail.clone().unwrap_or_else(|| title.to_string()))
+            .aria_description(match review {
+                Some(r) => format!(
+                    "{} Incoming: {}. Existing: {}. {}",
+                    detail.as_deref().unwrap_or(title),
+                    r.incoming.description(),
+                    r.existing.description(),
+                    r.reason.unwrap_or("")
+                ),
+                None => detail.clone().unwrap_or_else(|| title.into()),
+            })
             .absolute()
             .inset_0()
             .occlude()
@@ -146,6 +187,7 @@ impl Files {
             .child(
                 div()
                     .w(px(320.))
+                    .when(review.is_some(), |el| el.w(rems(27.)))
                     .max_w_full()
                     .flex()
                     .flex_col()
@@ -157,10 +199,12 @@ impl Files {
                     .border_color(rgb(theme.border))
                     .child(div().font_weight(FontWeight::SEMIBOLD).child(title))
                     .children(detail)
+                    .children(comparison)
                     .children(dialog.field.clone())
                     .child(
                         div()
                             .flex()
+                            .flex_wrap()
                             .justify_end()
                             .gap_2()
                             .child(button(
@@ -176,7 +220,34 @@ impl Files {
                             .child(button(action, &dialog.accept, theme, move |window, cx| {
                                 let _ = accept
                                     .update(cx, |this, cx| this.finish_dialog(true, window, cx));
-                            })),
+                            }))
+                            .when(review.is_some(), |el| {
+                                el.child(mundane_ui::unavailable(
+                                    button("Replace", &dialog.replace, theme, move |window, cx| {
+                                        if can_replace {
+                                            let _ = replace_view.update(cx, |this, cx| {
+                                                if let Some(Dialog {
+                                                    prompt: Prompt::Conflict(paste, info),
+                                                    return_focus,
+                                                    ..
+                                                }) = this.dialog.take()
+                                                {
+                                                    return_focus.focus(window, cx);
+                                                    this.execute(
+                                                        Job::Paste(
+                                                            paste,
+                                                            PasteAction::Replace(info),
+                                                        ),
+                                                        window,
+                                                        cx,
+                                                    );
+                                                }
+                                            });
+                                        }
+                                    }),
+                                    !can_replace,
+                                ))
+                            }),
                     ),
             )
     }

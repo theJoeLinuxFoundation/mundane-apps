@@ -166,7 +166,11 @@ impl Pipeline {
             )
             .context("Timed out preparing playback. Check the file and PipeWire output.")?;
         if let gst::MessageView::Error(e) = msg.view() {
-            bail!("{}", e.error());
+            let error = e.error();
+            if player.sink.is_some() && error.matches(gst::StreamError::Demux) {
+                bail!("Could not read the WebM video. The file may be damaged.");
+            }
+            bail!("{error}");
         }
         Ok(player)
     }

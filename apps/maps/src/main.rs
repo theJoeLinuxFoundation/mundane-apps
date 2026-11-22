@@ -235,10 +235,10 @@ impl Maps {
                 v.searching = false;
                 match result {
                     Ok(items) => {
-                        v.search_status = if items.is_empty() {
-                            "No matching places".into()
-                        } else {
-                            format!("{} search results", items.len())
+                        v.search_status = match items.len() {
+                            0 => "No matching places".into(),
+                            1 => "1 search result".into(),
+                            n => format!("{n} search results"),
                         };
                         v.results.replace(
                             items
@@ -354,6 +354,12 @@ impl Maps {
         let k = &e.keystroke;
         let map = self.focus.is_focused(w) && !self.show_results;
         match (k.key.as_str(), k.modifiers.control) {
+            ("f6", false) => if self.has_area {
+                &self.open
+            } else {
+                &self.save
+            }
+            .focus(w, cx),
             ("f", true) => {
                 self.query.focus_handle(cx).focus(w, cx);
                 self.query
@@ -614,7 +620,11 @@ impl Render for Maps {
             .child(self.header.render(
                 "Maps",
                 div().flex().gap_2().child(save).child(open),
-                &self.focus,
+                if self.show_results {
+                    &self.results.focus
+                } else {
+                    &self.focus
+                },
                 t,
                 w,
             ))

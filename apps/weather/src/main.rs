@@ -167,7 +167,7 @@ impl View {
                 .map(|h| BrowserRow {
                     key: h.time.to_string().into(),
                     label: weather::local(h.time, &l.zone).unwrap_or_default(),
-                    detail: h.condition.clone(),
+                    detail: weather::condition_label(&h.condition),
                     value: format!(
                         "{:.1} °C{}",
                         h.temperature,
@@ -186,6 +186,12 @@ impl View {
     fn keys(&mut self, e: &KeyDownEvent, w: &mut Window, cx: &mut Context<Self>) {
         let k = &e.keystroke;
         match (k.key.as_str(), k.modifiers.control) {
+            ("f6", false) => if self.choosing {
+                &self.action
+            } else {
+                &self.change
+            }
+            .focus(w, cx),
             ("l", true) => self.choose(w, cx),
             ("f5", false) if !self.choosing => self.refresh(false, w, cx),
             ("escape", false) if self.choosing && self.report.is_some() => {
@@ -296,7 +302,11 @@ impl Render for View {
                             action,
                             self.loading || choose && self.visible.is_empty(),
                         )),
-                    &self.list.focus,
+                    &if choose {
+                        self.query.focus_handle(cx)
+                    } else {
+                        self.list.focus.clone()
+                    },
                     t,
                     w,
                 ),

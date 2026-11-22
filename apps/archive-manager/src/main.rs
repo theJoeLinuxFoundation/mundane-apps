@@ -62,7 +62,11 @@ impl Manager {
                         this.refresh();
                         this.list.select(0);
                         this.list.focus.focus(w, cx);
-                        this.status = format!("{} entries", this.entries.len());
+                        this.status = match this.entries.len() {
+                            0 => "This archive is empty".into(),
+                            1 => "1 entry".into(),
+                            n => format!("{n} entries"),
+                        };
                     }
                     Err(e) => this.status = format!("Could not open archive. {e:#}"),
                 }

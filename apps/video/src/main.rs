@@ -243,7 +243,13 @@ impl Render for Video {
                 .size_full(),
             )
         } else {
-            screen.child("Open a WebM video")
+            screen.child(
+                if self.status.phase == Phase::Failed || self.status.error.is_some() {
+                    "Video unavailable"
+                } else {
+                    "Open a WebM video"
+                },
+            )
         };
         div()
             .size_full()

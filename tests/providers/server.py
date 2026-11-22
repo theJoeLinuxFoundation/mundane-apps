@@ -32,6 +32,9 @@ class Handler(BaseHTTPRequestHandler):
         with (work / "requests").open("a") as f:
             print(json.dumps([self.path, self.headers["User-Agent"], self.headers["If-Modified-Since"], time.monotonic()]), file=f)
         if url.path == "/forecast":
+            if (work / "unavailable").exists():
+                self.send_error(503)
+                return
             checked = self.headers["If-Modified-Since"] == modified
             expires = datetime.now(timezone.utc) + timedelta(hours=1 if checked or (work/"fresh").exists() else -1)
             self.send_response(304 if checked else 200)
@@ -55,10 +58,13 @@ class Handler(BaseHTTPRequestHandler):
             assert parse_qs(url.query)["format"] == ["jsonv2"]
             self.send_response(200)
             self.end_headers()
-            self.wfile.write(json.dumps([
+            places = [
                 {"display_name":"Tide Pool, Survey Coast", "lat":"59.926", "lon":"10.72"},
                 {"display_name":"Harbour Point, Survey Coast", "lat":"59.9139", "lon":"10.7522"}
-            ]).encode())
+            ]
+            if (work / "single-result").exists():
+                places = places[:1]
+            self.wfile.write(json.dumps(places).encode())
         else:
             self.send_error(404)
 

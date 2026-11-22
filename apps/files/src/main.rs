@@ -23,16 +23,21 @@ struct Paste {
     dest: PathBuf,
     how: Transfer,
 }
+enum PasteAction {
+    New,
+    KeepBoth,
+    Replace(files::Conflict),
+}
 enum Job {
     Open(PathBuf),
     Rename(PathBuf, OsString),
-    Paste(Paste, bool),
+    Paste(Paste, PasteAction),
     Trash(PathBuf),
 }
 enum Outcome {
     Changed(Option<PathBuf>),
     Opened,
-    Conflict(Paste),
+    Conflict(Paste, files::Conflict),
 }
 
 impl Job {
@@ -43,13 +48,20 @@ impl Job {
                 files::rename(&path, &name).map(|p| Outcome::Changed(Some(p)))
             }
             Self::Trash(path) => files::trash(&path).map(|()| Outcome::Changed(None)),
-            Self::Paste(paste, true) => files::keep_both(&paste.source, &paste.dest, paste.how)
-                .map(|p| Outcome::Changed(Some(p))),
-            Self::Paste(paste, false) => {
+            Self::Paste(paste, PasteAction::KeepBoth) => {
+                files::keep_both(&paste.source, &paste.dest, paste.how)
+                    .map(|p| Outcome::Changed(Some(p)))
+            }
+            Self::Paste(paste, PasteAction::Replace(review)) => {
+                files::replace(&paste.source, &paste.dest, paste.how, &review)
+                    .map(|()| Outcome::Changed(Some(paste.dest)))
+            }
+            Self::Paste(paste, PasteAction::New) => {
                 match files::transfer(&paste.source, &paste.dest, paste.how) {
                     Ok(()) => Ok(Outcome::Changed(Some(paste.dest))),
                     Err(e) if e.kind() == io::ErrorKind::AlreadyExists => {
-                        Ok(Outcome::Conflict(paste))
+                        files::Conflict::inspect(&paste.source, &paste.dest)
+                            .map(|info| Outcome::Conflict(paste, info))
                     }
                     Err(e) => Err(e),
                 }
@@ -216,7 +228,9 @@ impl Files {
                         this.load(this.path.clone(), selection, cx);
                     }
                     Ok(Outcome::Opened) => {}
-                    Ok(Outcome::Conflict(p)) => this.prompt(Prompt::Conflict(p), window, cx),
+                    Ok(Outcome::Conflict(p, info)) => {
+                        this.prompt(Prompt::Conflict(p, info), window, cx)
+                    }
                     Err(e) => this.message = Some(e),
                 }
                 cx.notify();
@@ -276,7 +290,11 @@ impl Files {
                 {
                     let dest = self.path.join(name);
                     if source != dest || how != Transfer::Move {
-                        self.execute(Job::Paste(Paste { source, dest, how }, false), window, cx);
+                        self.execute(
+                            Job::Paste(Paste { source, dest, how }, PasteAction::New),
+                            window,
+                            cx,
+                        );
                     }
                 } else {
                     self.message = Some("Copy or cut a local item first.".into());
@@ -430,7 +448,10 @@ impl Render for Files {
             .bg(rgb(theme.surface))
             .text_color(rgb(theme.text))
             .on_key_down(|event, window, cx| {
-                if event.keystroke.key == "tab" {
+                if event.keystroke.key == "w" && event.keystroke.modifiers.control {
+                    window.remove_window();
+                    cx.stop_propagation();
+                } else if event.keystroke.key == "tab" {
                     if event.keystroke.modifiers.shift {
                         window.focus_prev(cx)
                     } else {

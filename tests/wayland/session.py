@@ -95,8 +95,8 @@ def find_and_copy(text):
     until(lambda: clipboard() == text, f"selected text {text!r} on the private clipboard")
 
 
-def inspect_accessibility(stack, app_id, app_pid):
-    suite = app_id.rsplit(".", 1)[1]
+def inspect_accessibility(stack, app_id, app_pid, suite=None):
+    suite = suite or app_id.rsplit(".", 1)[1]
     listing = output("orca", "--list-apps")
     (OUTPUT / f"orca-{suite}.txt").write_text(listing + "\n")
     assert "mundane-probe-control" in listing and str(app_pid) in listing, listing
@@ -109,7 +109,7 @@ def inspect_accessibility(stack, app_id, app_pid):
     inspection.check_returncode()
 
 
-def compare_screenshot(name, scale):
+def compare_screenshot(name, scale, references=HERE):
     image = OUTPUT / name
     # Clipboard and key replies can precede frame presentation. Wait for stable pixels.
     previous = None
@@ -123,7 +123,7 @@ def compare_screenshot(name, scale):
     until(settled, "stable screenshot")
     if os.environ.get('MUNDANE_CAPTURE_ONLY') == '1':
         return
-    baseline = HERE / name
+    baseline = references / name
     if not baseline.exists():
         raise RuntimeError(f"Review {image} and supply {name}")
     # PAM includes the dimensions and uncompressed RGBA samples. Compare bytes
@@ -165,7 +165,7 @@ def check_window_actions(log):
     key("Return")
 
 
-def exercise_files(folder, scale, profile, labwc):
+def file_conflict(folder):
     cache = Path(os.environ["XDG_CACHE_HOME"]) / "thumbnails/normal"
     until(lambda: list(cache.glob("*.png")), "visible palette thumbnail")
     key("Home")
@@ -176,10 +176,27 @@ def exercise_files(folder, scale, profile, labwc):
     notes = folder / "notes.txt"
     until(notes.is_file, "rename")
     key("c", "ctrl")
+    key("Home")
+    key("Return")  # Open Archive with the other notes.txt.
     key("v", "ctrl")
+    return notes
+
+
+def exercise_files(folder, scale, profile, labwc, inspect_conflict):
+    notes = file_conflict(folder)
     name = f"files-{'labwc' if labwc else 'sway'}-{profile}.png"
     compare_screenshot(name, scale)
+    if inspect_conflict:
+        inspect_conflict()
+    dest = folder / "Archive/notes.txt"
     key("Escape")
+    assert dest.read_text() == "Earlier survey notes\n"
+    key("v", "ctrl")
+    key("Tab")
+    key("Tab")
+    key("Return")
+    until(lambda: dest.read_bytes() == notes.read_bytes(), "reviewed replacement")
+    key("BackSpace")
     assert sorted(p.name for p in folder.iterdir()) == ["Archive", "notes.txt", "palette.png"]
     key("v", "ctrl")
     key("Tab")
@@ -247,6 +264,7 @@ def main():
     global OUTPUT
     parser = argparse.ArgumentParser()
     parser.add_argument("--app", choices=["terminal", "files", "text-editor", "system-monitor", "image-viewer", "calculator", "document-viewer", "video", "packages", "music", "archive-manager", "disk-usage", "disks", "clocks", "characters", "fonts", "weather", "maps"], default="terminal")
+    parser.add_argument("--polish", action="store_true", help="compare the user-facing polish states on headless Sway")
     parser.add_argument("--missing-video-decoder", action="store_true", help="inspect Video with the vpx plugin absent")
     parser.add_argument("--fields", action="store_true", help="exercise two-window activation, password and multiline fields")
     parser.add_argument("--cost", type=Path, help="directory containing the two release cost fixture binaries")
@@ -307,7 +325,7 @@ seat seat0 fallback true
         os.environ["WAYLAND_DISPLAY"] = display.name
         run("dbus-update-activation-environment", "WAYLAND_DISPLAY", "XDG_CURRENT_DESKTOP")
         if args.app in ("packages", "music", "archive-manager", "disk-usage", "disks", "clocks", "characters", "fonts", "weather", "maps") or (args.at_spi and args.app in (
-                "terminal", "image-viewer", "calculator", "document-viewer", "video") and not args.cost):
+                "terminal", "files", "image-viewer", "calculator", "document-viewer", "video") and not args.cost):
             launch(stack, "wtype", "-k", "Shift_L", "-s", "300000", log="seat.log")
         if args.at_spi:
             from gi.repository import Gio, GLib
@@ -419,6 +437,15 @@ seat seat0 fallback true
             archive_dest = Path.home() / "Extracted"
             archive_dest.mkdir()
             argv.append(str(ROOT / "tests/fixtures/archive/Coastal survey.zip"))
+            if args.polish:
+                from zipfile import ZipFile
+                empty = Path.home() / "Empty.zip"
+                with ZipFile(empty, "w"):
+                    pass
+                archive_dest = Path.home() / "Notes.zip"
+                with ZipFile(archive_dest, "w") as z:
+                    z.writestr("Notes.txt", "Survey notes")
+                argv[-1] = str(empty)
             launch(stack, "python3", str(HERE / "chooser_portal.py"), str(archive_dest), log="archive-portal.log")
             until((RUNTIME / "chooser-ready").exists, "private FileChooser")
         if suite_app == "music":
@@ -478,6 +505,10 @@ seat seat0 fallback true
             launch(stack, "python3", str(HERE / "chooser_portal.py"), log=f"chooser-{args.profile}.log")
             until((RUNTIME / "chooser-ready").exists, "private FileChooser")
             argv.append(str(document))
+        if args.polish and suite_app in ("image-viewer", "document-viewer", "video"):
+            bad = {"image-viewer":"Damaged.png", "document-viewer":"Damaged.pdf", "video":"Damaged.webm"}[suite_app]
+            (Path.home() / bad).write_bytes(b"Incomplete file")
+            argv[-1] = bad
         log = f"{suite_app}-{args.compositor}-{args.profile}.log"
         app = launch(stack, *argv,
                      log=log, env={**os.environ, "WAYLAND_DEBUG": "client"})
@@ -488,6 +519,77 @@ seat seat0 fallback true
                 return "ack_configure" in (OUTPUT / log).read_text(errors="replace")
             return app_id in command("-t", "get_tree")
         until(mapped, f"mapped {suite_app}")
+        if args.polish:
+            def shot(state):
+                compare_screenshot(suite_app + "-" + state + ".png", scale, ROOT / "docs/polish/after")
+            key("Shift_L")
+            if suite_app == "files":
+                resize(720, 440)
+                file_conflict(folder)
+                shot("replace")
+                key("Escape")
+                key("BackSpace")
+                key("v", "ctrl")
+                shot("same-item")
+            elif suite_app == "clocks":
+                key("F6")
+                shot("header")
+                key("F6")
+                key("Delete")
+                shot("empty")
+                key("n", "ctrl")
+                type_text("Europe/Oslo")
+                key("Down")
+                shot("one-zone")
+                key("n", "ctrl")
+                key("a", "ctrl")
+                type_text("unmapped time zone")
+                key("Down")
+                shot("no-results")
+            elif suite_app == "characters":
+                type_text("U+2605")
+                key("Return")
+                key("F6")
+                shot("header")
+            elif suite_app == "fonts":
+                until(lambda: "DejaVu Sans · Book — Fonts" in (OUTPUT / log).read_text(), "font preview")
+                key("F6")
+                shot("header")
+            elif suite_app == "weather":
+                type_text("Oslo")
+                key("Return")
+                until(lambda: "Oslo — Weather" in (OUTPUT / log).read_text(), "forecast")
+                key("F6")
+                shot("forecast")
+                (RUNTIME / "unavailable").touch()
+                key("l", "ctrl")
+                type_text("London")
+                key("Return")
+                until(lambda: len((RUNTIME / "requests").read_text().splitlines()) == 2, "unavailable forecast")
+                shot("error")
+            elif suite_app == "archive-manager":
+                until(lambda: "Empty.zip — Archive Manager" in (OUTPUT / log).read_text(), "empty archive")
+                shot("empty")
+                key("o", "ctrl")
+                until(lambda: "Notes.zip — Archive Manager" in (OUTPUT / log).read_text(), "single-entry archive")
+                shot("one-entry")
+            elif suite_app == "maps":
+                until(lambda: "Map · Zoom 2 — Maps" in (OUTPUT / log).read_text(), "vector tiles")
+                key("F6")
+                shot("header")
+                key("f", "ctrl")
+                (RUNTIME / "single-result").touch()
+                type_text("quay")
+                key("Return")
+                until(lambda: "Place results — Maps" in (OUTPUT / log).read_text(), "one place")
+                shot("one-result")
+            elif suite_app in ("image-viewer", "document-viewer", "video"):
+                # The status is produced asynchronously after probing the damaged file.
+                time.sleep(1)
+                shot("error")
+            else:
+                raise ValueError(f"No polish reference for {suite_app}")
+            return
         if suite_app == "maps":
             key("Shift_L")
             if labwc:
@@ -968,16 +1070,14 @@ seat seat0 fallback true
             return
         if suite_app == "files":
             resize(720, 440)
-            exercise_files(folder, scale, args.profile, labwc)
+            exercise_files(folder, scale, args.profile, labwc,
+                           (lambda: inspect_accessibility(stack, app_id, app.pid, "FileConflict")) if args.at_spi else None)
             if args.at_spi:
                 key("l", "ctrl")  # Inspect with the location field and dialog focused.
                 inspect_accessibility(stack, app_id, app.pid)
                 command(f'[app_id="{app_id}"] focus')
                 key("Escape")
-            if labwc:
-                run("wlrctl", "toplevel", "close", app_id)
-            else:
-                command(f'[app_id="{app_id}"] kill')
+            key("w", "ctrl")
             assert app.wait(timeout=8) == 0
             return
         until(lambda: (Path.home() / ".prompt-ready").exists(), "interactive shell prompt")

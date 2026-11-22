@@ -166,6 +166,12 @@ if suite == "MissingVideoDecoder":
                  "missing VP8 decoder reported to user")
     assert error.get_role() == Atspi.Role.STATUS_BAR and "video/x-vp8" in error.get_name()
     sys.exit()
+if suite == "FileConflict":
+    dialog = next(n for n in walk(root) if n.get_role() == Atspi.Role.DIALOG)
+    assert all(named(dialog, name) for name in ("Cancel", "Keep both", "Replace"))
+    assert named(dialog, "Cancel").get_state_set().contains(Atspi.StateType.FOCUSED)
+    assert all(text in dialog.get_description() for text in ("Incoming", "Existing", "12 B", "21 B", "2025-01-08", "2025-01-10"))
+    sys.exit()
 if suite == "Processes":
     listbox = named(root, "Processes")
     row = named(listbox, "file-indexer (PID 1978)")

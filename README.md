@@ -2,6 +2,8 @@
 
 Desktop applications for mundaneDE on the x86 edition of joe Linux. They use Rust and GPUI's Linux Wayland platform, with GPU rendering through wgpu.
 
+The suite’s visual review includes keyboard focus, empty states, errors and the Files conflict dialog. [Before-and-after screenshots](docs/polish/README.md)
+
 ## Terminal
 
 Terminal runs the user's shell in a PTY. It supports scrollback, text selection, clipboard, search, and resizing. Drag to select text, double-click to select a word, or use Find to select a match from the keyboard.
@@ -19,7 +21,7 @@ Set `MUNDANE_HIGH_CONTRAST=1` for the high-contrast palette. The suite now uses 
 
 ## Files
 
-Files browses local directories, opens files in the preferred application, and copies, moves, renames or trashes a selected item. A name collision offers Cancel or Keep both. Visible rows use cached thumbnails, generate previews for PNG and JPEG files, or display a system MIME icon.
+Files browses local directories, opens files in the preferred application, and copies, moves, renames or trashes a selected item. When names collide, Files shows the size and modification date of the incoming and existing items. Choose Cancel, Keep both, or Replace. Cancel has initial focus. Visible rows use cached thumbnails, generate previews for PNG and JPEG files, or display a system MIME icon.
 
 | Action | Shortcut |
 | --- | --- |
@@ -168,6 +170,8 @@ Choose a city or enter coordinates and an IANA time zone. Ctrl+L changes locatio
 Ctrl+F focuses place search. Submit with Enter, then choose a result. Drag or use the arrow keys to pan, and use + and − to zoom. Ctrl+S saves the visible area at its current zoom. Ctrl+O opens the saved area or returns online. [Maps providers, limits and tests](docs/maps-tests.md)
 
 ## Building
+
+Distribution builds can use the vendored source archive from `tools/dist.sh`. [Offline packaging instructions](docs/plan.md#vendored-source-archive)
 
 Use a Rust toolchain with Cargo, a C/C++ toolchain, pkg-config, and the Linux development files for Wayland, xkbcommon and fontconfig. The release build was tested with Rust 1.100 on x86-64 Linux. Run Terminal in a Wayland session with Mesa, a Vulkan driver, installed fonts and xterm-256color terminfo.
 

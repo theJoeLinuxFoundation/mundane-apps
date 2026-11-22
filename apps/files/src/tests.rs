@@ -19,7 +19,7 @@ fn browse_rename_and_cancel_copy_conflict(cx: &mut TestAppContext) {
     cx.simulate_keystrokes("ctrl-c ctrl-v");
     assert!(view.read_with(cx, |f, _| matches!(
         f.dialog.as_ref().map(|d| &d.prompt),
-        Some(Prompt::Conflict(_))
+        Some(Prompt::Conflict(..))
     )));
     cx.update(|window, cx| {
         assert!(

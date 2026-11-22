@@ -78,7 +78,11 @@ impl Viewer {
             this.pan_by(-f32::from(delta.x) / 160., -f32::from(delta.y) / 160., cx);
         }));
         let Some(pic) = &self.picture else {
-            return area.child("Open a PNG or JPEG image");
+            return area.child(if self.error.is_some() {
+                "Image unavailable"
+            } else {
+                "Open a PNG or JPEG image"
+            });
         };
         let pixels = pic.pixels.clone();
         let image_id = pixels.id;

@@ -169,22 +169,11 @@ fn parse(bytes: &[u8]) -> Result<Forecast> {
             .or(s.data.next_12_hours)
             .map(|p| p.summary.symbol_code)
             .unwrap_or_default();
-        let condition = code
-            .split('_')
-            .next()
-            .unwrap_or("")
-            .replace("partlycloudy", "Partly cloudy")
-            .replace("clearsky", "Clear sky")
-            .replace("fair", "Fair")
-            .replace("lightrain", "Light rain")
-            .replace("heavyrain", "Heavy rain")
-            .replace("showers", " showers")
-            .replace("andthunder", " and thunder");
         hours.push(Hour {
             time: s.time.parse::<Timestamp>()?.as_second(),
             temperature: d.air_temperature,
             wind: d.wind_speed,
-            condition,
+            condition: code,
         })
     }
     ensure!(!hours.is_empty(), "Empty forecast");
@@ -193,6 +182,50 @@ fn parse(bytes: &[u8]) -> Result<Forecast> {
         updated: p.meta.updated_at.parse::<Timestamp>()?.as_second(),
         hours,
     })
+}
+/// Accept both MET symbol codes and labels written to the cache by earlier builds.
+pub fn condition_label(input: &str) -> String {
+    let raw = input
+        .split('_')
+        .next()
+        .unwrap_or("")
+        .trim()
+        .to_ascii_lowercase();
+    let combined = raw.replace(' ', "");
+    let mut text = match combined.as_str() {
+        "clearsky" => "clear sky".into(),
+        "partlycloudy" => "partly cloudy".into(),
+        _ => {
+            let code = combined.strip_suffix("andthunder").unwrap_or(&combined);
+            let precipitation = code.strip_suffix("showers").unwrap_or(code);
+            let (intensity, kind) = ["light", "heavy"]
+                .into_iter()
+                .find_map(|i| precipitation.strip_prefix(i).map(|k| (i, k)))
+                .unwrap_or(("", precipitation));
+            if matches!(kind, "rain" | "snow" | "sleet" | "ssnow" | "ssleet") {
+                [
+                    intensity,
+                    match kind {
+                        "ssnow" => "snow",
+                        "ssleet" => "sleet",
+                        other => other,
+                    },
+                    if code != precipitation { "showers" } else { "" },
+                    if code != combined { "and thunder" } else { "" },
+                ]
+                .into_iter()
+                .filter(|p| !p.is_empty())
+                .collect::<Vec<_>>()
+                .join(" ")
+            } else {
+                raw
+            }
+        }
+    };
+    if let Some(first) = text.get_mut(..1) {
+        first.make_ascii_uppercase()
+    }
+    text
 }
 pub fn local(time: i64, zone: &str) -> Result<String> {
     Ok(Timestamp::from_second(time)?
@@ -269,6 +302,7 @@ impl Weather {
                     store(&path, c)?;
                     "Cached forecast · checked"
                 }
+                503 => bail!("Try Refresh later (HTTP 503)."),
                 code => bail!("Forecast service returned HTTP {code}"),
             };
             Ok::<_, anyhow::Error>(status)
@@ -292,5 +326,27 @@ impl Weather {
             forecast: old.context("Missing forecast")?.forecast,
             status,
         })
+    }
+}
+
+#[cfg(test)]
+mod labels {
+    use super::condition_label;
+
+    #[test]
+    fn sentence_case_for_codes_and_cached_labels() {
+        for (input, label) in [
+            ("rain", "Rain"),
+            ("cloudy", "Cloudy"),
+            ("Partly cloudy", "Partly cloudy"),
+            ("partlycloudy_day", "Partly cloudy"),
+            (
+                "lightssnowshowersandthunder_polartwilight",
+                "Light snow showers and thunder",
+            ),
+            ("heavyrainshowers_night", "Heavy rain showers"),
+        ] {
+            assert_eq!(condition_label(input), label);
+        }
     }
 }
