@@ -151,3 +151,12 @@ Select a drive or partition table to see the filesystems and unpartitioned regio
 | --- | --- | --- |
 | Inspect disk layout | [Device list](parity/round-4/before/disks-layout.png) | [Partition layout](parity/round-4/after/disks-layout.png) |
 | Safely remove hardware | [Drive selected](parity/round-4/before/disks-remove.png) | [Power-off confirmation](parity/round-4/after/disks-remove.png) |
+
+### Disk Usage
+
+The treemap shows each subtree’s share of allocated space or logical file size. Select a folder tile to drill down, use Backspace to return, or use the adjacent keyboard-accessible list. T toggles the chart. Ctrl+Enter opens the selected folder in Files, or the current folder for a selected file. More than 24 items are grouped at the small end of the chart. Volume selection, trash and remote scanning remain.
+
+| Task | Before | After |
+| --- | --- | --- |
+| Find the largest folders | [Size list](parity/round-4/before/disk-usage-treemap.png) | [Treemap](parity/round-4/after/disk-usage-treemap.png) |
+| Inspect a subtree | [Folder list](parity/round-4/before/disk-usage-subtree.png) | [Folder map](parity/round-4/after/disk-usage-subtree.png) |

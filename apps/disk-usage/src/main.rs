@@ -1,3 +1,4 @@
+mod treemap;
 use gpui::{prelude::*, *};
 use mundane_services::usage::{self, Scan};
 use mundane_ui::{
@@ -26,7 +27,9 @@ struct Usage {
     apparent: bool,
     notice: String,
     header: WindowHeader,
-    buttons: [FocusHandle; 4],
+    buttons: [FocusHandle; 6],
+    map: bool,
+    tiles: Vec<FocusHandle>,
 }
 impl Drop for Usage {
     fn drop(&mut self) {
@@ -49,6 +52,8 @@ impl Usage {
             apparent: false,
             notice: "Choose a folder to scan.".into(),
             header: WindowHeader::new(cx),
+            map: true,
+            tiles: (0..24).map(|_| cx.focus_handle().tab_stop(true)).collect(),
             buttons: std::array::from_fn(|_| cx.focus_handle().tab_stop(true)),
         }
     }
@@ -204,6 +209,114 @@ impl Usage {
         })
         .detach()
     }
+    fn open_folder(&mut self, cx: &mut Context<Self>) {
+        let Some(scan) = &self.scan else { return };
+        let i = self
+            .list
+            .selected
+            .and_then(|i| self.order.get(i).copied())
+            .filter(|&i| scan.nodes[i].directory)
+            .unwrap_or(self.current);
+        let path = scan.path(i);
+        let task = cx.background_executor().spawn(async move {
+            let exe = std::env::current_exe()?.with_file_name("mundane-files");
+            let child = std::process::Command::new(exe).arg(&path).spawn()?;
+            Ok::<_, std::io::Error>(child)
+        });
+        cx.spawn(async move |v, cx| match task.await {
+            Ok(mut child) => {
+                cx.background_executor()
+                    .spawn(async move {
+                        let _ = child.wait();
+                    })
+                    .detach();
+            }
+            Err(e) => {
+                let _ = v.update(cx, |s, cx| {
+                    s.notice = format!("Could not open Files. {e}");
+                    cx.notify()
+                });
+            }
+        })
+        .detach()
+    }
+    fn chart(&self, cx: &Context<Self>) -> AnyElement {
+        let t = Theme::current(cx);
+        let scan = self.scan.as_ref().unwrap();
+        let positive = self
+            .order
+            .iter()
+            .copied()
+            .take_while(|&i| scan.nodes[i].bytes.get(self.apparent) > 0)
+            .collect::<Vec<_>>();
+        let mut weights = positive
+            .iter()
+            .take(24)
+            .map(|&i| scan.nodes[i].bytes.get(self.apparent))
+            .collect::<Vec<_>>();
+        let grouped = positive.len() > 24;
+        if grouped {
+            weights[23] = positive[23..].iter().fold(0u64, |n, &i| {
+                n.saturating_add(scan.nodes[i].bytes.get(self.apparent))
+            });
+        }
+        let mut chart = Role::Group
+            .control("treemap", "Treemap by size")
+            .relative()
+            .w_full()
+            .h(rems(10.))
+            .flex_shrink_0();
+        for (row, rect) in treemap::layout(&weights).into_iter().enumerate() {
+            let other = grouped && row == 23;
+            let n = &scan.nodes[positive[row]];
+            let label = if other {
+                format!("{} smaller items", positive.len() - 23)
+            } else {
+                n.name.to_string_lossy().into_owned()
+            };
+            let size = byte_size(weights[row]);
+            let v = cx.weak_entity();
+            let tile = if other {
+                div()
+                    .id("grouped")
+                    .role(Role::Label)
+                    .aria_label(format!("{label} · {size}"))
+            } else {
+                mundane_ui::button_base(
+                    format!("{label} · {size}"),
+                    &self.tiles[row],
+                    t,
+                    move |w, cx| {
+                        let _ = v.update(cx, |s, cx| {
+                            s.list.select(row);
+                            s.list.focus.focus(w, cx);
+                            s.enter(cx);
+                            cx.notify()
+                        });
+                    },
+                )
+            };
+            chart = chart.child(
+                tile.absolute()
+                    .left(relative(rect.x))
+                    .top(relative(rect.y))
+                    .w(relative(rect.w))
+                    .h(relative(rect.h))
+                    .overflow_hidden()
+                    .border_1()
+                    .border_color(rgb(t.border))
+                    .bg(rgb(if row % 2 == 0 { t.selection } else { t.panel }))
+                    .when(rect.w > 0.10 && rect.h > 0.14, |el| {
+                        el.p_1()
+                            .child(div().truncate().child(label))
+                            .when(rect.h > 0.3, |el| {
+                                el.child(div().truncate().text_sm().child(size))
+                            })
+                    }),
+            );
+        }
+        chart.into_any_element()
+    }
     fn action(&mut self, i: usize, w: &mut Window, cx: &mut Context<Self>) {
         match i {
             0 => self.choose(w, cx),
@@ -217,6 +330,11 @@ impl Usage {
             3 => {
                 self.apparent = !self.apparent;
                 self.refresh();
+                cx.notify()
+            }
+            4 => self.open_folder(cx),
+            5 => {
+                self.map = !self.map;
                 cx.notify()
             }
             _ => {}
@@ -242,6 +360,8 @@ impl Usage {
     fn keys(&mut self, e: &KeyDownEvent, w: &mut Window, cx: &mut Context<Self>) {
         let k = &e.keystroke;
         match (k.key.as_str(), k.modifiers.control) {
+            ("return" | "enter", true) => self.open_folder(cx),
+            ("t", false) => self.action(5, w, cx),
             ("o", true) => self.choose(w, cx),
             ("f5", false) if self.active.is_none() => self.action(1, w, cx),
             ("escape", false) if self.active.is_some() => self.cancel(cx),
@@ -298,6 +418,7 @@ impl Render for Usage {
             .flex()
             .gap_2()
             .child(self.control(0, "Open folder…", true, cx))
+            .child(self.control(4, "Open in Files", scan.is_some(), cx))
             .child(self.control(
                 1,
                 if self.active.is_some() {
@@ -341,6 +462,16 @@ impl Render for Usage {
                     .flex()
                     .items_center()
                     .bg(rgb(theme.panel))
+                    .child(self.control(
+                        5,
+                        if self.map {
+                            "Hide treemap"
+                        } else {
+                            "Show treemap"
+                        },
+                        scan.is_some(),
+                        cx,
+                    ))
                     .child(self.control(2, "Back", self.current != 0, cx))
                     .child(
                         mundane_ui::text_label("folder", name.clone())
@@ -360,6 +491,9 @@ impl Render for Usage {
                         cx,
                     )),
             )
+            .when(self.map && !self.order.is_empty(), |el| {
+                el.child(self.chart(cx))
+            })
             .child(list)
             .child(
                 Role::Status

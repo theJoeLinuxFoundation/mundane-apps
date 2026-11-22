@@ -19,3 +19,5 @@ tests/wayland/run --app disk-usage --at-spi
 ```
 
 Install the binary and its desktop entry alongside the suite’s Wayland and FileChooser dependencies. The scanner uses Linux filesystem APIs and procfs. The packaged joe image check remains pending.
+
+Round four compares a whole tree and a drilled-in folder in logical-size mode. Ctrl+Enter opens a real Files window on the private compositor. The test checks the folder argument of that mapped window. Unit tests check tile areas against byte counts, including a one-item tree, empty input and extreme size ratios.

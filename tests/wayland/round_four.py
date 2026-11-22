@@ -263,3 +263,22 @@ def disks(side, root, service, key, type_text, until, compare):
         type_text("survey")
         key("Return")
         until((service / "unlocked").exists, "UDisks unlocked the encrypted fixture")
+
+
+def usage(side, root, log, key, until, compare, command):
+    until(lambda: "Coastal survey — Disk Usage" in log.read_text(), "scan complete")
+    key("Shift_L")
+    key("a")
+    key("Home")
+    compare("disk-usage-treemap.png", 1, root / "docs/parity/round-4" / side)
+    key("Return")
+    compare("disk-usage-subtree.png", 1, root / "docs/parity/round-4" / side)
+    if side == "after":
+        key("Return", "ctrl")
+        def opened(node):
+            if node.get("app_id") == "org.joelinux.mundane.Files":
+                args = Path(f"/proc/{node['pid']}/cmdline").read_bytes().split(b"\0")
+                return os.fsencode(Path.home() / "Coastal survey/Charts") in args
+            return any(opened(child) for child in node.get("nodes", []) + node.get("floating_nodes", []))
+        until(lambda: opened(json.loads(command("-t", "get_tree"))), "Files opened on Charts")
+        key("w", "ctrl")
