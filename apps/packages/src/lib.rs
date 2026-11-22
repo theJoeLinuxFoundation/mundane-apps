@@ -3,7 +3,9 @@ mod tests;
 mod view;
 
 use gpui::{prelude::*, *};
-use mundane_services::packages::{Applied, Dave, Info, Listed, Operation, Request, Review, Status};
+use mundane_services::packages::{
+    Applied, Dave, Info, Listed, Operation, RefusalReason, Request, Review, Status,
+};
 use mundane_ui::{ApplicationContent, TextField, Theme, WindowHeader};
 use std::time::Duration;
 
@@ -46,17 +48,25 @@ impl Job {
                     Applied::Denied => {
                         Answer::Notice("Authorization denied or unavailable.".into())
                     }
-                    Applied::Refused(message) => {
-                        // Version 1 exposes a human message only. Compare digests instead of
-                        // guessing the kind of refusal from English stderr or translated text.
+                    Applied::Refused(refusal) => {
+                        let message = refusal.message;
+                        let notice = format!("dave refused the change. {message}");
+                        if refusal.reason == RefusalReason::Other {
+                            return Ok(Answer::Notice(notice));
+                        }
                         match dave.preview(request) {
-                            Ok(next) if next.plan().digest != digest => Answer::Review(
-                                next,
-                                format!("The plan changed. Review it again. {message}"),
-                            ),
-                            Ok(_) => Answer::Notice(format!("dave refused the change. {message}")),
+                            Ok(next)
+                                if refusal.reason == RefusalReason::Changed
+                                    || next.plan().digest != digest =>
+                            {
+                                Answer::Review(
+                                    next,
+                                    format!("The plan changed. Review it again. {message}"),
+                                )
+                            }
+                            Ok(_) => Answer::Notice(notice),
                             Err(error) => Answer::Notice(format!(
-                                "dave refused the change. {message} Could not reload the plan. {error}"
+                                "{notice} Could not reload the plan. {error}"
                             )),
                         }
                     }

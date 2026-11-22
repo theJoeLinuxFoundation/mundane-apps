@@ -142,8 +142,31 @@ struct Receipt {
     rollback_point: Option<u32>,
 }
 #[derive(Deserialize)]
-struct ErrorDoc {
-    message: String,
+pub struct Refusal {
+    pub message: String,
+    #[serde(default, deserialize_with = "read_reason")]
+    pub reason: RefusalReason,
+}
+
+#[derive(Clone, Copy, Default, PartialEq, Eq)]
+pub enum RefusalReason {
+    #[default]
+    Absent,
+    Changed,
+    Other,
+}
+
+// A missing field identifies older dave builds. An explicit JSON null is a
+// known, general failure in the newer contract.
+fn read_reason<'de, D: serde::Deserializer<'de>>(
+    deserializer: D,
+) -> Result<RefusalReason, D::Error> {
+    Ok(
+        match Option::<String>::deserialize(deserializer)?.as_deref() {
+            Some("changed") => RefusalReason::Changed,
+            _ => RefusalReason::Other,
+        },
+    )
 }
 
 fn decode<T: DeserializeOwned>(bytes: &[u8], schema: &str) -> Result<T> {
@@ -245,7 +268,7 @@ pub enum Applied {
     Success { rollback: Option<u32> },
     Dismissed,
     Denied,
-    Refused(String),
+    Refused(Refusal),
 }
 #[derive(Clone)]
 pub struct Dave {
@@ -275,7 +298,7 @@ impl Dave {
         if out.status.code() == Some(1) {
             bail!(
                 "{}",
-                decode::<ErrorDoc>(&out.stdout, "dave.error/1")?.message
+                decode::<Refusal>(&out.stdout, "dave.error/1")?.message
             );
         }
         bail!("dave exited with {}.", out.status)
@@ -338,9 +361,7 @@ impl Dave {
             }
             Some(126) => Ok(Applied::Dismissed),
             Some(127) => Ok(Applied::Denied),
-            Some(1) => Ok(Applied::Refused(
-                decode::<ErrorDoc>(&out.stdout, "dave.error/1")?.message,
-            )),
+            Some(1) => Ok(Applied::Refused(decode(&out.stdout, "dave.error/1")?)),
             _ => bail!(
                 "Package authorization process exited with {}. Refresh package state.",
                 out.status
@@ -366,7 +387,7 @@ mod tests {
         assert!(results.packages.iter().any(|p| p.name == "hello"));
         let status: Status = decode(&bytes("status"), "dave.status/1").unwrap();
         assert!(status.complete && !status.managed);
-        let err: ErrorDoc = decode(&bytes("refusal"), "dave.error/1").unwrap();
+        let err: Refusal = decode(&bytes("refusal"), "dave.error/1").unwrap();
         assert!(err.message.contains("hello"));
         for req in [
             Request::package(Operation::Install, "hello").unwrap(),
@@ -388,7 +409,7 @@ mod tests {
         let list:List=decode(br#"{"schema":"dave.list/1","extra":1,"packages":[{"name":"ink","version":"1","requested":true,"future":12}]}"#,"dave.list/1").unwrap();
         assert_eq!(list.packages[0].name, "ink");
         assert_eq!(
-            decode::<ErrorDoc>(
+            decode::<Refusal>(
                 br#"{"schema":"dave.error/1","message":"No index."}"#,
                 "dave.error/1"
             )

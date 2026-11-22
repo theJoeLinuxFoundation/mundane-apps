@@ -50,11 +50,14 @@ if program.name == "pkexec":
     mode = (work / "mode").read_text().strip() if flag("mode") else "success"
     if mode in ("dismiss", "denied"):
         sys.exit(126 if mode == "dismiss" else 127)
-    if mode == "moved":
+    if mode in ("moved", "legacy-moved"):
         (work / "moved").touch()
     digest = plan(op)["digest"]
-    if args[5] != digest or mode == "refused":
-        answer("error", message="The requested change was refused.")
+    reasons = {"moved": "changed", "changed-same": "changed", "null": None,
+               "not_allowed": "not_allowed", "needs_root": "needs_root", "future": "future_reason"}
+    if args[5] != digest or mode in ("refused", "changed-same", "null", "not_allowed", "needs_root", "future"):
+        fields = {"reason": reasons[mode]} if mode in reasons else {}
+        answer("error", message="The requested change was refused.", **fields)
     with (work / "applied").open("a") as outcomes:
         print(op, file=outcomes)
     if op == "remove":

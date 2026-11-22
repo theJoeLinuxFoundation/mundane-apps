@@ -109,3 +109,46 @@ fn authorization_outcomes_removal_and_preparation() {
         "install\nremove\nupgrade\n"
     );
 }
+
+#[test]
+fn only_changed_and_older_dave_refresh_the_plan() {
+    for (mode, extra_preview, needs_review, different_digest) in [
+        ("moved", true, true, true),
+        ("changed-same", true, true, false),
+        ("legacy-moved", true, true, true),
+        ("refused", true, false, false), // Legacy refusal and unchanged digest.
+        ("null", false, false, false),
+        ("not_allowed", false, false, false),
+        ("needs_root", false, false, false),
+        ("future", false, false, false),
+        ("dismiss", false, false, false),
+        ("denied", false, false, false),
+    ] {
+        let (dir, dave) = fixture();
+        fs::write(dir.path().join("mode"), mode).unwrap();
+        let request = Request::package(Operation::Install, "chartroom").unwrap();
+        let preview = dave.preview(request).unwrap();
+        let original_digest = preview.plan().digest.clone();
+        let answer = Job::Apply(preview).execute(&dave).unwrap();
+        match answer {
+            Answer::Review(new, _) => {
+                assert!(needs_review, "{mode}");
+                assert_eq!(
+                    new.plan().digest != original_digest,
+                    different_digest,
+                    "{mode}"
+                );
+            }
+            Answer::Notice(_) => assert!(!needs_review, "{mode}"),
+            _ => panic!("unexpected result for {mode}"),
+        }
+        let calls = fs::read_to_string(dir.path().join("calls.jsonl")).unwrap();
+        assert_eq!(
+            calls.matches("--dry-run").count(),
+            1 + usize::from(extra_preview),
+            "{mode}"
+        );
+        assert_eq!(calls.matches("pkexec").count(), 1, "{mode}");
+        assert!(!dir.path().join("applied").exists(), "{mode}");
+    }
+}
