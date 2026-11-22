@@ -29,6 +29,8 @@ The runner cancels a replacement, checks the old contents, confirms Replace by k
 
 Install GNU coreutils with `mv --update=none-fail` support, GLib's `gio` and `gsettings`, desktop interface GSettings schemas and the Python GObject bindings for GIO. The test creates its own MIME association, icon theme and thumbnail source. For inspecting a changed image, `MUNDANE_CAPTURE_ONLY=1` writes the new capture to `target/wayland/`. Run again with the variable unset to verify the reviewed reference.
 
+The round-three test also copies a selection into a folder by keyboard, drags both files into it to move them, and drops a selection into a second Files process. It checks that both destination files match the originals and that copying between windows preserves the sources. [Comparison screenshots](parity.md#round-three)
+
 ## Accessibility probe
 
 Run `tests/wayland/run --app files --at-spi` to inspect the live location dialog, field and actions alongside the GTK control. The conflict probe also checks the dialog’s accessible comparison and its three named buttons. [Current acceptance results](accessibility/report.md)

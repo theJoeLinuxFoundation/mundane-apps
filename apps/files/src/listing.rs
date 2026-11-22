@@ -86,6 +86,9 @@ impl Files {
                 let selected = self.chosen(i);
                 let path = entry.path.clone();
                 let dest = path.clone();
+                let import_dest = path.clone();
+                let export = cx.weak_entity();
+                let focused = self.selected == Some(i) && self.list_focus.is_focused(window);
                 let detail = if entry.symlink {
                     "Link".into()
                 } else if entry.folder {
@@ -107,8 +110,13 @@ impl Files {
                     name.clone(),
                     i,
                     selected,
-                    self.selected == Some(i) && self.list_focus.is_focused(window),
+                    focused,
                 )
+                .when(focused && !selected, |el| {
+                    el.aria_active_descendant()
+                        .border_l_2()
+                        .border_color(rgb(theme.focus))
+                })
                 .when(window.is_a11y_active(), |el| {
                     el.aria_description(detail.clone())
                 })
@@ -127,22 +135,36 @@ impl Files {
                 .on_drag(super::selection::Dragged(path), |drag, _, _, cx| {
                     cx.new(|_| super::selection::Dragged(drag.0.clone()))
                 })
+                .external_drag_payload(move |drag: &super::selection::Dragged, _, cx| {
+                    let entity = export.upgrade()?;
+                    let files = entity.read(cx);
+                    if files.loading || files.working || files.dialog.is_some() {
+                        return None;
+                    }
+                    let entries = files.dragged_entries(&drag.0);
+                    (!entries.is_empty()).then(|| {
+                        ExternalDragPayload::Files(FileDragPaths::new(
+                            entries.into_iter().map(|e| (e.path.clone(), e.folder)),
+                        ))
+                    })
+                })
                 .when(entry.folder, |el| {
                     el.drag_over::<super::selection::Dragged>(move |style, _, _, _| {
                         style.bg(rgb(theme.selected()))
                     })
+                    .drag_over::<ExternalPaths>(move |style, _, _, _| {
+                        style.bg(rgb(theme.selected()))
+                    })
+                    .on_drop(cx.listener(move |this, paths: &ExternalPaths, w, cx| {
+                        this.import_drop(paths, &import_dest, w, cx)
+                    }))
                     .on_drop(cx.listener(
                         move |this, drag: &super::selection::Dragged, w, cx| {
-                            let paths = if this
-                                .entries
-                                .iter()
-                                .enumerate()
-                                .any(|(i, e)| e.path == drag.0 && this.chosen(i))
-                            {
-                                this.paths()
-                            } else {
-                                vec![drag.0.clone()]
-                            };
+                            let paths = this
+                                .dragged_entries(&drag.0)
+                                .into_iter()
+                                .map(|entry| entry.path.clone())
+                                .collect();
                             let mode = if w.modifiers().control {
                                 files::Transfer::Copy
                             } else {

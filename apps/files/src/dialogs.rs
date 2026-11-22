@@ -70,7 +70,7 @@ impl Files {
         dialog.return_focus.focus(window, cx);
         cx.notify();
         if !yes {
-            if matches!(dialog.prompt, Prompt::Conflict(..)) && !self.queue.is_empty() {
+            if matches!(dialog.prompt, Prompt::Conflict(..)) {
                 self.queue.clear();
                 self.load(self.path.clone(), None, cx);
             }

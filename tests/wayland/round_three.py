@@ -1,5 +1,6 @@
 """Compare the same user workflows before and after round three on private Sway."""
 from pathlib import Path
+import json
 import subprocess
 import os
 
@@ -17,6 +18,7 @@ def exercise(app, side, key, type_text, until, compare, root, log):
         key("Down")
         key("Down", "shift")
         shot("selection")
+        socket = Path(os.environ["XDG_RUNTIME_DIR"]) / os.environ["WAYLAND_DISPLAY"]
         if after:
             key("c", "ctrl")
             key("Home")
@@ -29,10 +31,46 @@ def exercise(app, side, key, type_text, until, compare, root, log):
             key("Down")
             key("Down", "shift")
             # Coordinates are logical pixels on this fixture's 800 × 500 output.
-            socket = Path(os.environ["XDG_RUNTIME_DIR"]) / os.environ["WAYLAND_DISPLAY"]
             subprocess.run([root / "target/debug/examples/header-pointer", socket, "gesture", "340,194", "press", "355,187", "350,149", "release"], check=True)
             until(lambda: all((folder / "Archive" / n).exists() and not (folder/n).exists()
                               for n in ("draft.txt", "palette.png")), "dragged selection moved to folder")
+            for name in ("draft.txt", "palette.png"):
+                (folder / "Archive" / name).rename(folder / name)
+        # Two independent clients negotiate a real text/uri-list drop.
+        inbox = Path.home() / "Inbox"
+        inbox.mkdir()
+        names = ("alpha.txt", "beta.txt")
+        for name in names:
+            (folder / name).write_text(name)
+        key("F5")
+        key("Home")
+        key("Down")
+        key("Down", "shift")
+        subprocess.run(["swaymsg", "-q", "output HEADLESS-1 mode 1600x500"], check=True)
+        subprocess.run(["swaymsg", "-q", "splith"], check=True)
+        binary = os.environ.get("MUNDANE_FILES_BIN", root / "target/debug/mundane-files")
+        receiver = subprocess.Popen([binary, inbox], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        try:
+            def both_windows():
+                tree = subprocess.check_output(["swaymsg", "-r", "-t", "get_tree"], text=True)
+                def count(node):
+                    return int(node.get("app_id") == "org.joelinux.mundane.Files") + sum(
+                        count(child) for child in node["nodes"] + node["floating_nodes"])
+                return count(json.loads(tree)) == 2
+            until(both_windows, "both Files windows on the private output")
+            # The pointer takes fractions of an 800 × 500 space. Each client is 800 px wide.
+            subprocess.run([root / "target/debug/examples/header-pointer", socket, "gesture",
+                            "170,194", "press", "180,194", "390,194", "408,194",
+                            "460,194", "590,260", "605,285", "release"], check=True)
+            if after:
+                until(lambda: all((inbox/name).is_file() for name in names), "native multi-file drop")
+                assert all((inbox/name).read_bytes() == (folder/name).read_bytes() for name in names)
+            subprocess.run(["swaymsg", "-q", f"[pid={receiver.pid}] focus"], check=True)
+            key("F5")
+            shot("drop")
+        finally:
+            receiver.terminate()
+            receiver.wait(timeout=5)
     elif app == "system-monitor":
         runtime = Path(os.environ["XDG_RUNTIME_DIR"])
         until((runtime/"sampled").exists, "repeatable process samples")

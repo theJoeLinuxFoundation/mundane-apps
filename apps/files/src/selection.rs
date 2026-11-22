@@ -38,6 +38,35 @@ impl Files {
             .map(|(_, e)| e.path.clone())
             .collect()
     }
+    pub(super) fn dragged_entries(&self, source: &Path) -> Vec<&Entry> {
+        let Some(index) = self.entries.iter().position(|entry| entry.path == source) else {
+            return Vec::new();
+        };
+        if !self.chosen(index) {
+            return vec![&self.entries[index]];
+        }
+        self.entries
+            .iter()
+            .enumerate()
+            .filter(|(i, _)| self.chosen(*i))
+            .map(|(_, entry)| entry)
+            .collect()
+    }
+    pub(super) fn import_drop(
+        &mut self,
+        paths: &ExternalPaths,
+        folder: &Path,
+        w: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let sources = paths
+            .paths()
+            .iter()
+            .filter(|path| path.is_absolute())
+            .cloned()
+            .collect();
+        self.transfer_paths(sources, folder, Transfer::Copy, w, cx);
+    }
     pub(super) fn pick(&mut self, i: usize, shift: bool, toggle: bool) {
         if shift {
             let anchor = self

@@ -640,6 +640,9 @@ impl Render for Files {
                         .min_h_0()
                         .flex_1()
                         .overflow_hidden()
+                        .on_drop(cx.listener(|this, paths: &ExternalPaths, w, cx| {
+                            this.import_drop(paths, &this.path.clone(), w, cx)
+                        }))
                         .on_key_down(cx.listener(Self::keys))
                         .when(
                             self.entries.is_empty() && !self.loading && self.message.is_none(),
