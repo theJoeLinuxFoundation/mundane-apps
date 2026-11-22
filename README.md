@@ -4,16 +4,19 @@ Desktop applications for mundaneDE on the x86 edition of joe Linux. They use Rus
 
 All 18 apps follow the desktop’s light or dark preference, accent, contrast and reduced motion live through the XDG Settings portal. [Appearance behaviour and screenshots](docs/appearance.md)
 
+The shell, Settings and the suite share the colour roles, typography, keyboard behaviour and accessible components in mundane-ui. [Design language and component reference sheets](docs/design-language.md)
+
 The suite’s visual review includes keyboard focus, empty states, errors and the Files conflict dialog. [Before-and-after screenshots](docs/polish/README.md)
 
 ## Terminal
 
-Terminal runs the user's shell in a PTY. It supports scrollback, text selection, clipboard, search, and resizing. Drag to select text, double-click to select a word, or use Find to select a match from the keyboard.
+Terminal runs the user's shell in a PTY. It supports scrollback, text selection, clipboard, search, and resizing. Drag to select text, double-click to select a word, or use Find to select a match from the keyboard. Profiles store the font, palette and scrollback limit. Closing a tab or window with running jobs asks for confirmation.
 
 | Action | Shortcut |
 | --- | --- |
 | Open / close a shell tab | Ctrl+Shift+T / Ctrl+Shift+W |
 | Previous / next tab | Ctrl+Page Up / Ctrl+Page Down |
+| Edit terminal profiles | Ctrl+Shift+P |
 | Open a web link | Ctrl+click or Ctrl+Enter on a selected URL |
 | Find text in the screen or scrollback | Ctrl+Shift+F, then Enter |
 | Copy selection / paste | Ctrl+Shift+C / Ctrl+Shift+V |
@@ -22,7 +25,7 @@ Terminal runs the user's shell in a PTY. It supports scrollback, text selection,
 | Focus the header or return to the shell | F6 |
 | Dismiss Find | Escape |
 
-The suite now uses GPUI’s upstream AccessKit bridge. The apps expose their shared controls through AT-SPI. Disabled-button state, Orca character echo in Find and cached GPUI subtrees have open release checks. [Accessibility results and recording](docs/accessibility/report.md)
+The suite now uses GPUI’s upstream AccessKit bridge. The apps expose their shared controls through AT-SPI. Orca speaks typed characters in Terminal Find under nested mundaneDE. Headless Sway lacks the keyboard monitor needed for this check. The disabled-button state and cached-subtree checks remain open. [Accessibility results and recording](docs/accessibility/report.md)
 
 ## Files
 
@@ -32,6 +35,8 @@ Files browses local directories, opens files in the preferred application, and c
 
 | Action | Shortcut |
 | --- | --- |
+| New / close folder tab | Ctrl+T / Ctrl+W |
+| Previous / next folder tab | Ctrl+Page Up / Ctrl+Page Down |
 | Select an item and open it | ↑ / ↓, then Enter |
 | Go to the parent folder / enter a folder path | Alt+↑ / Ctrl+L |
 | Copy / cut / paste | Ctrl+C / Ctrl+X / Ctrl+V |
@@ -43,11 +48,12 @@ The suite uses a shared window header. With client-side decorations, F6 reaches 
 
 ## Text Editor
 
-Open a local UTF-8 file or start with an untitled document. Find highlights a match and wraps at the end of the document. The title shows unsaved changes. Open keeps existing drafts in tabs. Closing an edited tab offers Save, Discard or Cancel. Closing the window reviews every unsaved document. If a file changes on disk, Save As lets you keep your edits in another file. [Text Editor tests](docs/editor-tests.md)
+Open a local UTF-8 file or start with an untitled document. Find highlights a match and wraps at the end of the document. The title shows unsaved changes. Open keeps existing drafts in tabs. Recent files are available across sessions. Rust, Python and JSON have syntax highlighting. Drafts are checkpointed for recovery if the editor exits unexpectedly. Closing an edited tab offers Save, Discard or Cancel. Closing the window reviews every unsaved document. If a file changes on disk, Save As lets you keep your edits in another file. [Text Editor tests](docs/editor-tests.md)
 
 | Action | Shortcut |
 | --- | --- |
 | New tab / previous or next tab | Ctrl+N or Ctrl+T / Ctrl+Page Up or Ctrl+Page Down |
+| Recent files / find and replace | Ctrl+P / Ctrl+H |
 | Go to a numbered line | Ctrl+I, enter the line number, then Enter |
 | Open / save / save as | Ctrl+O / Ctrl+S / Ctrl+Shift+S |
 | Find / next match / leave Find | Ctrl+F / Enter in Find or F3 / Escape |

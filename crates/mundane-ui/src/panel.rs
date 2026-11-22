@@ -29,8 +29,10 @@ pub fn panel_button(
     t: Theme,
     activate: impl Fn(&mut Window, &mut App) + 'static,
 ) -> Stateful<Div> {
+    let status = state.description();
     let control = focus_ring(Role::Button.control(focus, label), focus, t)
-        .aria_description(state.description())
+        .when(!status.is_empty(), |el| el.aria_value(status.clone()))
+        .aria_description(status)
         .rounded(tokens::radius::CONTROL)
         .min_w(rems(2.))
         .min_h(rems(2.))
@@ -123,4 +125,54 @@ pub fn with_tooltip(control: Stateful<Div>, text: impl Into<SharedString>) -> St
     control
         .aria_description(text.clone())
         .tooltip(move |_, cx| cx.new(|_| Hint(text.clone())).into())
+}
+
+/// Attach a pointer hint and keyboard help. F1 reveals the hint at the
+/// focused trigger, Escape dismisses it, and moving focus closes it.
+pub fn with_keyboard_tooltip(
+    control: Stateful<Div>,
+    focus: &FocusHandle,
+    text: impl Into<SharedString>,
+    w: &mut Window,
+    cx: &mut App,
+) -> Div {
+    struct State {
+        open: bool,
+        _blur: Subscription,
+    }
+    let state = w.use_keyed_state(focus, cx, |w, cx: &mut Context<State>| State {
+        open: false,
+        _blur: cx.on_blur(focus, w, |state, _, cx| {
+            if state.open {
+                state.open = false;
+                cx.notify();
+            }
+        }),
+    });
+    let open = state.read(cx).open && focus.is_focused(w);
+    let text = text.into();
+    let trigger = with_tooltip(control, text.clone()).on_key_down(move |event, w, cx| {
+        let next = match event.keystroke.key.as_str() {
+            "f1" => true,
+            "escape" if state.read(cx).open => false,
+            _ => return,
+        };
+        state.update(cx, |state, cx| {
+            state.open = next;
+            cx.notify();
+        });
+        w.prevent_default();
+        cx.stop_propagation();
+    });
+    div().relative().child(trigger).when(open, |el| {
+        el.child(
+            deferred(
+                tooltip("keyboard-hint", text, Theme::current(cx))
+                    .absolute()
+                    .top_full()
+                    .left_0(),
+            )
+            .with_priority(1),
+        )
+    })
 }

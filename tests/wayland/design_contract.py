@@ -1,4 +1,5 @@
 """Read the published AccessKit trees and activate controls on the private test buses."""
+import json
 import os
 from pathlib import Path
 import subprocess
@@ -28,7 +29,7 @@ def enable(stack, launch, until, runtime):
     Atspi.init()
 
 
-def verify(group, pid, key):
+def verify(group, pid, key, transcript):
     def walk(node):
         yield node
         for i in range(node.get_child_count()):
@@ -61,9 +62,12 @@ def verify(group, pid, key):
         raise AssertionError(("missing Click",name))
     def focused(name):
         def check():
-            n=named(name)
-            n.clear_cache()
-            return n.get_state_set().contains(Atspi.StateType.FOCUSED)
+            for node in tree():
+                if node.get_name() == name:
+                    node.clear_cache()
+                    if node.get_state_set().contains(Atspi.StateType.FOCUSED):
+                        return True
+            return False
         wait(check, "focus on " + name)
     if group == "panel":
         focused("Overview")
@@ -72,11 +76,30 @@ def verify(group, pid, key):
         assert "Running" in named("Editor").get_description()
         assert "Occupied" in named("Workspace 2").get_description()
         assert named("Unavailable command").get_n_actions() == 0
+        def checked(name):
+            node = named(name)
+            node.clear_cache()
+            states = node.get_state_set()
+            return any(states.contains(state) for state in (Atspi.StateType.CHECKED, Atspi.StateType.PRESSED))
+        assert checked("Show labels")
         click("Show labels")
+        wait(lambda: not checked("Show labels"), "toggle switched off")
         assert named("Count").get_role() == Atspi.Role.STATUS_BAR
         assert named("Show keyboard help").get_role() == Atspi.Role.TOOL_TIP
         click("Editor")
         named("Commands activated: 2")
+        help_button = named("Help")
+        assert help_button.get_description() == "Show keyboard help" and help_button.grab_focus()
+        def hints():
+            return sum(n.get_role() == Atspi.Role.TOOL_TIP for n in tree())
+        key("F1")
+        wait(lambda: hints() == 2, "keyboard hint beside the reference sample")
+        key("Escape")
+        wait(lambda: hints() == 1, "dismissed keyboard hint")
+        focused("Help")
+        key("F1")
+        key("Tab")
+        wait(lambda: hints() == 1, "moving focus hides the hint")
     elif group == "menus":
         focused("Filter options")
         subprocess.run(["wtype","south"],check=True)
@@ -91,6 +114,14 @@ def verify(group, pid, key):
         focused("Open")
         key("Down")
         focused("Delete")  # Disabled Rename is skipped.
+        previous = named("Delete")
+        key("F9")
+        focused("Delete")
+        assert named("Delete").path == previous.path
+        key("Home")
+        focused("Option 0")
+        key("End")
+        focused("Delete")
         key("Escape")
         focused("Actions")
         click("Details")
@@ -123,6 +154,47 @@ def verify(group, pid, key):
         focused("Reset")
         key("Return")
         focused("Reset preferences")
+    elif group == "notifications":
+        focused("Post notification")
+        messages=[]
+        def announcement(e):
+            messages.append(str(e.any_data))
+        listener=Atspi.EventListener.new(announcement)
+        assert listener.register("object:announcement")
+        key("F9")
+        named("New message. Message 1 arrived.")
+        focused("Post notification")
+        key("F10")
+        meter=named("Volume")
+        assert meter.get_current_value() == 55 and meter.get_n_actions() == 0
+        focused("Post notification")
+        wait(lambda: any("Message 1 arrived" in m for m in messages), "banner announcement")
+        wait(lambda: any("55%" in m for m in messages), "level announcement")
+        def spoken():
+            return " ".join(json.loads(line)["text"] for line in transcript.read_text().splitlines())
+        wait(lambda: "Message 1 arrived" in spoken(), "Orca speaking the new notification")
+        wait(lambda: "55%" in spoken(), "Orca speaking the level")
+        click("Open")
+        named("Action: open")
+        click("Dismiss")
+        history=named("Notification history")
+        assert history.grab_focus()
+        key("End")
+        key("Home")
+        card=next(n for n in walk(history) if n.get_name()=="Survey saved" and n.get_role()==Atspi.Role.ARTICLE)
+        assert card.get_state_set().contains(Atspi.StateType.FOCUSED)
+        previous = card.path
+        key("F8")
+        focused("Survey saved")
+        assert any(n.path == previous and n.get_state_set().contains(Atspi.StateType.FOCUSED)
+                   for n in walk(history) if n.get_role() == Atspi.Role.ARTICLE)
+        key("Home")
+        focused("Sync complete")
+        key("End")
+        focused("Survey saved")
+        close=next(n for n in walk(card) if n.get_name()=="Dismiss")
+        assert close.do_action(0)
+        wait(lambda: not any(n.get_name()=="Survey saved" for n in walk(history)), "history removal")
     else:
         raise AssertionError(f"missing contract for {group}")
     print(f"Passed {group} control contract")

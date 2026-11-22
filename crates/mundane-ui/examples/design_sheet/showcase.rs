@@ -1,6 +1,10 @@
 use gpui::{prelude::*, *};
 use mundane_ui::{self as ui, Theme};
 pub struct Showcase {
+    history: ui::NotificationHistory,
+    banner: Option<ui::NotificationCard>,
+    posted: u32,
+    notice_action: SharedString,
     slider: ui::ValueSlider,
     level: f64,
     connected: bool,
@@ -73,7 +77,31 @@ impl Showcase {
             cx.notify();
         })
         .detach();
+        let mut history = ui::NotificationHistory::new(cx);
+        history.replace(
+            vec![
+                Self::notice(
+                    "survey",
+                    "Survey saved",
+                    "Observations are ready to review.",
+                ),
+                Self::notice("sync", "Sync complete", "Three changes were saved."),
+            ],
+            w,
+            cx,
+        );
         Self {
+            history,
+            banner: Some(ui::NotificationCard::new(
+                Self::notice(
+                    "download",
+                    "Download complete",
+                    "The report is ready to open.",
+                ),
+                cx,
+            )),
+            posted: 0,
+            notice_action: "None".into(),
             slider: ui::ValueSlider::new(cx),
             level: 50.,
             connected: true,
@@ -257,7 +285,108 @@ impl Showcase {
                     .when(self.confirmed, |el| el.child("Defaults restored")),
             )
     }
-    fn panel(&self, cx: &Context<Self>) -> Div {
+    fn notice(key: &str, title: &str, body: &str) -> ui::Notice {
+        ui::Notice {
+            key: key.to_string().into(),
+            title: title.to_string().into(),
+            body: body.to_string().into(),
+            source: Some("Activity".into()),
+            actions: vec![("open".into(), "Open".into())],
+        }
+    }
+    fn post(&mut self, cx: &mut Context<Self>) {
+        self.posted += 1;
+        let n = Self::notice(
+            "incoming",
+            "New message",
+            &format!("Message {} arrived.", self.posted),
+        );
+        self.banner = Some(ui::NotificationCard::new(n, cx));
+        cx.notify();
+    }
+    fn notices(&self, cx: &Context<Self>) -> Div {
+        let t = Theme::current(cx);
+        let send = cx.weak_entity();
+        let history = cx.weak_entity();
+        let banner = cx.weak_entity();
+        let cards = div()
+            .flex()
+            .gap_3()
+            .items_start()
+            .child(
+                div()
+                    .flex_1()
+                    .flex()
+                    .flex_col()
+                    .gap_2()
+                    .child(ui::heading("banner-heading", "Banner"))
+                    .when_some(self.banner.as_ref(), |el, card| {
+                        el.child(card.render(t, move |_, a, _, cx| {
+                            let _ = banner.update(cx, |s, cx| {
+                                match a {
+                                    ui::NoticeAction::Dismiss => s.banner = None,
+                                    ui::NoticeAction::Invoke(id) => s.notice_action = id,
+                                }
+                                cx.notify();
+                            });
+                        }))
+                    })
+                    .child(ui::level_osd(
+                        "volume",
+                        "Volume",
+                        self.level as u8,
+                        false,
+                        t,
+                    )),
+            )
+            .child(
+                div()
+                    .flex_1()
+                    .flex()
+                    .flex_col()
+                    .gap_2()
+                    .child(ui::heading("history-heading", "History"))
+                    .child(
+                        div()
+                            .h(rems(18.))
+                            .flex()
+                            .flex_col()
+                            .child(self.history.render(
+                                "Notification history",
+                                t,
+                                move |key, a, w, cx| {
+                                    let _ = history.update(cx, |s, cx| {
+                                        if a == ui::NoticeAction::Dismiss {
+                                            s.history.remove(&key, w, cx);
+                                        } else if let ui::NoticeAction::Invoke(id) = a {
+                                            s.notice_action = id;
+                                        }
+                                        cx.notify();
+                                    });
+                                },
+                            )),
+                    ),
+            );
+        div().flex().flex_col().gap_3().child(cards).child(
+            div()
+                .flex()
+                .items_center()
+                .gap_2()
+                .child(ui::button(
+                    "Post notification",
+                    &self.handles[0],
+                    t,
+                    move |_, cx| {
+                        let _ = send.update(cx, |s, cx| s.post(cx));
+                    },
+                ))
+                .child(
+                    ui::text_label("last", format!("Action: {}", self.notice_action))
+                        .child(format!("Action: {}", self.notice_action)),
+                ),
+        )
+    }
+    fn panel(&self, w: &mut Window, cx: &mut Context<Self>) -> Div {
         let t = Theme::current(cx);
         let v = cx.weak_entity();
         let on = ui::toggle(
@@ -355,9 +484,12 @@ impl Showcase {
                     .flex()
                     .items_center()
                     .gap_3()
-                    .child(ui::with_tooltip(
+                    .child(ui::with_keyboard_tooltip(
                         ui::button("Help", &self.handles[5], t, |_, _| {}),
+                        &self.handles[5],
                         "Show keyboard help",
+                        w,
+                        cx,
                     ))
                     .child(ui::tooltip("tooltip-sample", "Show keyboard help", t)),
             )
@@ -386,9 +518,10 @@ impl Render for Showcase {
             w.set_window_title(&title);
         }
         let (heading, body) = match self.group.as_str() {
+            "notifications" => ("Notifications and levels", self.notices(cx)),
             "settings" => ("Settings controls", self.settings(cx)),
             "menus" => ("Menus and searchable options", self.menus(cx)),
-            "panel" => ("Panel controls", self.panel(cx)),
+            "panel" => ("Panel controls", self.panel(w, cx)),
             _ => unreachable!(),
         };
         let dialog = self.confirmation.read(cx).is_open();
@@ -449,6 +582,48 @@ impl Render for Showcase {
             .text_color(rgb(t.text))
             .font_family("DejaVu Sans")
             .capture_key_down(cx.listener(|s, e: &KeyDownEvent, w, cx| {
+                if s.group == "menus" && e.keystroke.key == "f9" {
+                    let mut rows: Vec<_> = (0..36)
+                        .map(|i| {
+                            let name = format!("Option {i}");
+                            ui::MenuChoice::new(name.clone(), name)
+                        })
+                        .collect();
+                    rows.push(ui::MenuChoice::new("Delete", "Delete"));
+                    s.menus[0].update(cx, |menu, cx| menu.replace(rows, w, cx));
+                }
+                if s.group == "notifications" && e.keystroke.key == "f8" {
+                    let mut notices = vec![Self::notice(
+                        "sync",
+                        "Sync complete",
+                        "Three changes were saved.",
+                    )];
+                    notices.extend((0..24).map(|i| {
+                        Self::notice(
+                            &format!("message-{i}"),
+                            &format!("Message {i}"),
+                            "Saved to history.",
+                        )
+                    }));
+                    notices.push(Self::notice(
+                        "survey",
+                        "Survey saved",
+                        "Observations are ready to review.",
+                    ));
+                    s.history.replace(notices, w, cx);
+                    cx.notify();
+                }
+                if s.group == "notifications" && e.keystroke.key == "f9" {
+                    s.post(cx);
+                    cx.stop_propagation();
+                    return;
+                }
+                if s.group == "notifications" && e.keystroke.key == "f10" {
+                    s.level = (s.level + 5.).min(100.);
+                    cx.notify();
+                    cx.stop_propagation();
+                    return;
+                }
                 if s.group == "settings"
                     && e.keystroke.key == "f8"
                     && !s.confirmation.read(cx).is_open()

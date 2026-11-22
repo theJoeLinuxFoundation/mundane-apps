@@ -48,7 +48,7 @@ The screenshots use the production renderers, private labwc, software rendering 
 
 ## Panel controls
 
-`panel_button` accepts any icon element and a separate name. A selected fill marks active, a dot marks running, and a diamond marks occupied. Its accessible description names the states. Disabled buttons suppress activation from both the pointer and keyboard. `toggle` publishes its pressed state and On/Off value. It requests a new value from its owner. A named `badge` exposes status or a count without adding a tab stop. `with_tooltip` provides a hover hint and a description for keyboard and AT users. The `tooltip` renderer can also be shown by an explicitly activated help control.
+`panel_button` accepts any icon element and a separate name. A selected fill marks active, a dot marks running, and a diamond marks occupied. Its accessible description names the states. Disabled buttons suppress activation from both the pointer and keyboard. `toggle` publishes its pressed state and On/Off value. It requests a new value from its owner. A named `badge` exposes status or a count without adding a tab stop. `with_tooltip` provides a hover hint and a description for keyboard and AT users. Use `with_keyboard_tooltip` for a visible F1 hint. Escape or moving focus closes it.
 
 | Reference sheet | Dark | Light | Dark high contrast | Light high contrast | Custom accent | Reduced motion |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -60,7 +60,7 @@ Run `tests/wayland/run --design-sheet panel` for the images and the private-bus 
 
 `Popover` retains the trigger and moves focus to the initial control on open. A second activation closes it. `popover_contents` sends Escape to the dismissal callback. Call the same dismissal path when the compositor reports an outside click. The compositor consumes that click at the seat.
 
-`ChoiceMenu` provides anchored menu contents or a searchable list. `menu_trigger` exposes the expanded state. Up/Down wrap through enabled choices, Home/End jump to either end, Enter selects and Escape dismisses. Search filters labels without changing stable option keys. Tab switches between filter and options. Pointer, keyboard and AT activation emit the same selection event. Dismissal restores the trigger’s focus. The owner subscribes to `MenuEvent` and executes the selected command.
+`ChoiceMenu` provides anchored menu contents or a searchable list. `menu_trigger` exposes the expanded state. Up/Down wrap through enabled choices, Home/End jump to either end, Enter selects and Escape dismisses. Search filters labels without changing stable option keys. Tab switches between filter and options. Pointer, keyboard and AT activation emit the same selection event. Reordering choices preserves the accessible identity of each surviving key. Dismissal restores the trigger’s focus. The owner subscribes to `MenuEvent` and executes the selected command.
 
 | Reference sheet | Dark | Light | Dark high contrast | Light high contrast | Custom accent | Reduced motion |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -80,3 +80,15 @@ Quick Settings tiles receive a label, icon, status, availability, on/off state a
 | Confirmation | [Dark](design/confirmation-dark.png) | [Light](design/confirmation-light.png) | [Contrast](design/confirmation-high-contrast.png) | [Contrast](design/confirmation-light-high-contrast.png) | [Accent](design/confirmation-accent.png) | [Reduced](design/confirmation-reduced-motion.png) |
 
 Run `tests/wayland/run --design-sheet settings` to exercise authoritative tile state, switch activation, the slider Value interface and keyboard steps, and both dialog outcomes.
+
+## Notifications, history and level feedback
+
+A notification card groups its title, body, optional source, named actions and Dismiss button. Each action returns the notification key and action key to the caller. A new banner announces the title and body through a polite live region while focus stays on the current control. History uses stable notification keys so refreshing or reordering the list preserves the focused card. Up/Down and Home/End navigate history. Tab reaches the actions, and Enter or Space activates them. Removing the focused card transfers focus to its neighbour or the empty list.
+
+The level OSD displays a named, read-only meter and announces its percentage or muted state. It has no focus handle or tab stop. The host owns mapping the overlay and its lifetime. Its window must also preserve the active surface’s keyboard focus.
+
+| Reference sheet | Dark | Light | Dark high contrast | Light high contrast | Custom accent | Reduced motion |
+| --- | --- | --- | --- | --- | --- | --- |
+| Banner, history and level OSD | [Dark](design/notifications-dark.png) | [Light](design/notifications-light.png) | [Contrast](design/notifications-high-contrast.png) | [Contrast](design/notifications-light-high-contrast.png) | [Accent](design/notifications-accent.png) | [Reduced](design/notifications-reduced-motion.png) |
+
+Run `tests/wayland/run --design-sheet notifications` to check live announcement events, focus during a passive update, card actions, history navigation and dismissal on the private bus. In the recorded run Orca spoke “New message. Message 1 arrived.” and “Volume: 55%”. [Orca recording](accessibility/orca-notifications.jsonl)

@@ -5,7 +5,7 @@ import subprocess
 from gi.repository import Gio, GLib
 
 
-def check(group, stack, launch, until, key, compare, root, runtime, output):
+def check(group, stack, launch, until, key, compare, root, runtime, output, recording_profile):
     refs = root / "docs/design"
     bus = Gio.bus_get_sync(Gio.BusType.SESSION)
     launch(stack, "python3", str(root / "tests/wayland/appearance/portal.py"), log="design-portal.log")
@@ -25,6 +25,14 @@ def check(group, stack, launch, until, key, compare, root, runtime, output):
     if group != "core":
         from design_contract import enable, verify
         enable(stack,launch,until,runtime)
+    transcript = None
+    if group == "notifications":
+        transcript = recording_profile("notifications")
+        env = dict(os.environ, PYTHONPATH=str(root / "tests/wayland") + os.pathsep + os.environ.get("PYTHONPATH", ""),
+                   PULSE_SERVER="unix:" + str(runtime / "no-audio"),
+                   SPEECHD_ADDRESS="unix_socket:" + str(runtime / "no-speechd"))
+        launch(stack, "orca", log="orca-design.log", env=env)
+        until(lambda: transcript.stat().st_size, "Orca recording backend")
     app = start("1")
     key("Shift_L")
     variants = [("dark",1,0,False,0),("light",2,0,False,0),
@@ -47,7 +55,7 @@ def check(group, stack, launch, until, key, compare, root, runtime, output):
             compare(f"confirmation-{name}.png", 1, refs)
             key("Escape")
     if group != "core":
-        verify(group,app.pid,key)
+        verify(group, app.pid, key, transcript)
     if group == "core":
         app.terminate()
         app.wait(timeout=4)

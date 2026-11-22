@@ -74,9 +74,18 @@ impl ChoiceMenu {
     pub fn replace(&mut self, choices: Vec<MenuChoice>, w: &mut Window, cx: &mut Context<Self>) {
         let previous = self.active.map(|i| self.choices[i].0.key.clone());
         let focus_was_in_choices = self.choices.iter().any(|(_, h)| h.is_focused(w));
+        let mut handles: std::collections::HashMap<_, _> = std::mem::take(&mut self.choices)
+            .into_iter()
+            .map(|(choice, focus)| (choice.key, focus))
+            .collect();
         self.choices = choices
             .into_iter()
-            .map(|c| (c, cx.focus_handle()))
+            .map(|choice| {
+                let focus = handles
+                    .remove(&choice.key)
+                    .unwrap_or_else(|| cx.focus_handle());
+                (choice, focus)
+            })
             .collect();
         let enabled = self.enabled();
         self.active = enabled
@@ -187,14 +196,9 @@ impl ChoiceMenu {
                 self.focus_active(w, cx);
             }
             "tab" => {
-                if self.search.is_some() {
+                if let Some(search) = &self.search {
                     if self.choices.iter().any(|(_, h)| h.is_focused(w)) {
-                        self.search
-                            .as_ref()
-                            .unwrap()
-                            .read(cx)
-                            .focus_handle(cx)
-                            .focus(w, cx);
+                        search.read(cx).focus_handle(cx).focus(w, cx);
                     } else {
                         self.focus_active(w, cx);
                     }

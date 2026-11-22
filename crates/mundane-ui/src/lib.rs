@@ -185,7 +185,9 @@ mod tabs;
 pub use tabs::tab_strip;
 
 mod panel;
-pub use panel::{PanelState, badge, panel_button, toggle, tooltip, with_tooltip};
+pub use panel::{
+    PanelState, badge, panel_button, toggle, tooltip, with_keyboard_tooltip, with_tooltip,
+};
 
 mod menu;
 pub use menu::{ChoiceMenu, MenuChoice, MenuEvent, menu_trigger};
@@ -197,3 +199,6 @@ mod settings;
 pub use settings::{
     ConfirmDialog, Confirmation, SliderRange, TileState, ValueSlider, labelled_switch, quick_tile,
 };
+
+mod notifications;
+pub use notifications::{Notice, NoticeAction, NotificationCard, NotificationHistory, level_osd};

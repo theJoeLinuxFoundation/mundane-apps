@@ -95,7 +95,7 @@ def find_and_copy(text):
     until(lambda: clipboard() == text, f"selected text {text!r} on the private clipboard")
 
 
-def recording_profile():
+def recording_profile(suite="terminal"):
     profile = Path(os.environ["XDG_DATA_HOME"]) / "orca"
     profile.mkdir(exist_ok=True)
     (profile / "orca-customizations.py").write_text(
@@ -105,7 +105,7 @@ def recording_profile():
         "gsettings_registry.get_registry().set_runtime_value('typing-echo', 'alphabetic-keys', True)\n"
         "speech_manager.SPEECH_FACTORY_MODULES[:] = ['recording_speech']\n"
         "gsettings_registry.get_registry().set_runtime_value('speech', 'speech-server-factory', 'recording_speech')\n")
-    transcript = OUTPUT / "orca-terminal.jsonl"
+    transcript = OUTPUT / f"orca-{suite}.jsonl"
     transcript.write_text("")
     os.environ["ORCA_TRANSCRIPT"] = str(transcript)
     return transcript
@@ -291,7 +291,7 @@ def main():
     parser.add_argument("--compositor", choices=["sway", "labwc"], default="sway")
     parser.add_argument("--mundanede-echo", type=Path, metavar="CHECKOUT", help="test physical typing echo in a scratch build of mundaneDE")
     parser.add_argument("--round-two", choices=["before","after"], help="daily-use round two workflow")
-    parser.add_argument("--design-sheet",choices=["core","panel","menus","settings"],help="capture the shared components on private labwc")
+    parser.add_argument("--design-sheet",choices=["core","panel","menus","settings","notifications"],help="capture the shared components on private labwc")
     args = parser.parse_args()
     if args.design_sheet:
         args.compositor="labwc"
@@ -355,7 +355,7 @@ seat seat0 fallback true
         run("dbus-update-activation-environment", "WAYLAND_DISPLAY", "XDG_CURRENT_DESKTOP")
         if args.design_sheet:
             from design_check import check
-            check(args.design_sheet,stack,launch,until,key,compare_screenshot,ROOT,RUNTIME,OUTPUT)
+            check(args.design_sheet, stack, launch, until, key, compare_screenshot, ROOT, RUNTIME, OUTPUT, recording_profile)
             return
         if args.appearance:
             from appearance_check import check
