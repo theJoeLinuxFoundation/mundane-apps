@@ -33,6 +33,35 @@ def exercise(app, side, key, type_text, until, compare, root, log):
             subprocess.run([root / "target/debug/examples/header-pointer", socket, "gesture", "340,194", "press", "355,187", "350,149", "release"], check=True)
             until(lambda: all((folder / "Archive" / n).exists() and not (folder/n).exists()
                               for n in ("draft.txt", "palette.png")), "dragged selection moved to folder")
+    elif app == "document-viewer":
+        runtime = Path(os.environ["XDG_RUNTIME_DIR"])
+        until(lambda: "Field guide.pdf — Document Viewer" in log.read_text(), "PDF open")
+        if after:
+            key("j", "ctrl")
+            key("Down")
+            key("Down")
+        shot("continuous")
+        if after:
+            key("b", "ctrl")
+            type_text("Tidal")
+        shot("outline")
+        if after:
+            key("Down")
+            key("Return")
+            key("j", "ctrl")
+            key("a", "ctrl")
+            key("c", "ctrl")
+            until(lambda: "high water" in subprocess.run(["wl-paste","-n"], capture_output=True,text=True).stdout, "copied page two text")
+            socket = runtime / os.environ["WAYLAND_DISPLAY"]
+            subprocess.run([root / "target/debug/examples/header-pointer", socket, "gesture",
+                            "215,168", "press", "233,168", "349,168", "release"], check=True)
+            key("c", "ctrl")
+            until(lambda: subprocess.run(["wl-paste","-n"],capture_output=True,text=True).stdout.strip()=="Tidal range", "copied mouse selection")
+        shot("selection")
+        if after:
+            key("p", "ctrl")
+            until((runtime / "print-input.pdf").exists, "Print portal received the document")
+            assert (runtime / "print-input.pdf").read_bytes() == (Path.home() / "Field guide.pdf").read_bytes()
     elif app == "image-viewer":
         def title(name):
             return name + " — Image Viewer" in log.read_text()

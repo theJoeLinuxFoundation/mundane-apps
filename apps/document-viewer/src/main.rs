@@ -1,4 +1,5 @@
 mod book;
+mod reading;
 #[cfg(test)]
 mod tests;
 mod view;
@@ -25,7 +26,9 @@ enum Action {
     Done,
 }
 
+#[derive(Clone)]
 struct Sheet {
+    glyphs: Arc<Vec<book::Glyph>>,
     image: Arc<RenderImage>,
     logical: (f32, f32),
     highlights: Vec<[f32; 4]>,
@@ -34,6 +37,7 @@ struct Sheet {
 impl From<Raster> for Sheet {
     fn from(r: Raster) -> Self {
         Self {
+            glyphs: Arc::new(r.glyphs),
             image: Arc::new(RenderImage::new([image::Frame::new(r.pixels)])),
             logical: r.logical,
             highlights: r.highlights,
@@ -139,6 +143,12 @@ struct Viewer {
     header: WindowHeader,
     scroll: ScrollHandle,
     raster_scale: f32,
+    flow: Option<reading::Flow>,
+    outline: Entity<mundane_ui::ChoiceMenu>,
+    flow_button: FocusHandle,
+    print_button: FocusHandle,
+    selection: Option<reading::Selection>,
+    rendered_page: i32,
 }
 
 impl Viewer {
@@ -147,7 +157,28 @@ impl Viewer {
         let content = cx.focus_handle().tab_stop(true);
         content.focus(w, cx);
         w.set_window_title("Document Viewer");
+        let outline =
+            cx.new(|cx| mundane_ui::ChoiceMenu::new("Document outline", Vec::new(), true, cx));
+        cx.observe(&outline, |_, _, cx| cx.notify()).detach();
+        cx.subscribe_in(
+            &outline,
+            w,
+            |this: &mut Self, _, event: &mundane_ui::MenuEvent, w, cx| {
+                if let mundane_ui::MenuEvent::Selected(key) = event
+                    && let Some(n) = key.split(':').next().and_then(|s| s.parse::<i32>().ok())
+                {
+                    this.request(Request::Page(n), w, cx);
+                }
+            },
+        )
+        .detach();
         Self {
+            flow: None,
+            outline,
+            flow_button: cx.focus_handle().tab_stop(true),
+            print_button: cx.focus_handle().tab_stop(true),
+            selection: None,
+            rendered_page: 0,
             state: None,
             sheet: None,
             busy: false,
@@ -185,7 +216,22 @@ impl Viewer {
                 this.busy = false;
                 match result {
                     Ok((state, raster)) => {
+                        this.selection = None;
+                        this.rendered_page = state.page;
                         if opened {
+                            let choices = state
+                                .book
+                                .outline
+                                .iter()
+                                .enumerate()
+                                .map(|(i, (title, page))| {
+                                    mundane_ui::MenuChoice::new(
+                                        format!("{page}:{i}"),
+                                        format!("{title} · {page}"),
+                                    )
+                                })
+                                .collect();
+                            this.outline.update(cx, |m, cx| m.replace(choices, w, cx));
                             w.set_window_title(&format!("{} — Document Viewer", state.book.name));
                             this.finding = false;
                             this.content.focus(w, cx);
@@ -198,7 +244,11 @@ impl Viewer {
                             let _ = w.drop_image(prev.image);
                         }
                         this.raster_scale = scale;
+                        let in_flow = this.flow.is_some();
                         this.state = Some(state);
+                        if in_flow {
+                            this.start_flow(w, cx);
+                        }
                         if reset_scroll {
                             this.scroll.set_offset(Default::default());
                         }

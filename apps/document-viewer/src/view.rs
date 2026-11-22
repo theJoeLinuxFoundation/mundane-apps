@@ -1,6 +1,22 @@
 use super::*;
 use mundane_ui::{ControlRole, Role, button, focus_ring, unavailable};
 
+pub(super) fn page_text(area: Stateful<Div>, text: SharedString) -> Stateful<Div> {
+    area.a11y_synthetic_children(move |tree| {
+        for (line, value) in text.split_inclusive('\n').enumerate() {
+            let mut run = accesskit::Node::new(Role::TextRun);
+            run.set_character_lengths(
+                value
+                    .chars()
+                    .map(|c| c.len_utf8() as u8)
+                    .collect::<Vec<_>>(),
+            );
+            run.set_value(value);
+            tree.push_child(tree.synthetic_node_id(line), run);
+        }
+    })
+}
+
 impl Viewer {
     fn tool(&self, a: Action, cx: &Context<Self>) -> Stateful<Div> {
         let theme = Theme::current(cx);
@@ -29,7 +45,28 @@ impl Viewer {
     fn keyboard(&mut self, e: &KeyDownEvent, w: &mut Window, cx: &mut Context<Self>) {
         let key = &e.keystroke;
         let ctrl = key.modifiers.control;
+        if self.content.is_focused(w) && self.select_keys(key, cx) {
+            w.prevent_default();
+            cx.stop_propagation();
+            return;
+        }
         match (key.key.as_str(), ctrl) {
+            ("j", true) => self.toggle_flow(w, cx),
+            ("p", true) => self.print(cx),
+            ("b", true)
+                if self
+                    .state
+                    .as_ref()
+                    .is_some_and(|s| !s.book.outline.is_empty()) =>
+            {
+                self.outline.update(cx, |m, cx| m.toggle(w, cx))
+            }
+            ("up" | "down", false) if self.flow.is_some() && self.content.is_focused(w) => {
+                let list = self.flow.as_ref().unwrap().list.clone();
+                list.scroll_by(px(if key.key == "up" { -48. } else { 48. }));
+                self.reading_position(list.logical_scroll_top().item_ix as i32 + 1, w, cx);
+                cx.notify();
+            }
             ("w", true) => w.remove_window(),
             ("o", true) => self.act(Action::Open, w, cx),
             ("f", true) => self.act(Action::Find, w, cx),
@@ -113,6 +150,28 @@ impl Viewer {
             MouseButton::Left,
             cx.listener(|this, _, w, cx| this.content.focus(w, cx)),
         );
+        if let Some(flow) = &self.flow {
+            let view = cx.weak_entity();
+            let s = self.state.as_ref().unwrap();
+            let width = px(s.book.max_width * ZOOMS[s.zoom] + 24.);
+            return focus_ring(
+                Role::Document.control("continuous-document", "Continuous document"),
+                &self.content,
+                Theme::current(cx),
+            )
+            .overflow_x_scroll()
+            .track_scroll(&self.scroll)
+            .flex_1()
+            .min_h_0()
+            .child(
+                list(flow.list.clone(), move |i, w, cx| {
+                    view.update(cx, |v, cx| v.flow_row(i, w, cx))
+                        .unwrap_or_else(|_| div().into_any_element())
+                })
+                .size_full()
+                .min_w(width),
+            );
+        }
         let Some(sheet) = &self.sheet else {
             return area
                 .flex()
@@ -126,69 +185,9 @@ impl Viewer {
                     "Open a PDF document"
                 });
         };
-        let image = sheet.image.clone();
-        let id = image.id;
-        let view = cx.weak_entity();
-        let rects = sheet.highlights.clone();
         let text = sheet.text.clone();
-        let area = area.a11y_synthetic_children(move |tree| {
-            for (line, value) in text.split_inclusive('\n').enumerate() {
-                let mut run = accesskit::Node::new(Role::TextRun);
-                run.set_character_lengths(
-                    value
-                        .chars()
-                        .map(|c| c.len_utf8() as u8)
-                        .collect::<Vec<_>>(),
-                );
-                run.set_value(value);
-                tree.push_child(tree.synthetic_node_id(line), run);
-            }
-        });
-        let page = div()
-            .w(px(sheet.logical.0))
-            .h(px(sheet.logical.1))
-            .flex_none()
-            .bg(rgb(0xffffff))
-            .child(
-                canvas(
-                    |_, _, _| (),
-                    move |bounds, _, w, cx| {
-                        if let Err(e) =
-                            w.paint_image(bounds, bounds, Default::default(), image, 0, false)
-                        {
-                            w.defer(cx, move |_, cx| {
-                                let _ = view.update(cx, |this, cx| {
-                                    if this.sheet.as_ref().is_some_and(|s| s.image.id == id) {
-                                        this.sheet = None;
-                                        this.error = Some(format!("Could not display page. {e}"));
-                                        cx.notify();
-                                    }
-                                });
-                            });
-                            return;
-                        }
-                        for [left, top, right, bottom] in rects {
-                            let rect = Bounds::new(
-                                bounds.origin
-                                    + point(bounds.size.width * left, bounds.size.height * top),
-                                size(
-                                    bounds.size.width * (right - left),
-                                    bounds.size.height * (bottom - top),
-                                ),
-                            );
-                            w.paint_quad(quad(
-                                rect,
-                                px(0.),
-                                gpui::transparent_black(),
-                                px(1.),
-                                rgb(0x795600),
-                                BorderStyle::Solid,
-                            ));
-                        }
-                    },
-                )
-                .size_full(),
-            );
+        let area = page_text(area, text);
+        let page = self.paper(self.rendered_page, sheet, cx);
         area.child(
             div()
                 .min_w_full()
@@ -226,7 +225,38 @@ impl Render for Viewer {
             .flex()
             .gap_1()
             .child(self.tool(Action::Open, cx))
-            .child(self.tool(Action::Find, cx));
+            .child(self.tool(Action::Find, cx))
+            .when(self.state.is_some(), |bar| {
+                let v = cx.weak_entity();
+                let print = v.clone();
+                bar.child(
+                    button("Continuous", &self.flow_button, theme, move |w, cx| {
+                        let _ = v.update(cx, |v, cx| v.toggle_flow(w, cx));
+                    })
+                    .aria_toggled(self.flow.is_some().into()),
+                )
+                .when(
+                    self.state
+                        .as_ref()
+                        .is_some_and(|s| !s.book.outline.is_empty()),
+                    |el| {
+                        el.child(mundane_ui::menu_trigger(
+                            "Outline",
+                            &self.outline,
+                            theme,
+                            cx,
+                        ))
+                    },
+                )
+                .child(button(
+                    "Print…",
+                    &self.print_button,
+                    theme,
+                    move |_, cx| {
+                        let _ = print.update(cx, |v, cx| v.print(cx));
+                    },
+                ))
+            });
         div()
             .size_full()
             .flex()
@@ -261,6 +291,7 @@ impl Render for Viewer {
                         .child(self.tool(Action::Done, cx)),
                 )
             })
+            .child(self.outline.clone())
             .child(self.viewport(cx))
             .when_some(self.state.as_ref(), |el, s| {
                 let progress = if self.finding && !s.matches.query.is_empty() {

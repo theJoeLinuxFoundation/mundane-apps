@@ -73,3 +73,38 @@ fn navigate_find_and_zoom(cx: &mut TestAppContext) {
         assert!(viewer.sheet.as_ref().unwrap().text.contains("Tidal range"));
     });
 }
+
+#[gpui::test]
+fn select_embedded_text_with_the_keyboard(cx: &mut TestAppContext) {
+    cx.update(mundane_ui::bind_text_keys);
+    let (_, ui) = cx.add_window_view(|w, cx| {
+        let mut v = Viewer::new(w, cx);
+        v.request(
+            Request::Open(
+                Path::new(env!("CARGO_MANIFEST_DIR"))
+                    .join("../../tests/fixtures/Coastal survey.pdf"),
+            ),
+            w,
+            cx,
+        );
+        v
+    });
+    ui.run_until_parked();
+    ui.simulate_keystrokes("shift-right shift-right shift-right ctrl-c");
+    ui.update(|_, cx| {
+        assert_eq!(
+            cx.read_from_clipboard().unwrap().text().as_deref(),
+            Some("NOR")
+        )
+    });
+    ui.simulate_keystrokes("ctrl-a ctrl-c");
+    ui.update(|_, cx| {
+        assert!(
+            cx.read_from_clipboard()
+                .unwrap()
+                .text()
+                .unwrap()
+                .contains("West channel")
+        )
+    });
+}

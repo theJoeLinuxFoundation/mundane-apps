@@ -3239,11 +3239,13 @@ version = "0.1.0"
 dependencies = [
  "accesskit",
  "anyhow",
+ "ashpd",
  "gpui",
  "image",
  "mundane-ui",
  "pdfium-render",
  "rustix",
+ "tempfile",
 ]
 
 [[package]]

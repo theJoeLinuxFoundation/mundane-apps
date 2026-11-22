@@ -32,6 +32,9 @@ def choose(bus, sender, path, iface, method, args, call):
 
 
 def start(bus, _):
+    if os.environ.get("MUNDANE_TEST_PRINT"):
+        import print_fixture
+        bus.register_object(desktop, print_fixture.iface, print_fixture.handle, lambda *_: GLib.Variant("u", 4), None)
     bus.register_object(desktop, node.interfaces[0], choose, lambda *_: GLib.Variant("u", 4), None)
 
 

@@ -14,6 +14,10 @@ const MAX_HITS: usize = 10_000;
 pub struct Book {
     doc: Mutex<PdfDocument<'static>>,
     pub pages: i32,
+    pub max_width: f32,
+    pub sizes: Vec<(f32, f32)>,
+    pub outline: Vec<(String, i32)>,
+    pub original: std::sync::Arc<[u8]>,
     pub name: String,
 }
 #[derive(Clone)]
@@ -21,7 +25,13 @@ pub struct Hit {
     pub page: i32,
     boxes: Vec<PdfRect>,
 }
+#[derive(Clone)]
+pub struct Glyph {
+    pub ch: char,
+    pub rect: Option<[f32; 4]>,
+}
 pub struct Raster {
+    pub glyphs: Vec<Glyph>,
     pub pixels: image::RgbaImage, // BGRA for GPUI.
     pub logical: (f32, f32),
     pub highlights: Vec<[f32; 4]>, // Fractions of the displayed page, top-left origin.
@@ -52,12 +62,45 @@ impl Book {
         let mut bytes = Vec::new();
         file.take(MAX_BYTES + 1).read_to_end(&mut bytes)?;
         ensure!(bytes.len() as u64 <= MAX_BYTES, "PDF exceeds 128 MiB.");
-        let doc = engine()?.load_pdf_from_byte_vec(bytes, None).map_err(|_| {
-            anyhow::anyhow!("Cannot read PDF. The file may be damaged or password-protected.")
-        })?;
+        let original: std::sync::Arc<[u8]> = bytes.into();
+        let doc = engine()?
+            .load_pdf_from_reader(std::io::Cursor::new(original.clone()), None)
+            .map_err(|_| {
+                anyhow::anyhow!("Cannot read PDF. The file may be damaged or password-protected.")
+            })?;
         let pages = doc.pages().len();
         ensure!(pages > 0, "The PDF has no pages.");
+        let sizes: Vec<_> = doc
+            .pages()
+            .page_sizes()?
+            .into_iter()
+            .map(|r| (r.width().value, r.height().value))
+            .collect();
+        let outline = doc
+            .bookmarks()
+            .iter()
+            .take(10_000)
+            .filter_map(|b| {
+                let number = b
+                    .destination()
+                    .and_then(|d| d.page_index().ok())
+                    .or_else(|| {
+                        b.action()?
+                            .as_local_destination_action()?
+                            .destination()
+                            .ok()?
+                            .page_index()
+                            .ok()
+                    })?
+                    + 1;
+                Some((b.title()?, number))
+            })
+            .collect();
         Ok(Self {
+            max_width: sizes.iter().map(|(w, _)| *w).fold(0., f32::max).min(20000.),
+            sizes,
+            outline,
+            original,
             doc: Mutex::new(doc),
             pages,
             name: path
@@ -145,11 +188,31 @@ impl Book {
                 ]);
             }
         }
+        let text = page.text()?;
+        let glyphs = text
+            .chars()
+            .iter()
+            .filter_map(|c| {
+                let ch = c.unicode_char()?;
+                let rect = c.loose_bounds().ok().and_then(|r| {
+                    let (a, b) = page.points_to_pixels(r.left(), r.top(), &config).ok()?;
+                    let (x, y) = page.points_to_pixels(r.right(), r.bottom(), &config).ok()?;
+                    (a != x && b != y).then_some([
+                        a.min(x) as f32 / width as f32,
+                        b.min(y) as f32 / height as f32,
+                        a.max(x) as f32 / width as f32,
+                        b.max(y) as f32 / height as f32,
+                    ])
+                });
+                Some(Glyph { ch, rect })
+            })
+            .collect();
         Ok(Raster {
+            glyphs,
             pixels,
             logical,
             highlights,
-            text: page.text()?.all(),
+            text: text.all(),
         })
     }
 }

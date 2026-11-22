@@ -526,6 +526,10 @@ seat seat0 fallback true
             until((RUNTIME / "chooser-ready").exists, "private FileChooser")
         if suite_app == "document-viewer":
             document = ROOT / "tests/fixtures/Coastal survey.pdf"
+            if args.round_three:
+                os.environ["MUNDANE_TEST_PRINT"] = "1"
+                document = Path.home() / "Field guide.pdf"
+                run("python3", str(ROOT / "tests/fixtures/coastal_survey.py"), str(document))
             argv.append(str(document))
             second = Path.home() / "Survey copy.pdf"
             second.write_bytes(document.read_bytes())

@@ -7,6 +7,8 @@ publish.workspace = true
 
 [dependencies]
 anyhow.workspace = true
+tempfile = "3"
+ashpd = { version = "0.13", default-features = false, features = ["async-io", "print"] }
 pdfium-render = { version = "=0.9.6", default-features = false, features = ["pdfium_8125", "thread_safe"] }
 accesskit = "0.24"
 gpui.workspace = true
