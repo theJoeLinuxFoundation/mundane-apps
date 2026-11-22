@@ -95,6 +95,7 @@ impl Files {
         .detach();
     }
     pub(super) fn search(&mut self, query: String, cx: &mut Context<Self>) {
+        self.marks = Default::default();
         self.search_with_selection(query, None, cx)
     }
     pub(super) fn search_with_selection(
@@ -134,6 +135,7 @@ impl Files {
                 match result {
                     Ok(r) => {
                         v.entries = r.entries;
+                        v.marks.retain(&v.entries);
                         v.selected = prefer
                             .as_ref()
                             .and_then(|p| v.entries.iter().position(|e| &e.path == p))

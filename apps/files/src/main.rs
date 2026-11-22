@@ -2,6 +2,7 @@ use mundane_ui::ControlRole as _;
 mod dialogs;
 mod listing;
 mod navigation;
+mod selection;
 mod tabs;
 #[cfg(test)]
 mod tests;
@@ -117,6 +118,8 @@ struct Files {
     path: PathBuf,
     entries: Vec<Entry>,
     selected: Option<usize>,
+    marks: selection::Selection,
+    queue: std::collections::VecDeque<Job>,
     generation: u64,
     loading: bool,
     working: bool,
@@ -148,6 +151,8 @@ impl Files {
             path: path.clone(),
             entries: vec![],
             selected: None,
+            marks: Default::default(),
+            queue: Default::default(),
             generation: 0,
             loading: false,
             working: false,
@@ -199,7 +204,11 @@ impl Files {
                             .as_ref()
                             .and_then(|p| entries.iter().position(|entry| &entry.path == p))
                             .or_else(|| (!entries.is_empty()).then_some(0));
+                        if this.path != path {
+                            this.marks = Default::default();
+                        }
                         this.entries = entries;
+                        this.marks.retain(&this.entries);
                         this.path = path;
                         this.select_place();
                         this.scroll = UniformListScrollHandle::new();
@@ -235,16 +244,17 @@ impl Files {
                 this.working = false;
                 match result {
                     Ok(Outcome::Changed(selection)) => {
-                        if cut_source.is_some()
-                            && cx
-                                .read_from_clipboard()
-                                .as_ref()
-                                .and_then(clipboard_path)
-                                .is_some_and(|(p, how)| {
-                                    Some(p) == cut_source && how == Transfer::Move
-                                })
+                        if let Some(source) = cut_source
+                            && let Some((mut paths, Transfer::Move)) =
+                                cx.read_from_clipboard().as_ref().and_then(clipboard_paths)
+                            && paths.contains(&source)
                         {
-                            cx.write_to_clipboard(ClipboardItem::new_string(String::new()));
+                            paths.retain(|p| p != &source && !p.starts_with(&source));
+                            write_paths(paths, true, cx);
+                        }
+                        if let Some(next) = this.queue.pop_front() {
+                            this.execute(next, window, cx);
+                            return;
                         }
                         this.load(this.path.clone(), selection, cx);
                     }
@@ -252,7 +262,11 @@ impl Files {
                     Ok(Outcome::Conflict(p, info)) => {
                         this.prompt(Prompt::Conflict(p, info), window, cx)
                     }
-                    Err(e) => this.message = Some(e),
+                    Err(e) => {
+                        this.queue.clear();
+                        this.load(this.path.clone(), None, cx);
+                        this.message = Some(e);
+                    }
                 }
                 cx.notify();
             });
@@ -289,46 +303,43 @@ impl Files {
                 }
             }
             Command::Copy | Command::Cut => {
-                if let Some(e) = self.selected()
-                    && let Ok(uri) = url::Url::from_file_path(&e.path)
-                {
+                let paths = self.paths();
+                if !paths.is_empty() {
+                    let label = if paths.len() == 1 {
+                        paths[0]
+                            .file_name()
+                            .unwrap_or_default()
+                            .to_string_lossy()
+                            .into_owned()
+                    } else {
+                        format!("{} items", paths.len())
+                    };
                     let cut = matches!(cmd, Command::Cut);
-                    cx.write_to_clipboard(ClipboardItem::new_string_with_metadata(
-                        uri.to_string(),
-                        if cut { CUT.into() } else { String::new() },
-                    ));
+                    write_paths(paths, cut, cx);
                     self.message = Some(format!(
-                        "{} ready to {}",
-                        e.name.to_string_lossy(),
+                        "{label} ready to {}",
                         if cut { "move" } else { "copy" }
                     ));
                 }
             }
             Command::Paste => {
-                if let Some((source, how)) =
-                    cx.read_from_clipboard().as_ref().and_then(clipboard_path)
-                    && let Some(name) = source.file_name()
+                if let Some((paths, how)) =
+                    cx.read_from_clipboard().as_ref().and_then(clipboard_paths)
                 {
-                    let dest = self.path.join(name);
-                    if source != dest || how != Transfer::Move {
-                        self.execute(
-                            Job::Paste(Paste { source, dest, how }, PasteAction::New),
-                            window,
-                            cx,
-                        );
-                    }
+                    self.transfer_paths(paths, &self.path.clone(), how, window, cx);
                 } else {
                     self.message = Some("Copy or cut a local item first.".into());
                 }
             }
             Command::Rename => {
-                if let Some(entry) = self.selected() {
-                    self.prompt(Prompt::Rename(entry.path.clone()), window, cx);
+                if let [path] = self.paths().as_slice() {
+                    self.prompt(Prompt::Rename(path.clone()), window, cx);
                 }
             }
             Command::Trash => {
-                if let Some(entry) = self.selected() {
-                    self.prompt(Prompt::Trash(entry.path.clone()), window, cx);
+                let paths = selection::top_level(self.paths());
+                if !paths.is_empty() {
+                    self.prompt(Prompt::Trash(paths), window, cx);
                 }
             }
         }
@@ -351,6 +362,10 @@ impl Files {
             self.command(cmd, window, cx);
         } else {
             match key.key.as_str() {
+                "a" if key.modifiers.control => self.select_all(),
+                "space" if key.modifiers.control && self.selected.is_some() => {
+                    self.pick(self.selected.unwrap(), false, true)
+                }
                 "enter" => self.activate(window, cx),
                 "up" | "down" | "home" | "end" if !self.entries.is_empty() => {
                     let current = self.selected.unwrap_or_default();
@@ -361,7 +376,7 @@ impl Files {
                         "home" => 0,
                         _ => last,
                     };
-                    self.selected = Some(next);
+                    self.pick(next, key.modifiers.shift, false);
                     self.scroll.scroll_to_item(next, ScrollStrategy::Nearest);
                     self.message = None;
                 }
@@ -401,9 +416,8 @@ impl Files {
             || self.dialog.is_some()
             || match cmd {
                 Command::Up => self.path.parent().is_none(),
-                Command::Copy | Command::Cut | Command::Trash | Command::Rename => {
-                    self.selected().is_none()
-                }
+                Command::Rename => self.selection_count() != 1,
+                Command::Copy | Command::Cut | Command::Trash => self.selection_count() == 0,
                 _ => false,
             };
         let tool = button(cmd.label(), focus, Theme::current(cx), move |window, cx| {
@@ -413,19 +427,33 @@ impl Files {
     }
 }
 
-fn clipboard_path(item: &ClipboardItem) -> Option<(PathBuf, Transfer)> {
-    if let [ClipboardEntry::ExternalPaths(paths)] = item.entries.as_slice()
-        && let [path] = paths.paths()
-    {
-        return Some((path.clone(), Transfer::Copy));
+fn write_paths(paths: Vec<PathBuf>, cut: bool, cx: &mut App) {
+    let text = paths
+        .iter()
+        .filter_map(|p| url::Url::from_file_path(p).ok())
+        .map(|u| u.to_string())
+        .collect::<Vec<_>>()
+        .join("\n");
+    cx.write_to_clipboard(ClipboardItem::new_string_with_metadata(
+        text,
+        if cut { CUT.into() } else { String::new() },
+    ));
+}
+fn clipboard_paths(item: &ClipboardItem) -> Option<(Vec<PathBuf>, Transfer)> {
+    if let [ClipboardEntry::ExternalPaths(paths)] = item.entries.as_slice() {
+        return Some((paths.paths().to_vec(), Transfer::Copy));
     }
-    let uri = url::Url::parse(item.text()?.trim()).ok()?;
+    let paths: Vec<_> = item
+        .text()?
+        .lines()
+        .map(|line| url::Url::parse(line.trim()).ok()?.to_file_path().ok())
+        .collect::<Option<_>>()?;
     let mode = if item.metadata().is_some_and(|s| s == CUT) {
         Transfer::Move
     } else {
         Transfer::Copy
     };
-    Some((uri.to_file_path().ok()?, mode))
+    (!paths.is_empty()).then_some((paths, mode))
 }
 
 fn location_label(path: &Path) -> String {
@@ -463,6 +491,9 @@ impl Render for Files {
             "Working…".into()
         } else {
             self.message.clone().unwrap_or_else(|| {
+                if self.selection_count() > 1 {
+                    return format!("{} items selected", self.selection_count());
+                }
                 format!(
                     "{} {}",
                     self.entries.len(),
@@ -599,6 +630,9 @@ impl Render for Files {
                         focus_ring(
                             mundane_ui::Role::ListBox
                                 .control("folder", "Folder contents")
+                                .a11y_synthetic_children(|tree| {
+                                    tree.parent_node().set_multiselectable()
+                                })
                                 .aria_size_of_set(self.entries.len()),
                             &self.list_focus,
                             theme,

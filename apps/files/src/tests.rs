@@ -102,3 +102,32 @@ fn tabs_keep_search_selection_and_see_sibling_changes(cx: &mut TestAppContext) {
         assert_eq!(v.path, folder);
     });
 }
+
+#[gpui::test]
+fn range_and_disjoint_selection_copy_then_cancel_a_batch(cx: &mut TestAppContext) {
+    let dir = tempfile::tempdir().unwrap();
+    let dest = dir.path().join("Saved");
+    fs::create_dir(&dest).unwrap();
+    for name in ["a", "b", "c"] {
+        fs::write(dir.path().join(name), name).unwrap();
+    }
+    let (view, ui) = cx.add_window_view(|w, cx| Files::new(dir.path().into(), w, cx));
+    ui.simulate_keystrokes("down shift-down shift-down shift-up");
+    assert_eq!(view.read_with(ui, |v, _| v.selection_count()), 2);
+    ui.simulate_keystrokes("ctrl-space ctrl-c home enter");
+    ui.run_until_parked();
+    ui.simulate_keystrokes("ctrl-v");
+    ui.run_until_parked();
+    assert_eq!(fs::read_dir(&dest).unwrap().count(), 1);
+    assert_eq!(fs::read(dest.join("a")).unwrap(), b"a");
+    ui.simulate_keystrokes("alt-up");
+    ui.run_until_parked();
+    ui.simulate_keystrokes("down shift-down ctrl-c home enter");
+    ui.run_until_parked();
+    ui.simulate_keystrokes("ctrl-v");
+    ui.run_until_parked();
+    assert!(view.read_with(ui, |v, _| v.dialog.is_some()));
+    ui.simulate_keystrokes("escape");
+    ui.run_until_parked();
+    assert!(!dest.join("b").exists());
+}

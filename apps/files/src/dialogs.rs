@@ -9,7 +9,7 @@ pub(super) enum Prompt {
     Search,
     Location,
     Rename(PathBuf),
-    Trash(PathBuf),
+    Trash(Vec<PathBuf>),
     Conflict(Paste, mundane_services::files::Conflict),
 }
 pub(super) struct Dialog {
@@ -70,6 +70,10 @@ impl Files {
         dialog.return_focus.focus(window, cx);
         cx.notify();
         if !yes {
+            if matches!(dialog.prompt, Prompt::Conflict(..)) && !self.queue.is_empty() {
+                self.queue.clear();
+                self.load(self.path.clone(), None, cx);
+            }
             return;
         }
         let text = dialog
@@ -97,7 +101,12 @@ impl Files {
                     self.execute(Job::Rename(path, text.into()), window, cx);
                 }
             }
-            Prompt::Trash(path) => self.execute(Job::Trash(path), window, cx),
+            Prompt::Trash(paths) => {
+                self.queue = paths.into_iter().map(Job::Trash).collect();
+                if let Some(job) = self.queue.pop_front() {
+                    self.execute(job, window, cx);
+                }
+            }
             Prompt::Conflict(paste, _) => {
                 self.execute(Job::Paste(paste, PasteAction::KeepBoth), window, cx)
             }
@@ -110,7 +119,15 @@ impl Files {
             Prompt::Search => ("Search this folder", None, "Search"),
             Prompt::Location => ("Open folder", None, "Open"),
             Prompt::Rename(_) => ("Rename item", None, "Rename"),
-            Prompt::Trash(path) => ("Move to Trash?", Some(name(path)), "Move to Trash"),
+            Prompt::Trash(paths) => (
+                "Move to Trash?",
+                Some(if paths.len() == 1 {
+                    name(&paths[0])
+                } else {
+                    format!("{} selected items", paths.len())
+                }),
+                "Move to Trash",
+            ),
             Prompt::Conflict(paste, _) => (
                 "Name already in use",
                 Some(format!("“{}” already exists here.", name(&paste.dest))),

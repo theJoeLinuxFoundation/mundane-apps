@@ -290,6 +290,7 @@ def main():
     parser.add_argument("--profile", choices=["standard", "fractional", "contrast"], default="standard")
     parser.add_argument("--compositor", choices=["sway", "labwc"], default="sway")
     parser.add_argument("--mundanede-echo", type=Path, metavar="CHECKOUT", help="test physical typing echo in a scratch build of mundaneDE")
+    parser.add_argument("--round-three", choices=["before","after"], help="round three isolated daily-use workflows")
     parser.add_argument("--round-two", choices=["before","after"], help="daily-use round two workflow")
     parser.add_argument("--design-sheet",choices=["core","panel","menus","settings","notifications"],help="capture the shared components on private labwc")
     args = parser.parse_args()
@@ -560,6 +561,10 @@ seat seat0 fallback true
                 return "ack_configure" in (OUTPUT / log).read_text(errors="replace")
             return app_id in command("-t", "get_tree")
         until(mapped, f"mapped {suite_app}")
+        if args.round_three:
+            from round_three import exercise
+            exercise(suite_app, args.round_three, key, type_text, until, compare_screenshot, ROOT, OUTPUT / log)
+            return
         if args.round_two:
             from round_two import exercise
             def restart():

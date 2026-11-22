@@ -83,7 +83,9 @@ impl Files {
                     .ready
                     .get(&entry.path)
                     .and_then(Option::as_ref);
-                let selected = self.selected == Some(i);
+                let selected = self.chosen(i);
+                let path = entry.path.clone();
+                let dest = path.clone();
                 let detail = if entry.symlink {
                     "Link".into()
                 } else if entry.folder {
@@ -105,7 +107,7 @@ impl Files {
                     name.clone(),
                     i,
                     selected,
-                    self.list_focus.is_focused(window),
+                    self.selected == Some(i) && self.list_focus.is_focused(window),
                 )
                 .when(window.is_a11y_active(), |el| {
                     el.aria_description(detail.clone())
@@ -122,6 +124,34 @@ impl Files {
                         .border_color(rgb(theme.focus))
                 })
                 .when(!selected, |el| el.hover(move |s| s.bg(rgb(theme.panel))))
+                .on_drag(super::selection::Dragged(path), |drag, _, _, cx| {
+                    cx.new(|_| super::selection::Dragged(drag.0.clone()))
+                })
+                .when(entry.folder, |el| {
+                    el.drag_over::<super::selection::Dragged>(move |style, _, _, _| {
+                        style.bg(rgb(theme.selected()))
+                    })
+                    .on_drop(cx.listener(
+                        move |this, drag: &super::selection::Dragged, w, cx| {
+                            let paths = if this
+                                .entries
+                                .iter()
+                                .enumerate()
+                                .any(|(i, e)| e.path == drag.0 && this.chosen(i))
+                            {
+                                this.paths()
+                            } else {
+                                vec![drag.0.clone()]
+                            };
+                            let mode = if w.modifiers().control {
+                                files::Transfer::Copy
+                            } else {
+                                files::Transfer::Move
+                            };
+                            this.transfer_paths(paths, &dest, mode, w, cx);
+                        },
+                    ))
+                })
                 .on_click(cx.listener(move |this, event: &ClickEvent, window, cx| {
                     if this.loading || this.working || this.dialog.is_some() {
                         return;
@@ -130,7 +160,7 @@ impl Files {
                     else {
                         return;
                     };
-                    this.selected = Some(index);
+                    this.pick(index, event.modifiers().shift, event.modifiers().control);
                     this.message = None;
                     this.list_focus.focus(window, cx);
                     if event.click_count() == 2 {

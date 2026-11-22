@@ -94,3 +94,9 @@ New tab (Ctrl+T) opens the current folder. Ctrl+Page Up/Down switches tabs and C
 | Workflow | Before | After |
 | --- | --- | --- |
 | Open a subfolder alongside its parent | [Single folder](parity/round-2/before/files-tabs.png) | [Folder tabs](parity/round-2/after/files-tabs.png) |
+
+## Round three
+
+The comparisons below use the same fixtures and a private headless Sway output. Build the five apps and test examples with `cargo build --workspace --bins --examples --locked`. Run `tests/wayland/run --app files --round-three after`, substituting the other app names as needed. The before images use binaries from `4c254b4`.
+
+**Files.** Shift+arrow or Shift+click extends a range. Ctrl+click or Ctrl+Space toggles an item, and Ctrl+A selects all. Copy, Cut and Trash act on the selection. Drag selected rows onto a folder to move them, or hold Ctrl at drop to copy. Each collision uses the existing review dialog. Cancel stops the remaining transfers. External drag export, alternate views, Open With and Properties remain open. [Before](parity/round-3/before/files-selection.png) · [After](parity/round-3/after/files-selection.png)

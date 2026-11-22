@@ -5,6 +5,7 @@ pub(super) struct FolderTab {
     path: PathBuf,
     selected: Option<PathBuf>,
     query: Option<String>,
+    marks: selection::Selection,
     hidden: bool,
     focus: FocusHandle,
 }
@@ -14,6 +15,7 @@ impl FolderTab {
             path,
             selected: None,
             query: None,
+            marks: Default::default(),
             hidden: false,
             focus: cx.focus_handle().tab_stop(true),
         }
@@ -25,6 +27,7 @@ impl Files {
         let tab = &mut self.tabs[self.active];
         tab.path = self.requested.clone().unwrap_or_else(|| self.path.clone());
         tab.selected = selected;
+        tab.marks = self.marks.clone();
         tab.query = self.nav.query.clone();
         tab.hidden = self.show_hidden;
     }
@@ -32,6 +35,7 @@ impl Files {
         self.active = i;
         let tab = &self.tabs[i];
         self.path = tab.path.clone();
+        self.marks = tab.marks.clone();
         self.show_hidden = tab.hidden;
         let path = tab.path.clone();
         let selected = tab.selected.clone();

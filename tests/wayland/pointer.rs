@@ -46,6 +46,23 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         sleep(Duration::from_millis(50));
         Ok(())
     };
+    if env::args().nth(2).as_deref() == Some("gesture") {
+        use wayland_client::protocol::wl_pointer::ButtonState;
+        for action in env::args().skip(3) {
+            match action.as_str() {
+                "press" => pointer.button(time(), 0x110, ButtonState::Pressed),
+                "release" => pointer.button(time(), 0x110, ButtonState::Released),
+                pair => {
+                    let (x, y) = pair
+                        .split_once(',')
+                        .ok_or("expected X,Y on 800 × 500 output")?;
+                    pointer.motion_absolute(time(), x.parse()?, y.parse()?, 800, 500);
+                }
+            }
+            frame()?;
+        }
+        return Ok(());
+    }
     pointer.motion_absolute(time(), 100, 20, 640, 360);
     frame()?;
     let drag = env::args().nth(2).as_deref() == Some("drag");
