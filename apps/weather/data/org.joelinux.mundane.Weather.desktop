@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Weather
+Exec=mundane-weather
+Icon=weather-few-clouds
+Categories=Utility;Science;
+Terminal=false

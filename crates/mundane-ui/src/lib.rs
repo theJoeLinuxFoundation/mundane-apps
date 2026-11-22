@@ -199,3 +199,20 @@ pub use playback::{PlaybackControls, TransportAction, TransportState, playback_t
 
 mod browser;
 pub use browser::{BrowserList, BrowserRow, browser_key, browser_window, byte_size};
+
+/// External attribution and licence links share the suite's keyboard focus styling.
+pub fn external_link(
+    label: &'static str,
+    url: &'static str,
+    focus: &FocusHandle,
+    theme: Theme,
+) -> Stateful<Div> {
+    focus_ring(Role::Link.control(focus, label), focus, theme)
+        .px_1()
+        .py_1()
+        .text_sm()
+        .underline()
+        .cursor_pointer()
+        .child(label)
+        .on_click(move |_, _, cx| cx.open_url(url))
+}

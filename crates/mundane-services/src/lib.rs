@@ -26,3 +26,8 @@ pub mod disks;
 
 #[cfg(feature = "clocks")]
 pub mod clocks;
+
+#[cfg(feature = "provider")]
+pub mod provider;
+#[cfg(feature = "weather")]
+pub mod weather;
