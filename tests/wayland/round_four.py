@@ -282,3 +282,31 @@ def usage(side, root, log, key, until, compare, command):
             return any(opened(child) for child in node.get("nodes", []) + node.get("floating_nodes", []))
         until(lambda: opened(json.loads(command("-t", "get_tree"))), "Files opened on Charts")
         key("w", "ctrl")
+
+
+def archive(side, root, log, key, until, compare):
+    import tarfile
+    until(lambda: "Coastal survey.zip — Archive Manager" in log.read_text(), "opened fixture")
+    key("Shift_L")
+    target = Path.home() / "Survey logs.tar.xz"
+    def members():
+        if target.exists():
+            with tarfile.open(target, "r:xz") as data:
+                return data.getnames()
+        return []
+    key("n", "ctrl")
+    if side == "after":
+        until(lambda: "Survey logs.tar.xz — Archive Manager" in log.read_text(), "created tar.xz")
+        key("i", "ctrl")
+        until(lambda: members() == ["East quay.txt", "Field notes.md"], "added a file")
+    compare("archive-manager-create.png", 1, root / "docs/parity/round-4" / side)
+    key("Home")
+    key("Delete")
+    compare("archive-manager-remove.png", 1, root / "docs/parity/round-4" / side)
+    if side == "after":
+        key("Return")
+        assert len(members()) == 2
+        key("Delete")
+        key("Tab")
+        key("Return")
+        until(lambda: members() == ["Field notes.md"], "removed the reviewed entry")

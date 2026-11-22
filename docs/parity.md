@@ -160,3 +160,12 @@ The treemap shows each subtree’s share of allocated space or logical file size
 | --- | --- | --- |
 | Find the largest folders | [Size list](parity/round-4/before/disk-usage-treemap.png) | [Treemap](parity/round-4/after/disk-usage-treemap.png) |
 | Inspect a subtree | [Folder list](parity/round-4/before/disk-usage-subtree.png) | [Folder map](parity/round-4/after/disk-usage-subtree.png) |
+
+### Archive Manager
+
+Ctrl+N creates an archive from selected files. The destination extension selects ZIP, tar, tar.gz or tar.xz. Ctrl+I adds files. Delete reviews the marked entries or current selection, including selected folder contents, with Cancel focused first. Existing extraction protections apply to tar.xz. Entry preview, extraction conflict choices and encrypted archives remain.
+
+| Task | Before | After |
+| --- | --- | --- |
+| Create and extend an archive | [Opened ZIP](parity/round-4/before/archive-manager-create.png) | [New tar.xz with two files](parity/round-4/after/archive-manager-create.png) |
+| Remove an entry | [Entry list](parity/round-4/before/archive-manager-remove.png) | [Review removal](parity/round-4/after/archive-manager-remove.png) |

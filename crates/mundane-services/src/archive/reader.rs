@@ -17,6 +17,7 @@ use std::{
 #[link(name = "archive")]
 unsafe extern "C" {
     fn archive_read_new() -> *mut c_void;
+    fn archive_read_support_filter_xz(a: *mut c_void) -> c_int;
     fn archive_read_support_filter_gzip(a: *mut c_void) -> c_int;
     fn archive_read_support_format_tar(a: *mut c_void) -> c_int;
     fn archive_read_support_format_zip(a: *mut c_void) -> c_int;
@@ -35,9 +36,12 @@ unsafe extern "C" {
 pub(super) struct Reader {
     handle: NonNull<c_void>,
     _file: File,
+    _locale: super::PathLocale,
+    pub(super) header: *mut c_void,
 }
 impl Reader {
     pub fn open(path: &Path) -> Result<Self> {
+        let locale = super::PathLocale::enter()?;
         let file = File::options()
             .read(true)
             .custom_flags(rustix::fs::OFlags::NONBLOCK.bits() as i32)
@@ -54,9 +58,12 @@ impl Reader {
             let reader = Self {
                 handle,
                 _file: file,
+                _locale: locale,
+                header: std::ptr::null_mut(),
             };
             let a = handle.as_ptr();
             reader.check(archive_read_support_filter_gzip(a))?;
+            reader.check(archive_read_support_filter_xz(a))?;
             reader.check(archive_read_support_format_tar(a))?;
             reader.check(archive_read_support_format_zip(a))?;
             reader.check(archive_read_open_fd(a, reader._file.as_raw_fd(), 65536))?;
@@ -83,6 +90,7 @@ impl Reader {
             }
             self.check(r)?;
             ensure!(!e.is_null(), "Missing archive header.");
+            self.header = e;
             let path = |p: *const c_char| {
                 (!p.is_null())
                     .then(|| PathBuf::from(OsStr::from_bytes(CStr::from_ptr(p).to_bytes())))
@@ -112,7 +120,7 @@ impl Reader {
             }))
         }
     }
-    pub fn copy(&mut self, out: &mut File) -> Result<()> {
+    pub fn copy(&mut self, out: &mut impl Write) -> Result<()> {
         let mut buf = [0u8; 65536];
         loop {
             let n = unsafe {

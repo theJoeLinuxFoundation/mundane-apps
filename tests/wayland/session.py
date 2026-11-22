@@ -479,7 +479,9 @@ seat seat0 fallback true
         if suite_app == "archive-manager":
             archive_dest = Path.home() / "Extracted"
             archive_dest.mkdir()
-            argv.append(str(ROOT / "tests/fixtures/archive/Coastal survey.zip"))
+            fixture = Path.home() / "Coastal survey.zip"
+            fixture.write_bytes((ROOT / "tests/fixtures/archive/Coastal survey.zip").read_bytes())
+            argv.append(str(fixture))
             if args.polish:
                 from zipfile import ZipFile
                 empty = Path.home() / "Empty.zip"
@@ -489,7 +491,13 @@ seat seat0 fallback true
                 with ZipFile(archive_dest, "w") as z:
                     z.writestr("Notes.txt", "Survey notes")
                 argv[-1] = str(empty)
-            launch(stack, "python3", str(HERE / "chooser_portal.py"), str(archive_dest), log="archive-portal.log")
+            choices = [archive_dest]
+            if args.round_four:
+                choices = [Path.home() / "East quay.txt", Path.home() / "Field notes.md"]
+                for path in choices:
+                    path.write_text(path.stem + "\n")
+                (RUNTIME / "archive-save").touch()
+            launch(stack, "python3", str(HERE / "chooser_portal.py"), *map(str, choices), log="archive-portal.log")
             until((RUNTIME / "chooser-ready").exists, "private FileChooser")
         if suite_app == "music":
             from video_audio import start, record, check_tone
@@ -616,6 +624,9 @@ seat seat0 fallback true
             elif suite_app == "maps":
                 from round_four import maps
                 maps(args.round_four, ROOT, OUTPUT / log, key, type_text, until, compare_screenshot)
+            elif suite_app == "archive-manager":
+                from round_four import archive
+                archive(args.round_four, ROOT, OUTPUT / log, key, until, compare_screenshot)
             elif suite_app == "disk-usage":
                 from round_four import usage
                 usage(args.round_four, ROOT, OUTPUT / log, key, until, compare_screenshot, command)

@@ -1,3 +1,4 @@
+mod edit;
 use gpui::{prelude::*, *};
 use mundane_services::archive::{self, Entry, Kind};
 use mundane_ui::{
@@ -8,11 +9,13 @@ use std::{collections::BTreeSet, path::PathBuf};
 
 struct Manager {
     archive: Option<PathBuf>,
+    stamp: Option<archive::Stamp>,
+    confirm: Option<Entity<mundane_ui::ConfirmDialog>>,
     entries: Vec<Entry>,
     marked: BTreeSet<PathBuf>,
     list: BrowserList,
     header: WindowHeader,
-    buttons: [FocusHandle; 4],
+    buttons: [FocusHandle; 7],
     status: String,
     busy: bool,
 }
@@ -22,6 +25,8 @@ impl Manager {
         list.focus.focus(w, cx);
         Self {
             archive: None,
+            stamp: None,
+            confirm: None,
             entries: vec![],
             marked: Default::default(),
             list,
@@ -41,13 +46,14 @@ impl Manager {
         let source = path.clone();
         let task = cx
             .background_executor()
-            .spawn(async move { archive::list(&source) });
+            .spawn(async move { archive::inspect(&source) });
         cx.spawn_in(w, async move |v, cx| {
             let result = task.await;
             let _ = v.update_in(cx, |this, w, cx| {
                 this.busy = false;
                 match result {
-                    Ok(entries) => {
+                    Ok((entries, stamp)) => {
+                        this.stamp = Some(stamp);
                         w.set_window_title(&format!(
                             "{} — Archive Manager",
                             path.file_name()
@@ -190,7 +196,15 @@ impl Manager {
         .detach()
     }
     fn action(&mut self, i: usize, w: &mut Window, cx: &mut Context<Self>) {
-        if self.busy {
+        if self.busy || self.confirm.is_some() {
+            return;
+        }
+        if i == 4 || i == 5 {
+            self.pick_inputs(i == 4, w, cx);
+            return;
+        }
+        if i == 6 {
+            self.remove(w, cx);
             return;
         }
         if i == 1 {
@@ -200,8 +214,14 @@ impl Manager {
         }
     }
     fn keys(&mut self, e: &KeyDownEvent, w: &mut Window, cx: &mut Context<Self>) {
+        if self.confirm.is_some() {
+            return;
+        }
         let k = &e.keystroke;
         match (k.key.as_str(), k.modifiers.control) {
+            ("n", true) => self.action(4, w, cx),
+            ("i", true) => self.action(5, w, cx),
+            ("delete", false) => self.action(6, w, cx),
             ("o", true) => self.action(0, w, cx),
             ("e", true) => self.action(if k.modifiers.shift { 3 } else { 2 }, w, cx),
             ("space", false) if self.list.focus.is_focused(w) => self.action(1, w, cx),
@@ -228,6 +248,22 @@ impl Render for Manager {
                         let _ = v.update(cx, |this, cx| this.action(i, w, cx));
                     }),
                     self.busy || (i != 0 && self.entries.is_empty()),
+                )
+            })
+            .collect::<Vec<_>>();
+        let editing = ["New archive…", "Add files…", "Remove…"]
+            .into_iter()
+            .enumerate()
+            .map(|(j, label)| {
+                let i = j + 4;
+                let v = cx.weak_entity();
+                unavailable(
+                    button(label, &self.buttons[i], theme, move |w, cx| {
+                        let _ = v.update(cx, |s, cx| s.action(i, w, cx));
+                    }),
+                    self.busy
+                        || (i != 4 && self.archive.is_none())
+                        || (i == 6 && self.entries.is_empty()),
                 )
             })
             .collect::<Vec<_>>();
@@ -263,12 +299,20 @@ impl Render for Manager {
                 w,
             ))
             .child(
-                mundane_ui::text_label("archive-name", name.clone())
-                    .px_3()
-                    .py_2()
-                    .bg(rgb(theme.panel))
-                    .font_weight(FontWeight::SEMIBOLD)
-                    .child(name),
+                div()
+                    .flex()
+                    .items_center()
+                    .gap_2()
+                    .child(
+                        mundane_ui::text_label("archive-name", name.clone())
+                            .flex_1()
+                            .px_3()
+                            .py_2()
+                            .bg(rgb(theme.panel))
+                            .font_weight(FontWeight::SEMIBOLD)
+                            .child(name),
+                    )
+                    .children(editing),
             )
             .child(list)
             .child(
@@ -279,6 +323,7 @@ impl Render for Manager {
                     .bg(rgb(theme.panel))
                     .child(self.status.clone()),
             )
+            .children(self.confirm.clone())
     }
 }
 fn main() {

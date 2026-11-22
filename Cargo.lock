@@ -3366,6 +3366,7 @@ dependencies = [
  "httpdate",
  "image",
  "jiff",
+ "libc",
  "md-5",
  "mime_guess",
  "png 0.18.1",

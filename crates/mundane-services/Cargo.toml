@@ -6,6 +6,7 @@ license.workspace = true
 publish.workspace = true
 
 [dependencies]
+libc = {version="0.2", optional=true}
 futures-lite = { version="2", optional=true }
 async-io = { version="2", optional=true }
 dirs = {version="6", optional=true}
@@ -40,7 +41,7 @@ weather = ["provider", "location", "dep:jiff"]
 clocks = ["dep:serde", "dep:serde_json", "dep:jiff", "dep:zbus", "dep:anyhow", "dep:tempfile", "dep:rustix", "rustix/time"]
 disks = ["dep:zbus", "dep:anyhow"]
 usage = ["dep:rustix", "rustix/process"]
-archive = ["dep:anyhow", "dep:tempfile", "dep:rustix"]
+archive = ["dep:libc","dep:anyhow", "dep:tempfile", "dep:rustix"]
 test-audio = ["video"]
 packages = ["dep:anyhow", "dep:serde", "dep:serde_json"]
 video = ["dep:gstreamer", "dep:gstreamer-app", "dep:gstreamer-video", "dep:anyhow", "dep:rustix", "dep:async-channel"]

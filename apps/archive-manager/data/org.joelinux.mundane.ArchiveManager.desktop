@@ -4,5 +4,5 @@ Name=Archive Manager
 Exec=mundane-archive-manager %f
 Icon=package-x-generic
 Categories=Utility;Archiving;
-MimeType=application/zip;application/x-tar;application/x-compressed-tar;
+MimeType=application/zip;application/x-tar;application/x-compressed-tar;application/x-xz-compressed-tar;
 Terminal=false

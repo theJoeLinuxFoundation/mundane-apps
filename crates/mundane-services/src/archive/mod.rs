@@ -1,5 +1,6 @@
 //! ZIP and tar extraction into a fresh directory, published without replacement.
 mod reader;
+mod writer;
 use anyhow::{Context, Result, bail, ensure};
 use reader::Reader;
 use std::{
@@ -11,7 +12,40 @@ use std::{
     },
     path::{Component, Path, PathBuf},
 };
+pub use writer::{Stamp, edit, inspect};
 
+// libarchive converts pathnames via the calling thread's locale. Rust leaves the
+// process in the C locale, including when LANG names a UTF-8 locale.
+struct PathLocale {
+    previous: libc::locale_t,
+    current: libc::locale_t,
+}
+impl PathLocale {
+    fn enter() -> Result<Self> {
+        unsafe {
+            let current = libc::newlocale(
+                libc::LC_CTYPE_MASK,
+                c"C.UTF-8".as_ptr(),
+                std::ptr::null_mut(),
+            );
+            ensure!(!current.is_null(), "UTF-8 filename locale unavailable.");
+            let previous = libc::uselocale(current);
+            if previous.is_null() {
+                libc::freelocale(current);
+                bail!("Could not select UTF-8 filename locale.")
+            }
+            Ok(Self { previous, current })
+        }
+    }
+}
+impl Drop for PathLocale {
+    fn drop(&mut self) {
+        unsafe {
+            libc::uselocale(self.previous);
+            libc::freelocale(self.current);
+        }
+    }
+}
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Kind {
     File,

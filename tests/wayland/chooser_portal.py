@@ -22,6 +22,8 @@ def choose(bus, sender, path, iface, method, args, call):
     handle = f"{desktop}/request/{sender[1:].replace('.', '_')}/{options['handle_token']}"
     call.return_value(GLib.Variant("(o)", (handle,)))
     dest = Path.home() / ("Saved copy.txt" if method == "SaveFile" else "Second.txt")
+    if method == "SaveFile" and (runtime / "archive-save").exists():
+        dest = Path.home() / "Survey logs.tar.xz"
     if method == "OpenFile" and len(sys.argv) > 1:
         dest = Path(next(open_choices, sys.argv[-1]))
     cancel = (runtime / "cancel-choice").exists()
