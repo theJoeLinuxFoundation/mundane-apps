@@ -10,3 +10,5 @@ gpui.workspace = true
 unicode-segmentation = "1"
 accesskit = "0.24.1"
 gpui_linux.workspace = true
+zbus = "5.19"
+ordered-stream = "0.2"

@@ -74,20 +74,21 @@ impl Monitor {
     }
 
     fn headings(&self, cx: &Context<Self>) -> impl IntoElement {
+        let theme = Theme::current(cx);
         div()
             .flex()
             .items_center()
             .px_3()
             .py_2()
             .gap_2()
-            .bg(rgb(self.theme.panel))
+            .bg(rgb(theme.panel))
             .children(
                 Column::ALL
                     .into_iter()
                     .zip(&self.heading_focus)
                     .map(|(column, focus)| {
                         let view = cx.weak_entity();
-                        let button = button(column.name(), focus, self.theme, move |_, cx| {
+                        let button = button(column.name(), focus, theme, move |_, cx| {
                             let _ = view.update(cx, |this, cx| this.sort(column, cx));
                         })
                         .w_full()
@@ -111,12 +112,12 @@ impl Monitor {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> Vec<Stateful<Div>> {
+        let theme = Theme::current(cx);
         range
             .map(|index| {
                 let p = &self.rows[index];
                 let id = p.id;
                 let selected = self.selected == Some(id);
-                let theme = self.theme;
                 let cpu = p
                     .cpu_percent
                     .map_or_else(|| "—".into(), |v| format!("{v:.1}%"));
@@ -157,6 +158,7 @@ impl Monitor {
     }
 
     fn dialog(&self, confirm: &Confirmation, cx: &Context<Self>) -> impl IntoElement {
+        let theme = Theme::current(cx);
         let cancel = cx.weak_entity();
         let accept = cancel.clone();
         let present = self.selected == Some(confirm.target);
@@ -179,9 +181,9 @@ impl Monitor {
                     .rounded_lg()
                     .flex()
                     .flex_col()
-                    .bg(rgb(self.theme.panel))
+                    .bg(rgb(theme.panel))
                     .border_1()
-                    .border_color(rgb(self.theme.border))
+                    .border_color(rgb(theme.border))
                     .child(
                         div()
                             .font_weight(FontWeight::SEMIBOLD)
@@ -203,19 +205,14 @@ impl Monitor {
                             .flex()
                             .gap_2()
                             .justify_end()
-                            .child(button(
-                                "Cancel",
-                                &confirm.cancel,
-                                self.theme,
-                                move |w, cx| {
-                                    let _ = cancel.update(cx, |this, cx| this.finish(false, w, cx));
-                                },
-                            ))
+                            .child(button("Cancel", &confirm.cancel, theme, move |w, cx| {
+                                let _ = cancel.update(cx, |this, cx| this.finish(false, w, cx));
+                            }))
                             .when(present, |el| {
                                 el.child(button(
                                     "End process",
                                     &confirm.confirm,
-                                    self.theme,
+                                    theme,
                                     move |w, cx| {
                                         let _ =
                                             accept.update(cx, |this, cx| this.finish(true, w, cx));
@@ -229,7 +226,7 @@ impl Monitor {
 
 impl Render for Monitor {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let theme = self.theme;
+        let theme = Theme::current(cx);
         let view = cx.weak_entity();
         let end = button(
             "End process…",
@@ -313,7 +310,7 @@ impl Render for Monitor {
             .size_full()
             .on_key_down(cx.listener(Self::keys))
             .font_family("DejaVu Sans")
-            .text_color(rgb(self.theme.text))
+            .text_color(rgb(theme.text))
             .child(body)
             .children(self.confirm.as_ref().map(|prompt| self.dialog(prompt, cx)))
     }

@@ -13,7 +13,6 @@ struct Manager {
     list: BrowserList,
     header: WindowHeader,
     buttons: [FocusHandle; 4],
-    theme: Theme,
     status: String,
     busy: bool,
 }
@@ -28,7 +27,6 @@ impl Manager {
             list,
             header: WindowHeader::new(cx),
             buttons: std::array::from_fn(|_| cx.focus_handle().tab_stop(true)),
-            theme: Theme::current(),
             status: "Open a ZIP or tar archive.".into(),
             busy: false,
         }
@@ -219,7 +217,7 @@ impl Manager {
 }
 impl Render for Manager {
     fn render(&mut self, w: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let theme = self.theme;
+        let theme = Theme::current(cx);
         let controls = ["Open…", "Mark", "Extract selected…", "Extract all…"]
             .into_iter()
             .enumerate()

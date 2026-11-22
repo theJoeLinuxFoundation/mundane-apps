@@ -29,7 +29,7 @@ impl Packages {
     ) -> Stateful<Div> {
         let view = cx.weak_entity();
         unavailable(
-            button(name, focus, self.theme, move |w, cx| {
+            button(name, focus, Theme::current(cx), move |w, cx| {
                 let _ = view.update(cx, |this, cx| {
                     if !this.busy {
                         action(this, w, cx)
@@ -135,7 +135,10 @@ impl Packages {
             ),
             Page::Results(_, s) => self.list_page(
                 body.child(section("search-heading", "Search results"))
-                    .child(label("index", s.index.label()).text_color(rgb(self.theme.secondary))),
+                    .child(
+                        label("index", s.index.label())
+                            .text_color(rgb(Theme::current(cx).secondary)),
+                    ),
                 s.packages.len(),
                 s.packages
                     .iter()
@@ -283,6 +286,7 @@ impl Packages {
         rows: impl Iterator<Item = (String, String)>,
         cx: &Context<Self>,
     ) -> Div {
+        let theme = Theme::current(cx);
         if count == 0 && !self.busy {
             let message = if matches!(&self.page, Page::Results(_, s) if s.index == mundane_services::packages::Index::None)
             {
@@ -298,7 +302,7 @@ impl Packages {
             let row = button_base(
                 format!("Inspect {name}"),
                 &self.rows[i],
-                self.theme,
+                theme,
                 move |w, cx| {
                     let _ = view.update(cx, |v, cx| v.start(Job::Info(target.clone()), w, cx));
                 },
@@ -306,11 +310,11 @@ impl Packages {
             .aria_description(detail.clone())
             .px_3()
             .py_1()
-            .bg(rgb(self.theme.panel))
+            .bg(rgb(theme.panel))
             .flex()
             .flex_col()
             .child(div().font_weight(FontWeight::SEMIBOLD).child(name))
-            .child(div().text_color(rgb(self.theme.secondary)).child(detail));
+            .child(div().text_color(rgb(theme.secondary)).child(detail));
             body = body.child(unavailable(row, self.busy))
         }
         if count > PAGE_SIZE {
@@ -346,6 +350,7 @@ impl Packages {
     }
 
     fn dialog(&self, r: &Review, cx: &Context<Self>) -> Stateful<Div> {
+        let theme = Theme::current(cx);
         let p = r.plan();
         let title = r.request().title();
         let count = p.install.len() + p.upgrade.len() + p.remove.len();
@@ -413,11 +418,11 @@ impl Packages {
                     .items_center()
                     .px_2()
                     .py_1()
-                    .bg(rgb(self.theme.surface))
+                    .bg(rgb(theme.surface))
                     .child(
                         div()
                             .w(rems(5.5))
-                            .text_color(rgb(self.theme.secondary))
+                            .text_color(rgb(theme.secondary))
                             .child(op),
                     )
                     .child(
@@ -432,7 +437,7 @@ impl Packages {
                             .w(rems(7.5))
                             .text_right()
                             .text_sm()
-                            .text_color(rgb(self.theme.secondary))
+                            .text_color(rgb(theme.secondary))
                             .child(kind),
                     ),
             )
@@ -493,8 +498,8 @@ impl Packages {
                     .max_h_full()
                     .rounded_lg()
                     .border_1()
-                    .border_color(rgb(self.theme.border))
-                    .bg(rgb(self.theme.panel))
+                    .border_color(rgb(theme.border))
+                    .bg(rgb(theme.panel))
                     .child(
                         label("review-title", title)
                             .text_xl()
@@ -503,7 +508,7 @@ impl Packages {
                     .child(
                         label("summary", summary)
                             .text_sm()
-                            .text_color(rgb(self.theme.secondary)),
+                            .text_color(rgb(theme.secondary)),
                     )
                     .child(items)
                     .child(controls),
@@ -522,6 +527,7 @@ fn deployment(id: Option<u32>) -> String {
 }
 impl Render for Packages {
     fn render(&mut self, w: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let theme = Theme::current(cx);
         let field = self.field.focus_handle(cx);
         let nav = div()
             .flex()
@@ -538,8 +544,8 @@ impl Render for Packages {
             .size_full()
             .flex()
             .flex_col()
-            .bg(rgb(self.theme.surface))
-            .child(self.header.render("Packages", nav, &field, self.theme, w))
+            .bg(rgb(theme.surface))
+            .child(self.header.render("Packages", nav, &field, theme, w))
             .child(
                 div()
                     .px_3()
@@ -565,7 +571,7 @@ impl Render for Packages {
                         .control("status", self.notice.clone())
                         .px_3()
                         .py_2()
-                        .bg(rgb(self.theme.panel))
+                        .bg(rgb(theme.panel))
                         .child(self.notice.clone()),
                 )
             });
@@ -573,7 +579,7 @@ impl Render for Packages {
             .relative()
             .size_full()
             .font_family("DejaVu Sans")
-            .text_color(rgb(self.theme.text))
+            .text_color(rgb(theme.text))
             .on_key_down(cx.listener(Self::keys))
             .child(body)
             .children(self.review.as_ref().map(|r| self.dialog(r, cx)))

@@ -63,12 +63,11 @@ struct Editor {
     busy: Option<&'static str>,
     busy_focus: FocusHandle,
     error: Option<String>,
-    theme: Theme,
 }
 
 impl Editor {
     fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
-        let theme = Theme::current();
+        let theme = Theme::current(cx);
         let body = cx.new(|cx| TextField::multiline("Document text", theme, cx));
         let query = cx.new(|cx| TextField::new("Find in document", theme, cx));
         cx.observe(&body, |_, _, cx| cx.notify()).detach();
@@ -104,7 +103,6 @@ impl Editor {
             busy: None,
             busy_focus: cx.focus_handle(),
             error: None,
-            theme,
         }
     }
 
@@ -346,7 +344,7 @@ fn main() {
         std::process::exit(1);
     }
     let path = std::env::args_os().nth(1).map(PathBuf::from);
-    Application::with_platform(gpui_linux::current_platform(false)).run(move |cx| {
+    mundane_ui::run(move |cx| {
         mundane_ui::bind_text_keys(cx);
         cx.on_window_closed(|cx, _| {
             if cx.windows().is_empty() {

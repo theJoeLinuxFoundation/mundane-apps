@@ -48,8 +48,36 @@ impl Feature {
 fn color(rgb: u32) -> Color {
     Color::from_rgba8((rgb >> 16) as u8, (rgb >> 8) as u8, rgb as u8, 255)
 }
-pub fn ground(contrast: bool) -> Color {
-    color(if contrast { 0x101010 } else { 0x383e36 })
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum Style {
+    Dark,
+    Light,
+    DarkContrast,
+    LightContrast,
+}
+
+impl From<mundane_ui::Theme> for Style {
+    fn from(theme: mundane_ui::Theme) -> Self {
+        match (theme.light, theme.high_contrast) {
+            (false, false) => Self::Dark,
+            (true, false) => Self::Light,
+            (false, true) => Self::DarkContrast,
+            (true, true) => Self::LightContrast,
+        }
+    }
+}
+impl Style {
+    pub fn color(self, dark: u32, light: u32, dark_hc: u32, light_hc: u32) -> Color {
+        color(match self {
+            Self::Dark => dark,
+            Self::Light => light,
+            Self::DarkContrast => dark_hc,
+            Self::LightContrast => light_hc,
+        })
+    }
+    pub fn ground(self) -> Color {
+        self.color(0x383e36, 0xe9eee5, 0x101010, 0xffffff)
+    }
 }
 fn order(layer: &str) -> u8 {
     match layer {
@@ -63,21 +91,25 @@ fn order(layer: &str) -> u8 {
         _ => 0,
     }
 }
-fn style(name: &str, class: &str, hc: bool) -> (Color, f32) {
-    let (normal, contrast, width) = match name {
-        "water" | "waterway" => (0x28536b, 0x005172, 1.5),
-        "park" | "landcover" => (0x3d5945, 0x203518, 0.),
+fn style(name: &str, class: &str, palette: Style) -> (Color, f32) {
+    let (dark, light, dark_hc, light_hc, width) = match name {
+        "water" | "waterway" => (0x28536b, 0x9dcde5, 0x005172, 0x5db0da, 1.5),
+        "park" | "landcover" => (0x3d5945, 0xb4d5af, 0x203518, 0xb4e1a0, 0.),
         "landuse" if matches!(class, "residential" | "commercial" | "industrial") => {
-            (0x4b4940, 0x242424, 0.)
+            (0x4b4940, 0xe0dbce, 0x242424, 0xe4e0d7, 0.)
         }
-        "landuse" => (0x455341, 0x26391e, 0.),
-        "building" => (0x686359, 0x656565, 0.),
-        "boundary" => (0xb59ab6, 0xe7aaff, 1.),
-        _ if matches!(class, "motorway" | "trunk" | "primary") => (0xe4bf80, 0xffdc76, 3.),
-        _ if matches!(class, "secondary" | "tertiary") => (0xc6bca4, 0xffedcc, 2.3),
-        _ => (0x9d9f8d, 0xffffff, 1.3),
+        "landuse" => (0x455341, 0xc8d8be, 0x26391e, 0xcbdcb3, 0.),
+        "building" => (0x686359, 0xcbbfae, 0x656565, 0x9c958b, 0.),
+        "boundary" => (0xb59ab6, 0x805885, 0xe7aaff, 0x64206f, 1.),
+        _ if matches!(class, "motorway" | "trunk" | "primary") => {
+            (0xe4bf80, 0x99631a, 0xffdc76, 0x693800, 3.)
+        }
+        _ if matches!(class, "secondary" | "tertiary") => {
+            (0xc6bca4, 0x937f62, 0xffedcc, 0x53412d, 2.3)
+        }
+        _ => (0x9d9f8d, 0x858b7e, 0xffffff, 0x303030, 1.3),
     };
-    (color(if hc { contrast } else { normal }), width)
+    (palette.color(dark, light, dark_hc, light_hc), width)
 }
 #[derive(Clone)]
 pub struct Label {
@@ -119,7 +151,7 @@ fn geometry(g: &[u32], scale: f32) -> Result<(PathBuilder, Option<(f32, f32)>)> 
     }
     Ok((path, anchor))
 }
-pub fn paint(bytes: &[u8], pixels: u32, hc: bool) -> Result<(Pixmap, Vec<Label>)> {
+pub fn paint(bytes: &[u8], pixels: u32, palette: Style) -> Result<(Pixmap, Vec<Label>)> {
     let mut unzipped = vec![];
     let data = if bytes.starts_with(&[31, 139]) {
         flate2::read::GzDecoder::new(bytes)
@@ -136,7 +168,7 @@ pub fn paint(bytes: &[u8], pixels: u32, hc: bool) -> Result<(Pixmap, Vec<Label>)
     let mut vector = VectorTile::decode(data)?;
     vector.layers.sort_by_key(|l| order(&l.name));
     let mut img = Pixmap::new(pixels, pixels).context("Invalid tile dimensions")?;
-    img.fill(ground(hc));
+    img.fill(palette.ground());
     let mut labels = vec![];
     let ratio = pixels as f32 / 256.;
     for layer in &vector.layers {
@@ -164,7 +196,11 @@ pub fn paint(bytes: &[u8], pixels: u32, hc: bool) -> Result<(Pixmap, Vec<Label>)
                 continue;
             }
             let Some(path) = path.finish() else { continue };
-            let (col, width) = style(&layer.name, f.tag("class", layer).unwrap_or_default(), hc);
+            let (col, width) = style(
+                &layer.name,
+                f.tag("class", layer).unwrap_or_default(),
+                palette,
+            );
             let mut ink = Paint::default();
             ink.set_color(col);
             let tf = Transform::from_scale(ratio, ratio);

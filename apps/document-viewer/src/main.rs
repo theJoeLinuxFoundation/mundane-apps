@@ -136,7 +136,6 @@ struct Viewer {
     query: Entity<TextField>,
     content: FocusHandle,
     tools: [FocusHandle; 9],
-    theme: Theme,
     header: WindowHeader,
     scroll: ScrollHandle,
     raster_scale: f32,
@@ -144,7 +143,7 @@ struct Viewer {
 
 impl Viewer {
     fn new(w: &mut Window, cx: &mut Context<Self>) -> Self {
-        let theme = Theme::current();
+        let theme = Theme::current(cx);
         let content = cx.focus_handle().tab_stop(true);
         content.focus(w, cx);
         w.set_window_title("Document Viewer");
@@ -158,7 +157,6 @@ impl Viewer {
             query: cx.new(|cx| TextField::new("Find text", theme, cx)),
             content,
             tools: std::array::from_fn(|_| cx.focus_handle().tab_stop(true)),
-            theme,
             header: WindowHeader::new(cx),
             scroll: ScrollHandle::new(),
             raster_scale: w.scale_factor(),
@@ -334,7 +332,7 @@ fn main() {
         std::process::exit(1);
     }
     let path = std::env::args_os().nth(1).map(PathBuf::from);
-    Application::with_platform(gpui_linux::current_platform(false)).run(move |cx| {
+    mundane_ui::run(move |cx| {
         mundane_ui::bind_text_keys(cx);
         cx.on_window_closed(|cx, _| {
             if cx.windows().is_empty() {

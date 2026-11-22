@@ -57,7 +57,6 @@ struct Monitor {
     list_focus: FocusHandle,
     scroll: UniformListScrollHandle,
     text_size: f32,
-    theme: Theme,
 }
 
 impl Monitor {
@@ -100,7 +99,6 @@ impl Monitor {
             list_focus,
             scroll: UniformListScrollHandle::new(),
             text_size: 16.,
-            theme: Theme::current(),
         }
     }
 
@@ -251,7 +249,7 @@ pub fn run(service: Arc<dyn ProcessService>) {
         eprintln!("System Monitor requires a Wayland session.");
         std::process::exit(1);
     }
-    Application::with_platform(gpui_linux::current_platform(false)).run(move |cx| {
+    mundane_ui::run(move |cx| {
         cx.on_window_closed(|cx, _| {
             if cx.windows().is_empty() {
                 cx.quit()

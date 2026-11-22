@@ -57,20 +57,21 @@ impl Music {
         }
     }
     fn action_button(&self, act: Action, cx: &Context<Self>) -> Stateful<Div> {
+        let theme = Theme::current(cx);
         let view = cx.weak_entity();
         let enabled = self.enabled(act);
         unavailable(
             button(
                 act.label(),
                 &self.buttons[act as usize],
-                self.theme,
+                theme,
                 move |w, cx| {
                     let _ = view.update(cx, |this, cx| this.act(act, w, cx));
                 },
             ),
             !enabled,
         )
-        .when(!enabled, |el| el.text_color(rgb(self.theme.secondary)))
+        .when(!enabled, |el| el.text_color(rgb(theme.secondary)))
     }
     fn keys(&mut self, e: &KeyDownEvent, w: &mut Window, cx: &mut Context<Self>) {
         let k = &e.keystroke;
@@ -126,7 +127,7 @@ impl Music {
         w: &mut Window,
         cx: &mut Context<Self>,
     ) -> Vec<Stateful<Div>> {
-        let theme = self.theme;
+        let theme = Theme::current(cx);
         range
             .map(|i| {
                 let t = &self.queue.tracks[i];
@@ -209,7 +210,7 @@ impl Music {
 }
 impl Render for Music {
     fn render(&mut self, w: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let theme = self.theme;
+        let theme = Theme::current(cx);
         let v = cx.weak_entity();
         let add = button("Add tracks…", &self.add_button, theme, move |w, cx| {
             let _ = v.update(cx, |this, cx| this.choose(w, cx));

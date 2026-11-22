@@ -53,7 +53,6 @@ struct Viewer {
     pan: Point<f32>,
     busy: bool,
     error: Option<String>,
-    theme: Theme,
     header: WindowHeader,
     tools: [FocusHandle; 4],
     image_focus: FocusHandle,
@@ -70,7 +69,6 @@ impl Viewer {
             pan: Default::default(),
             busy: false,
             error: None,
-            theme: Theme::current(),
             header: WindowHeader::new(cx),
             tools: std::array::from_fn(|_| cx.focus_handle().tab_stop(true)),
             image_focus: focus,
@@ -169,7 +167,7 @@ fn main() {
         std::process::exit(1);
     }
     let path = std::env::args_os().nth(1).map(PathBuf::from);
-    Application::with_platform(gpui_linux::current_platform(false)).run(move |cx| {
+    mundane_ui::run(move |cx| {
         cx.on_window_closed(|cx, _| {
             if cx.windows().is_empty() {
                 cx.quit()

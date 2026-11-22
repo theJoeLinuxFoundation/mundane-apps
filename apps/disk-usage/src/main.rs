@@ -27,7 +27,6 @@ struct Usage {
     notice: String,
     header: WindowHeader,
     buttons: [FocusHandle; 4],
-    theme: Theme,
 }
 impl Drop for Usage {
     fn drop(&mut self) {
@@ -51,7 +50,6 @@ impl Usage {
             notice: "Choose a folder to scan.".into(),
             header: WindowHeader::new(cx),
             buttons: std::array::from_fn(|_| cx.focus_handle().tab_stop(true)),
-            theme: Theme::current(),
         }
     }
     fn start(&mut self, path: PathBuf, w: &mut Window, cx: &mut Context<Self>) {
@@ -233,7 +231,7 @@ impl Usage {
     ) -> Stateful<Div> {
         let v = cx.weak_entity();
         unavailable(
-            button(label, &self.buttons[i], self.theme, move |w, cx| {
+            button(label, &self.buttons[i], Theme::current(cx), move |w, cx| {
                 if enabled {
                     let _ = v.update(cx, |this, cx| this.action(i, w, cx));
                 }
@@ -262,7 +260,7 @@ impl Usage {
 }
 impl Render for Usage {
     fn render(&mut self, w: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let theme = self.theme;
+        let theme = Theme::current(cx);
         let scan = self.scan.as_ref();
         let root = scan.map(|s| &s.nodes[self.current]);
         let name = scan.map_or_else(

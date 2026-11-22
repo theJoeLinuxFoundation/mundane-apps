@@ -110,7 +110,6 @@ struct Packages {
     field: Entity<TextField>,
     header: WindowHeader,
     content: ApplicationContent,
-    theme: Theme,
     installed: FocusHandle,
     updates: FocusHandle,
     submit: FocusHandle,
@@ -128,7 +127,7 @@ struct Packages {
 
 impl Packages {
     fn new(dave: Dave, w: &mut Window, cx: &mut Context<Self>) -> Self {
-        let theme = Theme::current();
+        let theme = Theme::current(cx);
         let field = cx.new(|cx| TextField::new("Search packages", theme, cx));
         let focus = || cx.focus_handle().tab_stop(true);
         let mut this = Self {
@@ -143,7 +142,6 @@ impl Packages {
             notice: String::new(),
             header: WindowHeader::new(cx),
             content: Default::default(),
-            theme,
             field,
             installed: focus(),
             updates: focus(),
@@ -298,7 +296,7 @@ pub fn run(dave: Dave) {
         eprintln!("Packages requires a Wayland session.");
         std::process::exit(1)
     }
-    Application::with_platform(gpui_linux::current_platform(false)).run(move |cx| {
+    mundane_ui::run(move |cx| {
         mundane_ui::bind_text_keys(cx);
         cx.on_window_closed(|cx, _| {
             if cx.windows().is_empty() {

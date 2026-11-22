@@ -19,7 +19,6 @@ struct Music {
     transport: PlaybackControls,
     add_button: FocusHandle,
     buttons: [FocusHandle; 6],
-    theme: Theme,
     title: String,
     choosing: bool,
     notice: Option<String>,
@@ -40,7 +39,6 @@ impl Music {
             transport: PlaybackControls::new(cx),
             add_button: cx.focus_handle().tab_stop(true),
             buttons: std::array::from_fn(|_| cx.focus_handle().tab_stop(true)),
-            theme: Theme::current(),
             title: "Music".into(),
             choosing: false,
             notice: None,
@@ -219,7 +217,7 @@ fn main() {
         std::process::exit(1)
     }
     let paths = std::env::args_os().skip(1).map(PathBuf::from).collect();
-    Application::with_platform(gpui_linux::current_platform(false)).run(move |cx| {
+    mundane_ui::run(move |cx| {
         cx.on_window_closed(|cx, _| {
             if cx.windows().is_empty() {
                 cx.quit()

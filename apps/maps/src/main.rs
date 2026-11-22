@@ -17,7 +17,6 @@ use std::sync::{
 
 struct Maps {
     source: Source,
-    theme: Theme,
     header: WindowHeader,
     query: Entity<TextField>,
     results: BrowserList,
@@ -35,6 +34,7 @@ struct Maps {
     camera: Camera,
     place: Option<Place>,
     size: Option<Size>,
+    style: vector::Style,
     scene: Option<Scene>,
     ready: bool,
     status: String,
@@ -51,7 +51,7 @@ struct Maps {
 impl Maps {
     fn new(source: Source, w: &mut Window, cx: &mut Context<Self>) -> Self {
         bind_text_keys(cx);
-        let theme = Theme::current();
+        let theme = Theme::current(cx);
         let query = cx.new(|cx| TextField::new("Find a place", theme, cx));
         let focus = cx.focus_handle().tab_stop(true);
         focus.focus(w, cx);
@@ -133,7 +133,6 @@ impl Maps {
         .detach();
         let mut v = Self {
             source,
-            theme,
             header: WindowHeader::new(cx),
             query,
             results: BrowserList::new(cx),
@@ -155,6 +154,7 @@ impl Maps {
             },
             place: None,
             size: None,
+            style: theme.into(),
             scene: None,
             ready: false,
             status: "Loading map…".into(),
@@ -187,7 +187,7 @@ impl Maps {
             camera: self.camera,
             place: self.place.clone(),
             offline: self.offline.clone(),
-            contrast: self.theme.focus == Theme::HIGH_CONTRAST.focus,
+            style: self.style,
         };
         if self.jobs.force_send((id, v, retry)).is_err() {
             self.status = "Map worker unavailable".into()
@@ -406,7 +406,7 @@ impl Maps {
         }
     }
     fn map(&self, cx: &mut Context<Self>) -> impl IntoElement {
-        let t = self.theme;
+        let t = Theme::current(cx);
         let desc = format!(
             "{:.4}°, {:.4}° · Zoom {}",
             self.camera.lat, self.camera.lon, self.camera.zoom
@@ -536,7 +536,11 @@ impl Maps {
 }
 impl Render for Maps {
     fn render(&mut self, w: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let t = self.theme;
+        let t = Theme::current(cx);
+        if self.style != t.into() {
+            self.style = t.into();
+            self.draw(false, cx)
+        }
         let v = cx.weak_entity();
         let save = unavailable(
             button(

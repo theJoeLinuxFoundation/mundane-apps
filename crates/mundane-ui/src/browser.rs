@@ -164,7 +164,7 @@ pub fn browser_window<T: Render>(
         eprintln!("{title} requires a Wayland session.");
         std::process::exit(1)
     }
-    Application::with_platform(gpui_linux::current_platform(false)).run(move |cx| {
+    crate::run(move |cx| {
         cx.on_window_closed(|cx, _| {
             if cx.windows().is_empty() {
                 cx.quit()

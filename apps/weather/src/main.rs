@@ -18,7 +18,6 @@ struct View {
     status: String,
     header: WindowHeader,
     list: BrowserList,
-    theme: Theme,
     query: Entity<TextField>,
     change: FocusHandle,
     action: FocusHandle,
@@ -28,7 +27,7 @@ struct View {
 impl View {
     fn new(service: Weather, w: &mut Window, cx: &mut Context<Self>) -> Self {
         mundane_ui::bind_text_keys(cx);
-        let t = Theme::current();
+        let t = Theme::current(cx);
         let query = cx.new(|cx| TextField::new("City or coordinates", t, cx));
         cx.observe(&query, |v, _, cx| {
             if v.choosing {
@@ -48,7 +47,6 @@ impl View {
             status: String::new(),
             header: WindowHeader::new(cx),
             list: BrowserList::new(cx),
-            theme: t,
             query,
             change: cx.focus_handle().tab_stop(true),
             action: cx.focus_handle().tab_stop(true),
@@ -218,7 +216,7 @@ impl View {
 }
 impl Render for View {
     fn render(&mut self, w: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let t = self.theme;
+        let t = Theme::current(cx);
         let choose = self.choosing;
         let v = cx.weak_entity();
         let change = button("Locations", &self.change, t, move |w, cx| {

@@ -14,7 +14,6 @@ enum Page {
 }
 struct Clocks {
     page: Page,
-    theme: Theme,
     header: WindowHeader,
     list: BrowserList,
     search: Entity<TextField>,
@@ -42,7 +41,7 @@ impl Clocks {
         cx: &mut Context<Self>,
     ) -> Self {
         mundane_ui::bind_text_keys(cx);
-        let theme = Theme::current();
+        let theme = Theme::current(cx);
         let search = cx.new(|cx| TextField::new("Find a city or time zone", theme, cx));
         let duration =
             cx.new(|cx| TextField::new("Timer duration", theme, cx).select_value("5:00".into()));
@@ -69,7 +68,6 @@ impl Clocks {
             .collect();
         let mut this = Self {
             page: Page::World,
-            theme,
             header: WindowHeader::new(cx),
             list,
             search,
@@ -290,7 +288,7 @@ impl Clocks {
 }
 impl Render for Clocks {
     fn render(&mut self, w: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let t = self.theme;
+        let t = Theme::current(cx);
         let world = self.page == Page::World;
         let search = self.page == Page::Search;
         let v = cx.weak_entity();

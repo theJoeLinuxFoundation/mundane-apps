@@ -23,14 +23,13 @@ struct Calculator {
     reuse: FocusHandle,
     clear: FocusHandle,
     header: WindowHeader,
-    theme: Theme,
     scroll: ScrollHandle,
     last_focus: Option<FocusHandle>,
 }
 
 impl Calculator {
     fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
-        let theme = Theme::current();
+        let theme = Theme::current(cx);
         window.set_window_title("Calculator");
         let field = cx.new(|cx| TextField::new("Expression", theme, cx));
         field.read(cx).focus_handle(cx).focus(window, cx);
@@ -43,7 +42,6 @@ impl Calculator {
             reuse: cx.focus_handle().tab_stop(true),
             clear: cx.focus_handle().tab_stop(true),
             header: WindowHeader::new(cx),
-            theme,
             scroll: ScrollHandle::new(),
             last_focus: None,
         }
@@ -166,7 +164,7 @@ fn main() {
         eprintln!("Calculator requires a Wayland session.");
         std::process::exit(1);
     }
-    Application::with_platform(gpui_linux::current_platform(false)).run(|cx| {
+    mundane_ui::run(|cx| {
         mundane_ui::bind_text_keys(cx);
         cx.on_window_closed(|cx, _| {
             if cx.windows().is_empty() {

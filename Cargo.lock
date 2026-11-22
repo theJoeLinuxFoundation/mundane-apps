@@ -3145,7 +3145,6 @@ name = "mundane-calculator"
 version = "0.1.0"
 dependencies = [
  "gpui",
- "gpui_linux",
  "mundane-ui",
  "num-bigint",
  "num-rational",
@@ -3199,7 +3198,6 @@ dependencies = [
  "accesskit",
  "anyhow",
  "gpui",
- "gpui_linux",
  "image",
  "mundane-ui",
  "pdfium-render",
@@ -3211,7 +3209,6 @@ name = "mundane-files"
 version = "0.1.0"
 dependencies = [
  "gpui",
- "gpui_linux",
  "mundane-services",
  "mundane-ui",
  "tempfile",
@@ -3236,7 +3233,6 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "gpui",
- "gpui_linux",
  "image",
  "mundane-ui",
  "rustix",
@@ -3268,7 +3264,6 @@ name = "mundane-music"
 version = "0.1.0"
 dependencies = [
  "gpui",
- "gpui_linux",
  "mundane-services",
  "mundane-ui",
 ]
@@ -3279,7 +3274,6 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "gpui",
- "gpui_linux",
  "mundane-services",
  "mundane-ui",
  "tempfile",
@@ -3318,7 +3312,6 @@ name = "mundane-system-monitor"
 version = "0.1.0"
 dependencies = [
  "gpui",
- "gpui_linux",
  "mundane-services",
  "mundane-ui",
 ]
@@ -3331,7 +3324,6 @@ dependencies = [
  "alacritty_terminal",
  "anyhow",
  "gpui",
- "gpui_linux",
  "mundane-services",
  "mundane-ui",
  "regex",
@@ -3344,7 +3336,6 @@ name = "mundane-text-editor"
 version = "0.1.0"
 dependencies = [
  "gpui",
- "gpui_linux",
  "mundane-ui",
  "rustix",
  "tempfile",
@@ -3357,7 +3348,9 @@ dependencies = [
  "accesskit",
  "gpui",
  "gpui_linux",
+ "ordered-stream",
  "unicode-segmentation",
+ "zbus 5.19.0",
 ]
 
 [[package]]
@@ -3365,7 +3358,6 @@ name = "mundane-video"
 version = "0.1.0"
 dependencies = [
  "gpui",
- "gpui_linux",
  "image",
  "mundane-services",
  "mundane-ui",

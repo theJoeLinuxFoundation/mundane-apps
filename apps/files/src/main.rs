@@ -120,7 +120,6 @@ struct Files {
     scroll: UniformListScrollHandle,
     dialog: Option<Dialog>,
     previews: Previews,
-    theme: Theme,
 }
 
 impl Files {
@@ -144,7 +143,6 @@ impl Files {
             scroll: UniformListScrollHandle::new(),
             dialog: None,
             previews: Previews::default(),
-            theme: Theme::current(),
         };
         this.load(path, None, cx);
         this
@@ -374,7 +372,7 @@ impl Files {
                 }
                 _ => false,
             };
-        let tool = button(cmd.label(), focus, self.theme, move |window, cx| {
+        let tool = button(cmd.label(), focus, Theme::current(cx), move |window, cx| {
             let _ = view.update(cx, |this, cx| this.command(cmd, window, cx));
         });
         mundane_ui::unavailable(tool, disabled)
@@ -411,7 +409,7 @@ fn location_label(path: &Path) -> String {
 
 impl Render for Files {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let theme = self.theme;
+        let theme = Theme::current(cx);
         let tools = div().flex().flex_wrap().gap_1().children(
             Command::TOOLS
                 .into_iter()
@@ -515,7 +513,7 @@ impl Render for Files {
             .relative()
             .size_full()
             .font_family("DejaVu Sans")
-            .text_color(rgb(self.theme.text))
+            .text_color(rgb(theme.text))
             .child(body)
             .children(self.dialog.as_ref().map(|d| self.dialog_view(d, cx)))
     }
@@ -535,7 +533,7 @@ fn main() {
         eprintln!("Could not resolve folder: {e}");
         std::process::exit(1)
     });
-    Application::with_platform(gpui_linux::current_platform(false)).run(move |cx| {
+    mundane_ui::run(move |cx| {
         mundane_ui::bind_text_keys(cx);
         cx.on_window_closed(|cx, _| {
             if cx.windows().is_empty() {

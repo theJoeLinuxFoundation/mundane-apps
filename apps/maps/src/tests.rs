@@ -29,7 +29,7 @@ fn viewport() -> Viewport {
         },
         place: None,
         offline: None,
-        contrast: false,
+        style: vector::Style::Dark,
     }
 }
 #[test]
@@ -61,7 +61,7 @@ fn missing_tiles_and_area_limits() {
     assert!(a.tiles.iter().map(|p| p.1.len()).sum::<usize>() > MAX_BYTES);
     assert!(s.save(&a).is_err());
     assert!(!s.has_area());
-    assert!(vector::paint(&[255], 256, false).is_err());
+    assert!(vector::paint(&[255], 256, vector::Style::Dark).is_err());
 }
 #[test]
 fn place_cache_and_rate_across_clients() {

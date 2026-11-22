@@ -264,6 +264,7 @@ def main():
     global OUTPUT
     parser = argparse.ArgumentParser()
     parser.add_argument("--app", choices=["terminal", "files", "text-editor", "system-monitor", "image-viewer", "calculator", "document-viewer", "video", "packages", "music", "archive-manager", "disk-usage", "disks", "clocks", "characters", "fonts", "weather", "maps"], default="terminal")
+    parser.add_argument("--appearance", action="store_true", help="run the suite-wide live Settings portal test")
     parser.add_argument("--polish", action="store_true", help="compare the user-facing polish states on headless Sway")
     parser.add_argument("--missing-video-decoder", action="store_true", help="inspect Video with the vpx plugin absent")
     parser.add_argument("--fields", action="store_true", help="exercise two-window activation, password and multiline fields")
@@ -284,6 +285,8 @@ def main():
         OUTPUT = OUTPUT / f"accessibility-{suite}-{args.profile}"
         OUTPUT.mkdir(exist_ok=True)
     labwc = args.compositor == "labwc"
+    if args.appearance and (labwc or args.profile != "standard" or args.at_spi):
+        parser.error("Appearance references use the standard Sway profile.")
     if args.at_spi and labwc:
         parser.error("The AT-SPI control window requires the Sway test configuration.")
     # Requiring lavapipe prevents an accidental pass using the host GPU.
@@ -324,6 +327,10 @@ seat seat0 fallback true
         display = until(lambda: next((p for p in RUNTIME.glob("wayland-*") if p.is_socket()), None), "private Wayland socket")
         os.environ["WAYLAND_DISPLAY"] = display.name
         run("dbus-update-activation-environment", "WAYLAND_DISPLAY", "XDG_CURRENT_DESKTOP")
+        if args.appearance:
+            from appearance_check import check
+            check(stack, ROOT, RUNTIME, launch, until, key, compare_screenshot)
+            return
         if args.app in ("packages", "music", "archive-manager", "disk-usage", "disks", "clocks", "characters", "fonts", "weather", "maps") or (args.at_spi and args.app in (
                 "terminal", "files", "image-viewer", "calculator", "document-viewer", "video") and not args.cost):
             launch(stack, "wtype", "-k", "Shift_L", "-s", "300000", log="seat.log")

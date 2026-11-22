@@ -45,7 +45,6 @@ async fn worker(
 }
 struct Fonts {
     header: WindowHeader,
-    theme: Theme,
     list: BrowserList,
     families: Vec<Family>,
     visible: Vec<usize>,
@@ -65,7 +64,7 @@ struct Fonts {
 impl Fonts {
     fn new(dir: Option<PathBuf>, w: &mut Window, cx: &mut Context<Self>) -> Self {
         mundane_ui::bind_text_keys(cx);
-        let theme = Theme::current();
+        let theme = Theme::current(cx);
         let search = cx.new(|cx| TextField::new("Find a font family", theme, cx));
         let sample =
             cx.new(|cx| TextField::new("Sample text", theme, cx).select_value(SAMPLE.into()));
@@ -98,7 +97,6 @@ impl Fonts {
         list.focus.focus(w, cx);
         Self {
             header: WindowHeader::new(cx),
-            theme,
             list,
             families: vec![],
             visible: vec![],
@@ -208,6 +206,7 @@ impl Fonts {
         cx.notify()
     }
     fn request(&mut self, w: &mut Window, cx: &App) {
+        let theme = Theme::current(cx);
         let scale = w.scale_factor();
         let rem = f32::from(w.rem_size());
         let width = f32::from(w.viewport_size().width) * 0.62 - rem * 1.5;
@@ -217,8 +216,8 @@ impl Fonts {
             size: (rem * 2. * scale).round().clamp(1., 512.) as i32,
             width: (width * scale).round().clamp(1., 4096.) as i32,
             height: (rem * 6. * scale).round().clamp(1., 2048.) as i32,
-            foreground: self.theme.text,
-            background: self.theme.panel,
+            foreground: theme.text,
+            background: theme.panel,
         });
         if self.requested == next {
             return;
@@ -268,7 +267,7 @@ impl Fonts {
 impl Render for Fonts {
     fn render(&mut self, w: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         self.request(w, cx);
-        let t = self.theme;
+        let t = Theme::current(cx);
         let v = cx.weak_entity();
         let edit = button("Edit sample", &self.edit, t, move |w, cx| {
             let _ = v.update(cx, |v, cx| v.edit(w, cx));

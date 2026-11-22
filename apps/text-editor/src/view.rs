@@ -5,7 +5,7 @@ use mundane_ui::{Role, button};
 impl Editor {
     fn tool(&self, cmd: Command, focus: &FocusHandle, cx: &Context<Self>) -> Stateful<Div> {
         let view = cx.weak_entity();
-        button(cmd.label(), focus, self.theme, move |window, cx| {
+        button(cmd.label(), focus, Theme::current(cx), move |window, cx| {
             let _ = view.update(cx, |this, cx| this.command(cmd, window, cx));
         })
     }
@@ -68,7 +68,7 @@ impl Editor {
             .gap_2()
             .px_3()
             .py_2()
-            .bg(rgb(self.theme.panel))
+            .bg(rgb(Theme::current(cx).panel))
             .child(div().flex_1().min_w(px(100.)).child(self.query.clone()))
             .when(!term.is_empty(), |el| {
                 let label: SharedString =
@@ -85,7 +85,7 @@ impl Editor {
     }
 
     fn prompt(&self, confirm: &Confirmation, cx: &Context<Self>) -> impl IntoElement {
-        let theme = self.theme;
+        let theme = Theme::current(cx);
         Role::Dialog
             .control("save-dialog", "Save changes?")
             .aria_description(format!("{} has unsaved changes.", self.name()))
@@ -127,7 +127,7 @@ impl Editor {
 
 impl Render for Editor {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let theme = self.theme;
+        let theme = Theme::current(cx);
         let name = self.name();
         let dirty = self.dirty(cx);
         let title = format!("{}{} — Text Editor", if dirty { "• " } else { "" }, name);
@@ -220,7 +220,7 @@ impl Render for Editor {
             .size_full()
             .on_key_down(cx.listener(Self::keys))
             .font_family("DejaVu Sans")
-            .text_color(rgb(self.theme.text))
+            .text_color(rgb(theme.text))
             .child(body)
             .children(
                 self.confirmation

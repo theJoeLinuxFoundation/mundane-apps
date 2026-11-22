@@ -10,7 +10,6 @@ const PAGE: usize = 64;
 
 struct Characters {
     header: WindowHeader,
-    theme: Theme,
     query: Entity<TextField>,
     list: BrowserList,
     copy: FocusHandle,
@@ -27,7 +26,7 @@ struct Characters {
 impl Characters {
     fn new(w: &mut Window, cx: &mut Context<Self>) -> Self {
         mundane_ui::bind_text_keys(cx);
-        let theme = Theme::current();
+        let theme = Theme::current(cx);
         let query = cx.new(|cx| TextField::new("Name or code point", theme, cx));
         query.focus_handle(cx).focus(w, cx);
         cx.observe(&query, |this, _, cx| this.search(cx)).detach();
@@ -48,7 +47,6 @@ impl Characters {
         .detach();
         Self {
             header: WindowHeader::new(cx),
-            theme,
             query,
             list: BrowserList::new(cx),
             copy: cx.focus_handle().tab_stop(true),
@@ -183,7 +181,7 @@ impl Characters {
 }
 impl Render for Characters {
     fn render(&mut self, w: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let t = self.theme;
+        let t = Theme::current(cx);
         let v = cx.weak_entity();
         let copy = unavailable(
             button("Copy character", &self.copy, t, move |_, cx| {

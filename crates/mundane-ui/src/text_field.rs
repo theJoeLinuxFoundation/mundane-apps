@@ -694,6 +694,9 @@ impl Element for TextElement {
 
 impl Render for TextField {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        if let Some(theme) = cx.try_global::<Theme>() {
+            self.theme = *theme;
+        }
         let multi = self.multi.is_some();
         let role = if multi {
             Role::MultilineTextInput

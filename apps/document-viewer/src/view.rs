@@ -3,6 +3,7 @@ use mundane_ui::{ControlRole, Role, button, focus_ring, unavailable};
 
 impl Viewer {
     fn tool(&self, a: Action, cx: &Context<Self>) -> Stateful<Div> {
+        let theme = Theme::current(cx);
         let (i, label) = match a {
             Action::Open => (0, "Open"),
             Action::Find => (1, "Find"),
@@ -17,12 +18,12 @@ impl Viewer {
         let view = cx.weak_entity();
         let disabled = !self.enabled(a);
         unavailable(
-            button(label, &self.tools[i], self.theme, move |w, cx| {
+            button(label, &self.tools[i], theme, move |w, cx| {
                 let _ = view.update(cx, |this, cx| this.act(a, w, cx));
             }),
             disabled,
         )
-        .when(disabled, |el| el.text_color(rgb(self.theme.secondary)))
+        .when(disabled, |el| el.text_color(rgb(theme.secondary)))
     }
 
     fn keyboard(&mut self, e: &KeyDownEvent, w: &mut Window, cx: &mut Context<Self>) {
@@ -102,7 +103,7 @@ impl Viewer {
         let area = focus_ring(
             Role::Document.control("viewport", name),
             &self.content,
-            self.theme,
+            Theme::current(cx),
         )
         .flex_1()
         .min_h_0()
@@ -209,7 +210,7 @@ impl Render for Viewer {
             self.raster_scale = w.scale_factor();
             self.request(Request::Zoom(s.zoom), w, cx);
         }
-        let theme = self.theme;
+        let theme = Theme::current(cx);
         let row = || {
             div()
                 .flex()

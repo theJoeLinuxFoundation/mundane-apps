@@ -1,6 +1,7 @@
 use super::{Files, Job, Paste, PasteAction};
 use gpui::{prelude::*, *};
 use mundane_ui::ControlRole as _;
+use mundane_ui::Theme;
 use mundane_ui::{TextField, button};
 use std::path::{Path, PathBuf};
 
@@ -34,7 +35,7 @@ impl Files {
             _ => None,
         };
         let field = value.map(|(label, value)| {
-            cx.new(|cx| TextField::new(label, self.theme, cx).select_value(value))
+            cx.new(|cx| TextField::new(label, Theme::current(cx), cx).select_value(value))
         });
         let cancel = cx.focus_handle();
         let accept = cx.focus_handle();
@@ -94,7 +95,7 @@ impl Files {
     }
 
     pub(super) fn dialog_view(&self, dialog: &Dialog, cx: &Context<Self>) -> impl IntoElement {
-        let theme = self.theme;
+        let theme = Theme::current(cx);
         let (title, detail, action) = match &dialog.prompt {
             Prompt::Location => ("Open folder", None, "Open"),
             Prompt::Rename(_) => ("Rename item", None, "Rename"),

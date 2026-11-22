@@ -11,7 +11,6 @@ struct Disks {
     items: Vec<Item>,
     list: BrowserList,
     header: WindowHeader,
-    theme: Theme,
     refresh_button: FocusHandle,
     change_button: FocusHandle,
     notice: String,
@@ -29,7 +28,6 @@ impl Disks {
             items: vec![],
             list,
             header: WindowHeader::new(cx),
-            theme: Theme::current(),
             refresh_button: cx.focus_handle().tab_stop(true),
             change_button: cx.focus_handle().tab_stop(true),
             notice: String::new(),
@@ -209,7 +207,7 @@ impl Disks {
 }
 impl Render for Disks {
     fn render(&mut self, w: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let theme = self.theme;
+        let theme = Theme::current(cx);
         let view = cx.weak_entity();
         let header = button("Refresh", &self.refresh_button, theme, move |w, cx| {
             let _ = view.update(cx, |this, cx| this.refresh(w, cx));

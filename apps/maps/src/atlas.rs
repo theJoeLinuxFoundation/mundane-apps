@@ -10,14 +10,14 @@ use std::{
     collections::{HashMap, VecDeque},
     sync::Arc,
 };
-use tiny_skia::{Color, Paint, PathBuilder, Pixmap, PixmapPaint, Stroke, Transform};
+use tiny_skia::{Paint, PathBuilder, Pixmap, PixmapPaint, Stroke, Transform};
 #[derive(Clone)]
 pub struct Viewport {
     pub camera: Camera,
     pub size: Size,
     pub place: Option<Place>,
     pub offline: Option<Arc<Area>>,
-    pub contrast: bool,
+    pub style: vector::Style,
 }
 pub struct Scene {
     pub image: Arc<RenderImage>,
@@ -93,7 +93,7 @@ impl Atlas {
             (size.height as f32 * ratio).round().max(1.) as u32,
         )
         .context("Invalid map dimensions")?;
-        image.fill(vector::ground(v.contrast));
+        image.fill(v.style.ground());
         let tile_size = (256. * ratio).round().max(1.) as u32;
         let mut bytes = 0;
         let mut entries = HashMap::new();
@@ -130,7 +130,7 @@ impl Atlas {
                     ensure!(bytes <= MAX_BYTES, "View exceeds 50 MB");
                     entry.insert(b.clone());
                 }
-                match vector::paint(&b, tile_size, v.contrast) {
+                match vector::paint(&b, tile_size, v.style) {
                     Ok(tile) => Some(tile),
                     Err(e) => {
                         message = Some(format!("Unreadable vector tile · {e}"));
@@ -142,7 +142,7 @@ impl Atlas {
             };
             let (tile, annotations) = rendered.unwrap_or_else(|| {
                 missing += 1;
-                (missing_tile(tile_size), vec![])
+                (missing_tile(tile_size, v.style), vec![])
             });
             image.draw_pixmap(
                 (p.left * ratio as f64).round() as i32,
@@ -198,9 +198,9 @@ impl Atlas {
         })
     }
 }
-fn missing_tile(size: u32) -> Pixmap {
+fn missing_tile(size: u32, style: vector::Style) -> Pixmap {
     let mut tile = Pixmap::new(size, size).unwrap();
-    tile.fill(Color::from_rgba8(47, 49, 49, 255));
+    tile.fill(style.color(0x2f3131, 0xe1e3e2, 0x101010, 0xffffff));
     let mut path = PathBuilder::new();
     for i in -8..8 {
         let x = i as f32 * size as f32 / 8.;
@@ -208,7 +208,7 @@ fn missing_tile(size: u32) -> Pixmap {
         path.line_to(x + size as f32, size as f32)
     }
     let mut paint = Paint::default();
-    paint.set_color_rgba8(89, 93, 91, 255);
+    paint.set_color(style.color(0x595d5b, 0x858b88, 0xffffff, 0));
     tile.stroke_path(
         &path.finish().unwrap(),
         &paint,

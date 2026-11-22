@@ -52,6 +52,11 @@ const PALETTE: [u32; 16] = [
     0xffa6a1, 0xb2edb0, 0xffdb97, 0xaacfff, 0xe9c2fb, 0xace5df, 0xffffff,
 ];
 
+const LIGHT_PALETTE: [u32; 16] = [
+    0x17201e, 0xa52c27, 0x26662a, 0x775500, 0x245c94, 0x763f8b, 0x24646a, 0xd6ded8, 0x515c54,
+    0xbb392f, 0x3a713b, 0x815900, 0x326ba0, 0x844e98, 0x2a7074, 0xffffff,
+];
+
 fn resolve(color: Color, theme: Theme, colors: &Colors) -> u32 {
     let index = match color {
         Color::Spec(rgb) => return u32::from_be_bytes([0, rgb.r, rgb.g, rgb.b]),
@@ -65,8 +70,13 @@ pub fn palette_color(index: usize, theme: Theme, colors: &Colors) -> u32 {
     if let Some(rgb) = colors[index] {
         return u32::from_be_bytes([0, rgb.r, rgb.g, rgb.b]);
     }
+    let palette = if theme.light {
+        &LIGHT_PALETTE
+    } else {
+        &PALETTE
+    };
     match index {
-        0..16 => PALETTE[index],
+        0..16 => palette[index],
         16..232 => {
             let n = index - 16;
             let component = |v| if v == 0 { 0 } else { 55 + v * 40 };
@@ -75,7 +85,7 @@ pub fn palette_color(index: usize, theme: Theme, colors: &Colors) -> u32 {
         232..256 => ((8 + (index - 232) * 10) * 0x010101) as u32,
         n if n == NamedColor::Background as usize => theme.surface,
         n if (NamedColor::DimBlack as usize..=NamedColor::DimWhite as usize).contains(&n) => {
-            PALETTE[n - NamedColor::DimBlack as usize]
+            palette[n - NamedColor::DimBlack as usize]
         }
         _ => theme.text,
     }

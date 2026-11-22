@@ -34,7 +34,6 @@ struct Terminal {
     content: mundane_ui::ApplicationContent,
     find: Option<Find>,
     layout: Layout,
-    theme: Theme,
     wheel_remainder: f32,
     composing: String,
     _events: Task<()>,
@@ -42,7 +41,6 @@ struct Terminal {
 
 impl Terminal {
     fn new(options: Options, window: &mut Window, cx: &mut Context<Self>) -> anyhow::Result<Self> {
-        let theme = Theme::current();
         let layout = Layout {
             bounds: Bounds::new(Point::default(), window.viewport_size()),
             font_size: BODY_FONT,
@@ -65,7 +63,7 @@ impl Terminal {
                             Event::ColorRequest(index, reply) => {
                                 let screen = terminal.session.screen.lock();
                                 let color =
-                                    grid::palette_color(index, terminal.theme, screen.colors());
+                                    grid::palette_color(index, Theme::current(cx), screen.colors());
                                 let [_, r, g, b] = color.to_be_bytes();
                                 terminal.session.write(
                                     reply(alacritty_terminal::vte::ansi::Rgb { r, g, b })
@@ -93,7 +91,6 @@ impl Terminal {
             header: WindowHeader::new(cx),
             find: None,
             layout,
-            theme,
             wheel_remainder: 0.,
             composing: String::new(),
             _events: task,
@@ -128,7 +125,7 @@ impl Terminal {
         if self.find.is_some() {
             return;
         }
-        let field = cx.new(|cx| TextField::new("Find text", self.theme, cx));
+        let field = cx.new(|cx| TextField::new("Find text", Theme::current(cx), cx));
         let return_focus = window
             .focused(cx)
             .unwrap_or_else(|| self.grid_focus.clone());
@@ -232,13 +229,13 @@ impl Terminal {
         let painter = view.clone();
         let surface = canvas(
             move |bounds, window, cx| {
-                view.update(cx, |this, _| {
+                view.update(cx, |this, cx| {
                     this.layout.bounds = bounds;
                     this.session.resize(this.layout.size());
                     Frame::read(
                         &this.session.screen.lock(),
                         this.layout,
-                        this.theme,
+                        Theme::current(cx),
                         this.grid_focus.is_focused(window),
                     )
                 })
@@ -257,7 +254,7 @@ impl Terminal {
         focus_ring(
             mundane_ui::Role::Terminal.control("grid", "Shell"),
             &self.grid_focus,
-            self.theme,
+            Theme::current(cx),
         )
         .when(window.is_a11y_active(), |grid| {
             let screen = self.session.screen.clone();
@@ -316,6 +313,7 @@ impl Terminal {
     }
 
     fn dialog(&self, find: &Find, cx: &Context<Self>) -> impl IntoElement {
+        let theme = Theme::current(cx);
         let view = cx.weak_entity();
         let field = find.field.clone();
         let submit = find.submit.clone();
@@ -350,8 +348,8 @@ impl Terminal {
                     .max_w_full()
                     .rounded_lg()
                     .border_1()
-                    .border_color(rgb(self.theme.border))
-                    .bg(rgb(self.theme.panel))
+                    .border_color(rgb(theme.border))
+                    .bg(rgb(theme.panel))
                     .p_3()
                     .flex()
                     .flex_col()
@@ -366,7 +364,7 @@ impl Terminal {
                         )
                     })
                     .child(mundane_ui::unavailable(
-                        button("Find match", &find.submit, self.theme, move |window, cx| {
+                        button("Find match", &find.submit, theme, move |window, cx| {
                             let _ = view.update(cx, |this, cx| this.find_text(window, cx));
                         }),
                         find.field.read(cx).text().is_empty(),
@@ -377,8 +375,9 @@ impl Terminal {
 
 impl Render for Terminal {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let theme = Theme::current(cx);
         let view = cx.weak_entity();
-        let find = button("Find", &self.find_button, self.theme, move |window, cx| {
+        let find = button("Find", &self.find_button, theme, move |window, cx| {
             let _ = view.update(cx, |this, cx| this.open_find(window, cx));
         });
         let body = self
@@ -388,11 +387,11 @@ impl Render for Terminal {
             .flex()
             .flex_col()
             .font_family("DejaVu Sans")
-            .bg(rgb(self.theme.surface))
-            .text_color(rgb(self.theme.text))
+            .bg(rgb(theme.surface))
+            .text_color(rgb(theme.text))
             .child(
                 self.header
-                    .render("Terminal", find, &self.grid_focus, self.theme, window),
+                    .render("Terminal", find, &self.grid_focus, theme, window),
             )
             .child(self.terminal_grid(window, cx))
             .when(!self.composing.is_empty(), |el| {
@@ -402,7 +401,7 @@ impl Render for Terminal {
             .relative()
             .size_full()
             .font_family("DejaVu Sans")
-            .text_color(rgb(self.theme.text))
+            .text_color(rgb(theme.text))
             .child(body)
             .children(self.find.as_ref().map(|find| self.dialog(find, cx)))
     }
@@ -497,7 +496,7 @@ fn main() {
         eprintln!("Terminal requires a Wayland session.");
         std::process::exit(1);
     }
-    Application::with_platform(gpui_linux::current_platform(false)).run(|cx| {
+    mundane_ui::run(|cx| {
         mundane_ui::bind_text_keys(cx);
         cx.on_window_closed(|cx, _| {
             if cx.windows().is_empty() {

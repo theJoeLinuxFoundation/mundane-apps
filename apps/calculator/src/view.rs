@@ -3,7 +3,7 @@ use mundane_ui::{ControlRole, Role, button, button_base, unavailable};
 
 impl Calculator {
     fn row(&self, row: usize, cx: &Context<Self>) -> impl IntoElement {
-        let theme = self.theme;
+        let theme = Theme::current(cx);
         div()
             .flex()
             .flex_none()
@@ -31,12 +31,13 @@ impl Calculator {
     }
 
     fn history_row(&self, entry: &Entry, cx: &Context<Self>) -> impl IntoElement {
+        let theme = Theme::current(cx);
         let view = cx.weak_entity();
         let answer = arithmetic::operand(&entry.answer);
         button_base(
             format!("Reuse {} = {}", entry.expression, entry.answer),
             &entry.focus,
-            self.theme,
+            theme,
             move |w, cx| {
                 let _ = view.update(cx, |this, cx| this.edit(&answer, true, w, cx));
             },
@@ -51,7 +52,7 @@ impl Calculator {
             div()
                 .flex_1()
                 .truncate()
-                .text_color(rgb(self.theme.secondary))
+                .text_color(rgb(theme.secondary))
                 .child(entry.expression.clone()),
         )
         .child(
@@ -88,7 +89,7 @@ impl Calculator {
 impl Render for Calculator {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         self.reveal_focus(window, cx);
-        let theme = self.theme;
+        let theme = Theme::current(cx);
         let result = self.result(cx);
         let view = cx.weak_entity();
         let reuse = unavailable(

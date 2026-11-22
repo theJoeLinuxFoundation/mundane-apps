@@ -24,7 +24,6 @@ struct Video {
     open_button: FocusHandle,
     choosing: bool,
     notice: Option<String>,
-    theme: Theme,
 }
 impl Video {
     fn new(w: &mut Window, cx: &mut Context<Self>) -> Self {
@@ -43,7 +42,6 @@ impl Video {
             open_button: cx.focus_handle().tab_stop(true),
             choosing: false,
             notice: None,
-            theme: Theme::current(),
         }
     }
     fn watch(&self, w: &mut Window, cx: &mut Context<Self>) {
@@ -165,7 +163,7 @@ impl Video {
 
 impl Render for Video {
     fn render(&mut self, w: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let theme = self.theme;
+        let theme = Theme::current(cx);
         let view = cx.weak_entity();
         let open = button("Open", &self.open_button, theme, move |w, cx| {
             let _ = view.update(cx, |this, cx| this.choose(w, cx));
@@ -313,7 +311,7 @@ fn main() {
         std::process::exit(1);
     }
     let path = std::env::args_os().nth(1).map(PathBuf::from);
-    Application::with_platform(gpui_linux::current_platform(false)).run(move |cx| {
+    mundane_ui::run(move |cx| {
         cx.on_window_closed(|cx, _| {
             if cx.windows().is_empty() {
                 cx.quit()

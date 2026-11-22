@@ -2,6 +2,8 @@
 
 Desktop applications for mundaneDE on the x86 edition of joe Linux. They use Rust and GPUI's Linux Wayland platform, with GPU rendering through wgpu.
 
+All 18 apps follow the desktop’s light or dark preference, accent, contrast and reduced motion live through the XDG Settings portal. [Appearance behaviour and screenshots](docs/appearance.md)
+
 The suite’s visual review includes keyboard focus, empty states, errors and the Files conflict dialog. [Before-and-after screenshots](docs/polish/README.md)
 
 ## Terminal
@@ -17,7 +19,7 @@ Terminal runs the user's shell in a PTY. It supports scrollback, text selection,
 | Focus the header or return to the shell | F6 |
 | Dismiss Find | Escape |
 
-Set `MUNDANE_HIGH_CONTRAST=1` for the high-contrast palette. The suite now uses GPUI’s upstream AccessKit bridge. The apps expose their shared controls through AT-SPI. Disabled-button state, Orca character echo in Find and cached GPUI subtrees have open release checks. [Accessibility results and recording](docs/accessibility/report.md)
+The suite now uses GPUI’s upstream AccessKit bridge. The apps expose their shared controls through AT-SPI. Disabled-button state, Orca character echo in Find and cached GPUI subtrees have open release checks. [Accessibility results and recording](docs/accessibility/report.md)
 
 ## Files
 

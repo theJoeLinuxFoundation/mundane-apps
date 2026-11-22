@@ -37,7 +37,7 @@ impl Render for Fields {
     }
 }
 fn main() {
-    Application::with_platform(gpui_linux::current_platform(false)).run(|cx| {
+    mundane_ui::run(|cx| {
         mundane_ui::bind_text_keys(cx);
         for (title, password) in [("Document fixture", false), ("Password fixture", true)] {
             cx.open_window(

@@ -10,7 +10,6 @@ anyhow.workspace = true
 pdfium-render = { version = "=0.9.6", default-features = false, features = ["pdfium_8125", "thread_safe"] }
 accesskit = "0.24"
 gpui.workspace = true
-gpui_linux.workspace = true
 image = { version = "0.25", default-features = false, features = [] }
 rustix = { version = "1", features = ["fs"] }
 mundane-ui = { path = "../../crates/mundane-ui" }

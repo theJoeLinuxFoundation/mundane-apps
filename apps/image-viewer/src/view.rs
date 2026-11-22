@@ -3,6 +3,7 @@ use mundane_ui::{ControlRole, Role, button, focus_ring, unavailable};
 
 impl Viewer {
     fn tool(&self, cmd: Command, cx: &Context<Self>) -> Stateful<Div> {
+        let theme = Theme::current(cx);
         let (label, index) = match cmd {
             Command::Open => ("Open", 0),
             Command::Smaller => ("Zoom out", 1),
@@ -10,11 +11,11 @@ impl Viewer {
             Command::Fit => ("Fit", 3),
         };
         let view = cx.weak_entity();
-        let control = button(label, &self.tools[index], self.theme, move |window, cx| {
+        let control = button(label, &self.tools[index], theme, move |window, cx| {
             let _ = view.update(cx, |this, cx| this.command(cmd, window, cx));
         });
         let disabled = !self.enabled(cmd);
-        unavailable(control, disabled).when(disabled, |el| el.text_color(rgb(self.theme.secondary)))
+        unavailable(control, disabled).when(disabled, |el| el.text_color(rgb(theme.secondary)))
     }
 
     fn pan_by(&mut self, x: f32, y: f32, cx: &mut Context<Self>) {
@@ -61,7 +62,7 @@ impl Viewer {
         let area = focus_ring(
             role.control("picture", name.to_owned()),
             &self.image_focus,
-            self.theme,
+            Theme::current(cx),
         )
         .flex_1()
         .min_h_0()
@@ -139,7 +140,7 @@ impl Viewer {
 
 impl Render for Viewer {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let theme = self.theme;
+        let theme = Theme::current(cx);
         let zoom = if self.zoom == FIT {
             "Fit to window".to_owned()
         } else {

@@ -1,6 +1,7 @@
 use super::Files;
 use gpui::{prelude::*, *};
 use mundane_services::files::{self, Entry};
+use mundane_ui::Theme;
 use std::{
     collections::{HashMap, HashSet, VecDeque},
     ops::Range,
@@ -72,11 +73,11 @@ impl Files {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> Vec<Stateful<Div>> {
+        let theme = Theme::current(cx);
         range
             .map(|i| {
                 let entry = self.entries[i].clone();
                 self.request_preview(&entry, cx);
-                let theme = self.theme;
                 let visual = self
                     .previews
                     .ready

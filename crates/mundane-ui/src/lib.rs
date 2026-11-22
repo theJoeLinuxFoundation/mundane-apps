@@ -38,45 +38,8 @@ pub fn option(
         .when(selected && focused, |el| el.aria_active_descendant())
 }
 
-#[derive(Clone, Copy)]
-pub struct Theme {
-    pub surface: u32,
-    pub panel: u32,
-    pub text: u32,
-    pub secondary: u32,
-    pub border: u32,
-    pub focus: u32,
-    pub selection: u32,
-}
-
-impl Theme {
-    pub fn current() -> Self {
-        if std::env::var_os("MUNDANE_HIGH_CONTRAST").as_deref() == Some("1".as_ref()) {
-            Self::HIGH_CONTRAST
-        } else {
-            Self::DARK
-        }
-    }
-
-    pub const DARK: Self = Self {
-        surface: 0x17201e,
-        panel: 0x222e2a,
-        text: 0xf0f3ed,
-        secondary: 0xb4c3b9,
-        border: 0x52675c,
-        focus: 0xa0dfb3,
-        selection: 0x406d58,
-    };
-    pub const HIGH_CONTRAST: Self = Self {
-        surface: 0,
-        panel: 0,
-        text: 0xffffff,
-        secondary: 0xffffff,
-        border: 0xffffff,
-        focus: 0xffff00,
-        selection: 0x224488,
-    };
-}
+mod appearance;
+pub use appearance::{Theme, run};
 
 pub fn focus_ring(control: Stateful<Div>, focus: &FocusHandle, theme: Theme) -> Stateful<Div> {
     control
