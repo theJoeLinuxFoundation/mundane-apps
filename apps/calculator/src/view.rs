@@ -98,6 +98,19 @@ impl Render for Calculator {
             }),
             !matches!(result, Some(Ok(_))),
         );
+        let view = cx.weak_entity();
+        let actions = div()
+            .flex()
+            .gap_1()
+            .child(
+                button_base("Percent", &self.percent, theme, move |w, cx| {
+                    let _ = view.update(cx, |v, cx| v.edit("%", false, w, cx));
+                })
+                .px_2()
+                .child("%"),
+            )
+            .child(mundane_ui::menu_trigger("Units", &self.units, theme, cx))
+            .child(reuse);
         let result_box = match result {
             Some(Ok(answer)) => Role::Status
                 .control("result", "Result")
@@ -165,11 +178,14 @@ impl Render for Calculator {
             .on_key_down(cx.listener(Self::keyboard))
             .child(self.header.render(
                 "Calculator",
-                reuse,
+                actions,
                 &self.field.read(cx).focus_handle(cx),
                 theme,
                 window,
             ))
+            .when(self.units.read(cx).is_open(), |el| {
+                el.child(self.units.clone())
+            })
             .child(body)
     }
 }

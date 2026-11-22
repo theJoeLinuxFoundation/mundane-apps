@@ -99,3 +99,23 @@ def music(side, root, log, key, until, compare, record, check_tone):
             key("n")
             until(lambda: name + " — Music" in log.read_text(), name)
             check_tone(capture, until, hz)
+
+
+def calculator(side, root, key, type_text, compare, clipboard):
+    key("Shift_L")
+    type_text("120 + 15%")
+    key("Return")
+    compare("calculator-percent.png", 1, root / "docs/parity/round-4" / side)
+    key("l", "ctrl")
+    type_text("3 + 2")
+    key("u", "ctrl")
+    if side == "after":
+        type_text("mi to km")
+        key("Down")
+        key("Return")
+    compare("calculator-units.png", 1, root / "docs/parity/round-4" / side)
+    if side == "after":
+        key("r", "ctrl")
+        key("a", "ctrl")
+        key("c", "ctrl")
+        assert clipboard() == "8.04672"

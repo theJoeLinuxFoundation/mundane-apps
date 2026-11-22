@@ -1,6 +1,7 @@
 mod arithmetic;
 #[cfg(test)]
 mod tests;
+mod units;
 mod view;
 
 use gpui::{prelude::*, *};
@@ -20,6 +21,8 @@ struct Calculator {
     evaluated: Option<(String, Result<String, &'static str>)>,
     history: Vec<Entry>, // Newest first.
     keys: [FocusHandle; 20],
+    percent: FocusHandle,
+    units: Entity<mundane_ui::ChoiceMenu>,
     reuse: FocusHandle,
     clear: FocusHandle,
     header: WindowHeader,
@@ -34,11 +37,45 @@ impl Calculator {
         let field = cx.new(|cx| TextField::new("Expression", theme, cx));
         field.read(cx).focus_handle(cx).focus(window, cx);
         cx.observe(&field, |_, _, cx| cx.notify()).detach();
+        let choices = units::PRESETS
+            .iter()
+            .map(|(from, to)| {
+                let label = format!("{from} to {to}");
+                mundane_ui::MenuChoice::new(label.clone(), label)
+            })
+            .collect();
+        let units = cx.new(|cx| mundane_ui::ChoiceMenu::new("Unit conversion", choices, true, cx));
+        cx.observe(&units, |_, _, cx| cx.notify()).detach();
+        cx.subscribe_in(
+            &units,
+            window,
+            |this: &mut Self, _, event: &mundane_ui::MenuEvent, w, cx| {
+                if let mundane_ui::MenuEvent::Selected(pair) = event {
+                    let expression = this.field.read(cx).text().trim();
+                    let value = this
+                        .result(cx)
+                        .and_then(Result::ok)
+                        .map(arithmetic::operand)
+                        .unwrap_or_else(|| {
+                            if expression.is_empty() {
+                                "1".into()
+                            } else {
+                                expression.to_owned()
+                            }
+                        });
+                    this.edit(&format!("{value} {pair}"), true, w, cx);
+                    this.evaluate(cx);
+                }
+            },
+        )
+        .detach();
         Self {
             field,
             evaluated: None,
             history: Vec::new(),
             keys: std::array::from_fn(|_| cx.focus_handle().tab_stop(true)),
+            units,
+            percent: cx.focus_handle().tab_stop(true),
             reuse: cx.focus_handle().tab_stop(true),
             clear: cx.focus_handle().tab_stop(true),
             header: WindowHeader::new(cx),
@@ -117,6 +154,7 @@ impl Calculator {
         let field = self.field.read(cx).focus_handle(cx);
         match key.key.as_str() {
             "enter" if field.is_focused(window) => self.evaluate(cx),
+            "u" if key.modifiers.control => self.units.update(cx, |m, cx| m.toggle(window, cx)),
             "r" if key.modifiers.control => self.use_result(window, cx),
             "l" if key.modifiers.control => self.edit("", true, window, cx),
             "w" if key.modifiers.control => window.remove_window(),

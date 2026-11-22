@@ -90,6 +90,8 @@ Open a local PNG, JPEG, WebP or standalone SVG from Files, the command line, or 
 
 ## Calculator
 
+Use % for percentages, including relative increases and discounts such as `120 + 15%`. Choose **Units** (Ctrl+U) or type a conversion directly, for example `32 °F to °C`. Results can be reused at full precision.
+
 Enter an arithmetic expression or use the keypad. Calculator handles parentheses and decimal arithmetic exactly. It displays repeating decimals as reduced fractions. Choose **Use result** to continue a calculation or select an earlier history row to reuse its answer. The window keeps the latest 50 successful calculations. **Clear history** leaves the current expression and result visible. [Calculator tests](docs/calculator-tests.md)
 
 | Action | Shortcut |

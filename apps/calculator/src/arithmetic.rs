@@ -11,9 +11,12 @@ pub fn evaluate(expression: &str) -> Result<String, &'static str> {
     }
     let mut parser = Parser(expression);
     let value = parser.sum(0)?;
-    if !parser.0.trim().is_empty() {
-        return Err("Expected an operator or the end of the expression.");
-    }
+    let value = if parser.0.trim().is_empty() {
+        value
+    } else {
+        super::units::convert(value, parser.0)?
+    };
+
     let mut answer = format_value(&value);
     // A terminating decimal can be much longer than its reduced fraction.
     if operand(&answer).len() > MAX_BYTES {
@@ -36,9 +39,12 @@ impl Parser<'_> {
     }
 
     fn sum(&mut self, depth: u8) -> Parsed {
-        let mut value = self.product(depth)?;
+        let (mut value, _) = self.product(depth)?;
         while let Some(op) = self.take("+-−") {
-            let rhs = self.product(depth)?;
+            let (mut rhs, percent) = self.product(depth)?;
+            if percent {
+                rhs *= &value;
+            }
             if op == '+' {
                 value += rhs
             } else {
@@ -48,17 +54,27 @@ impl Parser<'_> {
         Ok(value)
     }
 
-    fn product(&mut self, depth: u8) -> Parsed {
-        let mut value = self.factor(depth)?;
+    fn product(&mut self, depth: u8) -> Result<(BigRational, bool), &'static str> {
+        let (mut value, mut percent) = self.percent_factor(depth)?;
         while let Some(op) = self.take("*/×÷") {
-            let rhs = self.factor(depth)?;
+            let (rhs, _) = self.percent_factor(depth)?;
+            percent = false;
             match op {
                 '*' | '×' => value *= rhs,
                 _ if rhs.is_zero() => return Err("Cannot divide by zero."),
                 _ => value /= rhs,
             }
         }
-        Ok(value)
+        Ok((value, percent))
+    }
+
+    fn percent_factor(&mut self, depth: u8) -> Result<(BigRational, bool), &'static str> {
+        let value = self.factor(depth)?;
+        if self.take("%").is_some() {
+            Ok((value / BigInt::from(100), true))
+        } else {
+            Ok((value, false))
+        }
     }
 
     fn factor(&mut self, depth: u8) -> Parsed {
@@ -134,6 +150,17 @@ mod tests {
         for (source, expected) in [
             ("12 - 2 * (3 + .25)", "5.5"),
             ("0.1 + 0.2", "0.3"),
+            ("200 + 15%", "230"),
+            ("200 - 15%", "170"),
+            ("200 × 15%", "30"),
+            ("(80 + 20) * 5%", "5"),
+            ("50%", "0.5"),
+            ("(3 + 2) mi to km", "8.04672"),
+            ("32 °F to °C", "0"),
+            ("-40 C to F", "-40"),
+            ("1 lb to g", "453.59237"),
+            ("1 h to min", "60"),
+            ("5 ft to in", "60"),
             ("18 / 3 / 2", "3"),
             ("−.004 × -2", "0.008"),
             ("1 ÷ -3", "-1/3"),
@@ -161,7 +188,18 @@ mod tests {
     fn errors_and_input_limits() {
         assert_eq!(evaluate("1/(4-4)"), Err("Cannot divide by zero."));
         for input in [
-            "", ".", "2a", "1.2.3", "1 2", "1+", "()", "(2", "2)", "2(5)",
+            "",
+            ".",
+            "2a",
+            "1.2.3",
+            "1 2",
+            "1+",
+            "()",
+            "(2",
+            "2)",
+            "2(5)",
+            "1 kg to km",
+            "1 ft to madeup",
         ] {
             assert!(evaluate(input).is_err(), "{input}");
         }

@@ -587,7 +587,7 @@ seat seat0 fallback true
             return app_id in command("-t", "get_tree")
         until(mapped, f"mapped {suite_app}")
         if args.round_four:
-            from round_four import video, music
+            from round_four import video, music, calculator
             if labwc:
                 raise ValueError("Round-four comparisons use headless Sway.")
             if suite_app == "video":
@@ -596,6 +596,8 @@ seat seat0 fallback true
             elif suite_app == "music":
                 music(args.round_four, ROOT, OUTPUT / log, key, until, compare_screenshot,
                       lambda tag: record(stack, RUNTIME, launch, tag), check_tone)
+            elif suite_app == "calculator":
+                calculator(args.round_four, ROOT, key, type_text, compare_screenshot, clipboard)
             else:
                 raise ValueError(f"No round-four scenario for {suite_app}")
             return
