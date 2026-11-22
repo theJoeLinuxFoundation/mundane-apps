@@ -129,10 +129,10 @@ impl TextField {
     fn on_mouse_down(
         &mut self,
         event: &MouseDownEvent,
-        _window: &mut Window,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        self.focus_handle.focus(_window, cx);
+        self.focus_handle.focus(window, cx);
         self.is_selecting = true;
 
         if event.modifiers.shift {
@@ -376,6 +376,7 @@ impl EntityInputHandler for TextField {
         _window: &mut Window,
         _cx: &mut Context<Self>,
     ) -> Option<Bounds<Pixels>> {
+        let bounds = self.last_bounds.unwrap_or(bounds);
         let last_layout = self.last_layout.as_ref()?;
         let range = self.range_from_utf16(&range_utf16);
         Some(Bounds::from_corners(

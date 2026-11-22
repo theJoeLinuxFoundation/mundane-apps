@@ -35,7 +35,11 @@ impl EventListener for Events {
     fn send_event(&self, event: Event) {
         if matches!(
             event,
-            Event::Wakeup | Event::Exit | Event::PtyWrite(_) | Event::TextAreaSizeRequest(_)
+            Event::Wakeup
+                | Event::Exit
+                | Event::PtyWrite(_)
+                | Event::ColorRequest(..)
+                | Event::TextAreaSizeRequest(_)
         ) {
             let _ = self.0.try_send(event);
         }

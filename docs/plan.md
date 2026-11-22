@@ -1,6 +1,6 @@
 # Development plan
 
-**Proposed repository name** — `theJoeLinuxFoundation/mundane-apps`. The prefix identifies the desktop these applications are designed for and makes them easy to find alongside mundaneDE. The target is mundaneDE on x86 joe Linux.
+**Repository** — `theJoeLinuxFoundation/mundane-apps`. The prefix identifies the desktop these applications are designed for and makes them easy to find alongside mundaneDE. The target is mundaneDE on x86 joe Linux.
 
 ## Workspace and shared interface
 
@@ -24,6 +24,8 @@ Pin GPUI and its Linux platform crates together at Zed revision `deb48ceb4712522
 | Media and devices | Share playback controls across Video and Music. Use the system media stack for decoding and PipeWire for audio output. Disks identifies devices through UDisks object paths and handles devices disappearing during an operation. |
 
 ## Acceptance tests
+
+Terminal is implemented. Its PTY, GPUI headless and software-rendered Wayland checks are covered in the [Terminal test report](terminal-tests.md). The target-image smoke test is pending until joe Linux packages mundaneDE and Terminal together, when it will run in joe’s VM tests. Files is next.
 
 Each numbered row is a milestone in delivery order. For every row, run its model or service tests, drive its user interaction in a GPUI headless test context, then capture the specified state from the actual Wayland client under a nested or headless compositor. The headless interaction test asserts state and focus. The compositor test checks the rendered result against a reviewed reference image.
 

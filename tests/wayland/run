@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+set -eu
+cd "$(dirname "$0")/../.."
+root=$PWD
+mkdir -p "${XDG_CACHE_HOME:-$HOME/.cache}" "$root/target/wayland"
+work=$(mktemp -d "${XDG_CACHE_HOME:-$HOME/.cache}/mundane-test.XXXXXXXX")
+trap 'rm -rf -- "$work"' EXIT
+mkdir -m 700 "$work"/{run,config,data,cache,state,home}
+# Keep the test independent of installed portals and desktop service activation.
+cat > "$work/session.conf" <<'BUS'
+<busconfig><type>session</type><listen>unix:runtime=yes</listen>
+<policy context="default"><allow own="*"/><allow send_destination="*"/>
+<allow receive_sender="*"/></policy></busconfig>
+BUS
+# Start with a fresh bus and an empty socket directory, even on a graphical workstation.
+env -u DISPLAY -u WAYLAND_DISPLAY -u WAYLAND_SOCKET -u SWAYSOCK -u I3SOCK \
+    -u AT_SPI_BUS_ADDRESS -u HYPRLAND_INSTANCE_SIGNATURE -u DBUS_STARTER_ADDRESS \
+    -u DBUS_SESSION_BUS_ADDRESS -u NOTIFY_SOCKET -u XCURSOR_THEME -u GTK_MODULES \
+    HOME="$work/home" XDG_RUNTIME_DIR="$work/run" XDG_CONFIG_HOME="$work/config" \
+    XDG_DATA_HOME="$work/data" XDG_STATE_HOME="$work/state" XDG_CACHE_HOME="$work/cache" \
+    XDG_SESSION_TYPE=wayland XDG_CURRENT_DESKTOP=sway GSETTINGS_BACKEND=memory \
+    WLR_BACKENDS=headless WLR_HEADLESS_OUTPUTS=1 WLR_RENDERER=pixman \
+    LIBGL_ALWAYS_SOFTWARE=1 WGPU_BACKEND=vulkan \
+    LC_ALL=C.UTF-8 TZ=UTC dbus-run-session --config-file="$work/session.conf" -- python3 "$root/tests/wayland/session.py" "$@"

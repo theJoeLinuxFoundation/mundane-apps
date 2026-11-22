@@ -58,6 +58,10 @@ fn resolve(color: Color, theme: Theme, colors: &Colors) -> u32 {
         Color::Named(n) => n as usize,
         Color::Indexed(n) => n as usize,
     };
+    palette_color(index, theme, colors)
+}
+
+pub fn palette_color(index: usize, theme: Theme, colors: &Colors) -> u32 {
     if let Some(rgb) = colors[index] {
         return u32::from_be_bytes([0, rgb.r, rgb.g, rgb.b]);
     }
@@ -106,9 +110,9 @@ impl Frame {
             if cell.flags.contains(Flags::WIDE_CHAR_SPACER) {
                 continue;
             }
-            let selected = content
-                .selection
-                .is_some_and(|range| range.contains(item.point));
+            let selected = content.selection.is_some_and(|range| {
+                range.contains_cell(&item, content.cursor.point, content.cursor.shape)
+            });
             let cursor = focused
                 && content.cursor.point == item.point
                 && content.cursor.shape != CursorShape::Hidden;

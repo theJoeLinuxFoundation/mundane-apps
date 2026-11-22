@@ -2,7 +2,7 @@
 name = "mundane-ui"
 version.workspace = true
 edition.workspace = true
-license.workspace = true
+license = "BSD-3-Clause AND Apache-2.0"
 publish.workspace = true
 
 [dependencies]

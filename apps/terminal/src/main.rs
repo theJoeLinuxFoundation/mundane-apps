@@ -63,6 +63,16 @@ impl Terminal {
                                 return;
                             }
                             Event::PtyWrite(s) => terminal.session.write(s.into_bytes()),
+                            Event::ColorRequest(index, reply) => {
+                                let screen = terminal.session.screen.lock();
+                                let color =
+                                    grid::palette_color(index, terminal.theme, screen.colors());
+                                let [_, r, g, b] = color.to_be_bytes();
+                                terminal.session.write(
+                                    reply(alacritty_terminal::vte::ansi::Rgb { r, g, b })
+                                        .into_bytes(),
+                                );
+                            }
                             Event::TextAreaSizeRequest(reply) => terminal
                                 .session
                                 .write(reply(terminal.session.size()).into_bytes()),
@@ -493,3 +503,6 @@ fn main() {
         }
     });
 }
+
+#[cfg(test)]
+mod tests;
