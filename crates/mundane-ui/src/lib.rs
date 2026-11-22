@@ -1,6 +1,8 @@
 //! Shared GPUI controls for mundaneDE applications.
 use gpui::{prelude::*, *};
 
+mod header;
+pub use header::WindowHeader;
 mod text_field;
 pub use text_field::{TextField, bind_text_keys};
 
@@ -16,6 +18,14 @@ pub struct Theme {
 }
 
 impl Theme {
+    pub fn current() -> Self {
+        if std::env::var_os("MUNDANE_HIGH_CONTRAST").as_deref() == Some("1".as_ref()) {
+            Self::HIGH_CONTRAST
+        } else {
+            Self::DARK
+        }
+    }
+
     pub const DARK: Self = Self {
         surface: 0x17201e,
         panel: 0x222e2a,
@@ -44,44 +54,29 @@ pub fn focus_ring(control: Stateful<Div>, focus: &FocusHandle, theme: Theme) -> 
         .focus(move |style| style.border_color(rgb(theme.focus)))
 }
 
-pub fn header(title: impl Into<SharedString>, theme: Theme) -> Div {
-    div()
-        .w_full()
-        .flex_none()
-        .flex()
-        .items_center()
-        .justify_between()
-        .px_3()
-        .py_1()
-        .bg(rgb(theme.panel))
-        .border_b_1()
-        .border_color(rgb(theme.border))
-        .text_color(rgb(theme.text))
-        .child(div().font_weight(FontWeight::SEMIBOLD).child(title.into()))
-}
-
 pub fn button(
     label: &'static str,
     focus: &FocusHandle,
     theme: Theme,
     activate: impl Fn(&mut Window, &mut App) + 'static,
 ) -> Stateful<Div> {
-    let activate = std::rc::Rc::new(activate);
-    let keyboard = activate.clone();
-    focus_ring(div().id(label), focus, theme)
-        .rounded_md()
+    button_base(label, focus, theme, activate)
         .px_3()
         .py_1()
+        .child(label)
+}
+
+fn button_base(
+    label: &'static str,
+    focus: &FocusHandle,
+    theme: Theme,
+    activate: impl Fn(&mut Window, &mut App) + 'static,
+) -> Stateful<Div> {
+    focus_ring(div().id(label), focus, theme)
+        .rounded_md()
         .cursor_pointer()
         .text_sm()
         .text_color(rgb(theme.text))
         .hover(move |style| style.bg(rgb(theme.selection)))
         .on_click(move |_, window, cx| activate(window, cx))
-        .on_key_down(move |event, window, cx| {
-            if matches!(event.keystroke.key.as_str(), "enter" | "space") {
-                keyboard(window, cx);
-                cx.stop_propagation();
-            }
-        })
-        .child(label)
 }

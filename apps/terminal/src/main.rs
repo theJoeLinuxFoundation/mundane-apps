@@ -12,7 +12,7 @@ use alacritty_terminal::{
 use gpui::{prelude::*, *};
 use grid::{Frame, Layout};
 use mundane_services::terminal::Session;
-use mundane_ui::{TextField, Theme, button, focus_ring, header};
+use mundane_ui::{TextField, Theme, WindowHeader, button, focus_ring};
 use std::ops::Range;
 
 const APP_ID: &str = "org.joelinux.mundane.Terminal";
@@ -29,6 +29,7 @@ struct Terminal {
     session: Session,
     grid_focus: FocusHandle,
     find_button: FocusHandle,
+    header: WindowHeader,
     find: Option<Find>,
     layout: Layout,
     theme: Theme,
@@ -39,17 +40,13 @@ struct Terminal {
 
 impl Terminal {
     fn new(options: Options, window: &mut Window, cx: &mut Context<Self>) -> anyhow::Result<Self> {
-        let theme = if std::env::var_os("MUNDANE_HIGH_CONTRAST").as_deref() == Some("1".as_ref()) {
-            Theme::HIGH_CONTRAST
-        } else {
-            Theme::DARK
-        };
+        let theme = Theme::current();
         let layout = Layout {
             bounds: Bounds::new(Point::default(), window.viewport_size()),
             font_size: BODY_FONT,
         };
         let (session, events) = Session::open(options, layout.size())?;
-        let grid_focus = cx.focus_handle();
+        let grid_focus = cx.focus_handle().tab_stop(true);
         grid_focus.focus(window, cx);
         let task = cx.spawn_in(window, async move |view, cx| {
             while let Ok(event) = events.recv().await {
@@ -89,7 +86,8 @@ impl Terminal {
         Ok(Self {
             session,
             grid_focus,
-            find_button: cx.focus_handle(),
+            find_button: cx.focus_handle().tab_stop(true),
+            header: WindowHeader::new(cx),
             find: None,
             layout,
             theme,
@@ -354,17 +352,11 @@ impl Terminal {
 }
 
 impl Render for Terminal {
-    fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let view = cx.weak_entity();
         let find = button("Find", &self.find_button, self.theme, move |window, cx| {
             let _ = view.update(cx, |this, cx| this.open_find(window, cx));
-        })
-        .on_key_down(cx.listener(|this, event: &KeyDownEvent, window, cx| {
-            if matches!(event.keystroke.key.as_str(), "escape" | "f6" | "tab") {
-                this.grid_focus.focus(window, cx);
-                cx.stop_propagation();
-            }
-        }));
+        });
         div()
             .relative()
             .size_full()
@@ -373,7 +365,10 @@ impl Render for Terminal {
             .font_family("DejaVu Sans")
             .bg(rgb(self.theme.surface))
             .text_color(rgb(self.theme.text))
-            .child(header("Terminal", self.theme).child(find))
+            .child(
+                self.header
+                    .render("Terminal", find, &self.grid_focus, self.theme, window),
+            )
             .child(self.terminal_grid(cx))
             .when(!self.composing.is_empty(), |el| {
                 el.child(self.composing.clone())
@@ -484,7 +479,7 @@ fn main() {
             WindowOptions {
                 app_id: Some(APP_ID.into()),
                 window_bounds: Some(WindowBounds::Windowed(bounds)),
-                window_decorations: Some(WindowDecorations::Server),
+                window_decorations: Some(WindowDecorations::Client),
                 ..Default::default()
             },
             |window, cx| {

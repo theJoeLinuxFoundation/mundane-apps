@@ -32,3 +32,18 @@ With AT-SPI2 2.62.1 and Orca 51.1, the inspector found the GTK application, its 
 At the pinned Zed revision, the GPUI Linux platform handles keyboard focus and text composition but has no AT-SPI adapter. The shared follow-up for mundaneDE is to connect GPUI's element tree to the Linux accessibility bus, publish roles, names, text and selection, emit focus changes and route accessible actions back to the controls. Repeat the probe with Orca when that bridge is available.
 
 The joe Linux VM smoke test is pending until the distribution packages mundaneDE and Terminal together.
+
+## Window controls
+
+Terminal requests client decorations. The shared header reads the negotiated decoration mode and the toplevel's window-management capabilities. F6 enters the header, Tab and Shift+Tab traverse its available controls, and Enter or Space activates the focused button. Double-click the title to maximize or restore. Drag the title to move the window.
+
+Tiled Sway negotiates server decorations in the reference configuration. An additional headless labwc run negotiates client decorations and advertises minimize and maximize. Both compositors use Pixman and the same lavapipe client. Install labwc, wlr-randr and wlrctl for this run. Build the virtual pointer test helper once, then run each profile.
+
+```sh
+cargo build -p mundane-terminal --example header-pointer --locked
+tests/wayland/run --compositor labwc
+tests/wayland/run --compositor labwc --profile fractional
+tests/wayland/run --compositor labwc --profile contrast
+```
+
+The labwc references show the three controls. The test checks keyboard minimize, maximize, restore and close, and sends a double-click and drag through a virtual pointer on the private socket.

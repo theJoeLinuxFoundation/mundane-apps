@@ -34,9 +34,9 @@ def until(check, description):
     raise RuntimeError(f"Timed out waiting for {description}. See {OUTPUT} for logs.")
 
 
-def launch(stack, *args, log):
+def launch(stack, *args, log, env=None):
     stream = stack.enter_context((OUTPUT / log).open("w"))
-    child = subprocess.Popen(args, cwd=Path.home(), stdout=stream, stderr=stream)
+    child = subprocess.Popen(args, cwd=Path.home(), stdout=stream, stderr=stream, env=env)
     def stop():
         if child.poll() is None:
             child.terminate()
@@ -121,17 +121,51 @@ def compare_screenshot(name, scale):
         previous = current
         return same
     until(settled, "stable screenshot")
+    if os.environ.get('MUNDANE_CAPTURE_ONLY') == '1':
+        return
     baseline = HERE / name
     if not baseline.exists():
         raise RuntimeError(f"Review {image} and supply {name}")
     run("magick", "compare", "-metric", "AE", str(baseline), str(image), "null:")
 
 
+def check_window_actions(log):
+    def request(name, count=1):
+        until(lambda: log.read_text(errors="replace").count("." + name + "()") >= count, name)
+    def state(name):
+        run("wlrctl", "toplevel", "waitfor", APP_ID, f"state:{name}")
+    key("F6")  # Find, Minimize, Restore, Close
+    key("Tab")
+    key("Tab")
+    key("Return")
+    request("unset_maximized")
+    key("Return")
+    request("set_maximized")
+    key("Tab", "shift")
+    key("Return")
+    state("minimized")
+    run("wlrctl", "toplevel", "focus", APP_ID)
+    state("active")
+    run(str(ROOT / "target/debug/examples/header-pointer"), str(RUNTIME / os.environ["WAYLAND_DISPLAY"]))
+    request("unset_maximized", 2)
+    run("wlrctl", "toplevel", "maximize", APP_ID)
+    run(str(ROOT / "target/debug/examples/header-pointer"), str(RUNTIME / os.environ["WAYLAND_DISPLAY"]), "drag")
+    until(lambda: ".move(wl_seat" in log.read_text(errors="replace"), "interactive move request")
+    # Focus the content explicitly, then enter the header and close by keyboard.
+    key("Escape")
+    key("F6")
+    for _ in range(3):
+        key("Tab")
+    key("Return")
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--at-spi", action="store_true")
     parser.add_argument("--profile", choices=["standard", "fractional", "contrast"], default="standard")
+    parser.add_argument("--compositor", choices=["sway", "labwc"], default="sway")
     args = parser.parse_args()
+    labwc = args.compositor == "labwc"
     # Requiring lavapipe prevents an accidental pass using the host GPU.
     icd = os.environ.get("VK_DRIVER_FILES") or next(iter(Path("/usr/share/vulkan/icd.d").glob("lvp_icd*.json")), None)
     if not icd or not Path(icd).is_file() or "lvp" not in Path(icd).read_text():
@@ -149,7 +183,7 @@ output HEADLESS-1 mode {int(800*scale)}x{int(500*scale)} scale {scale}
 seat seat0 fallback true
 """)
     shell = Path.home() / "shell"
-    shell.write_text("#!/bin/sh\nexport PS1='$ ' PROMPT_COMMAND='' HISTFILE=/dev/null\nexec bash --noprofile --norc -i\n")
+    shell.write_text("#!/bin/sh\nexport PS1='$ ' PROMPT_COMMAND='touch .prompt-ready' HISTFILE=/dev/null\nexec bash --noprofile --norc -i\n")
     shell.chmod(0o755)
     os.environ["SHELL"] = str(shell)
     (Path.home() / "notes.txt").write_text("Terminal checks\n\nSoftware rendering\nWide characters   東京\n")
@@ -160,21 +194,46 @@ seat seat0 fallback true
             launch(stack, "dbus-daemon", "--nofork", "--config-file=/usr/share/defaults/at-spi2/accessibility.conf",
                    f"--address={address}", log="at-spi-bus.log")
             until(lambda: (RUNTIME / "at-spi").is_socket(), "private AT-SPI bus")
-        sway = launch(stack, "sway", "-c", str(config), log="sway.log")
-        sock = until(lambda: next(RUNTIME.glob("sway-ipc.*.sock"), None), "private Sway IPC")
-        os.environ["SWAYSOCK"] = str(sock)
+        if labwc:
+            lab_config = RUNTIME / "labwc"
+            lab_config.mkdir()
+            (lab_config / "rc.xml").write_text("""<labwc_config>
+<core><decoration>client</decoration><xwaylandPersistence>no</xwaylandPersistence></core>
+<keyboard><default/></keyboard><windowRules>
+<windowRule identifier="org.joelinux.mundane.*"><action name="Maximize"/></windowRule>
+</windowRules></labwc_config>""")
+            compositor = launch(stack, "labwc", "-C", str(lab_config), log="labwc.log")
+        else:
+            compositor = launch(stack, "sway", "-c", str(config), log="sway.log")
+            sock = until(lambda: next(RUNTIME.glob("sway-ipc.*.sock"), None), "private Sway IPC")
+            os.environ["SWAYSOCK"] = str(sock)
         display = until(lambda: next((p for p in RUNTIME.glob("wayland-*") if p.is_socket()), None), "private Wayland socket")
         os.environ["WAYLAND_DISPLAY"] = display.name
         run("dbus-update-activation-environment", "WAYLAND_DISPLAY", "XDG_CURRENT_DESKTOP")
         def command(*args):
             return output("swaymsg", "-r", *args)
-        app = launch(stack, str(Path(os.environ.get("MUNDANE_TERMINAL_BIN", ROOT / "target/debug/mundane-terminal")).resolve()), log="terminal.log")
+        def resize(width, height):
+            mode = f"{int(width*scale)}x{int(height*scale)}"
+            if labwc:
+                run("wlr-randr", "--output", "HEADLESS-1", "--custom-mode", mode, "--scale", str(scale))
+            else:
+                command("output", "HEADLESS-1", "mode", mode)
+
+        if labwc:
+            resize(800, 500)
+        log = f"terminal-{args.compositor}.log"
+        app = launch(stack, str(Path(os.environ.get("MUNDANE_TERMINAL_BIN", ROOT / "target/debug/mundane-terminal")).resolve()),
+                     log=log, env={**os.environ, "WAYLAND_DEBUG": "client"})
         def mapped():
-            if app.poll() is not None or sway.poll() is not None:
+            if app.poll() is not None or compositor.poll() is not None:
                 raise RuntimeError(f"Terminal or compositor exited. See {OUTPUT}.")
+            if labwc:
+                return "ack_configure" in (OUTPUT / log).read_text(errors="replace")
             return APP_ID in command("-t", "get_tree")
         until(mapped, "mapped Terminal")
-        command("output", "HEADLESS-1", "mode", f"{int(640*scale)}x{int(360*scale)}")
+        until(lambda: (Path.home() / ".prompt-ready").exists(), "interactive shell prompt")
+        resize(640, 360)
+        key("Shift_L")
         if contrast:
             key("equal", "ctrl")
         # Wait for a fresh prompt and the resized kernel PTY before exercising the renderer.
@@ -186,14 +245,15 @@ seat seat0 fallback true
         type_text("clear; cat notes.txt")
         key("Return")
         find_and_copy("Software rendering")
-        name = f"terminal-{scale:g}{'-contrast' if contrast else ''}.png"
+        prefix = "labwc-" if labwc else ""
+        name = f"{prefix}terminal-{scale:g}{'-contrast' if contrast else ''}.png"
         compare_screenshot(name, scale)
         if contrast:
             key("f", "ctrl", "shift")
             type_text("Tokyo")
             key("Tab")
             key("Tab", "shift")
-            compare_screenshot("find-2-contrast.png", scale)
+            compare_screenshot(f"{prefix}find-2-contrast.png", scale)
             key("Escape")
         if args.at_spi:
             key("f", "ctrl", "shift")
@@ -201,8 +261,11 @@ seat seat0 fallback true
             inspect_accessibility(stack, app.pid)
             command(f'[app_id="{APP_ID}"] focus')
             key("Escape")
-        type_text("exit")
-        key("Return")
+        if labwc:
+            check_window_actions(OUTPUT / log)
+        else:
+            type_text("exit")
+            key("Return")
         assert app.wait(timeout=8) == 0
         print(f"Passed {name}, PTY {reported}")
 

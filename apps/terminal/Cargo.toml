@@ -16,3 +16,9 @@ mundane-services = { path = "../../crates/mundane-services", features = ["termin
 
 [dev-dependencies]
 gpui = { workspace = true, features = ["test-support"] }
+wayland-client = "0.31"
+wayland-protocols-wlr = { version = "0.3", features = ["client"] }
+
+[[example]]
+name = "header-pointer"
+path = "../../tests/wayland/pointer.rs"

@@ -3135,6 +3135,8 @@ dependencies = [
  "mundane-services",
  "mundane-ui",
  "regex",
+ "wayland-client",
+ "wayland-protocols-wlr",
 ]
 
 [[package]]
