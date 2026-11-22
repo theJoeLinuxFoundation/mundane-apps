@@ -47,4 +47,5 @@ def stage(root, share):
     for source, _ in FILES.values():
         if "/" in source:
             shutil.copyfile(root / "tests" / source, share / Path(source).name)
-    shutil.copyfile(Path(__file__).with_name("guest.py"), share / "guest.py")
+    for name in ("guest.py", "packaging_checks.py"):
+        shutil.copyfile(Path(__file__).with_name(name), share / name)

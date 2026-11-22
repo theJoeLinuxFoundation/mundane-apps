@@ -174,12 +174,15 @@ def window(case):
                     names = []
                     evidence = case.get("evidence")
                     found = not evidence
+                    focused = []
                     playback = False
                     sized_image = False
                     for node in contents(frame):
                         label = node.get_name() or ""
                         if label:
                             names.append(label)
+                            if case["app"] == "packages" and node.get_state_set().contains(Atspi.StateType.FOCUSED):
+                                focused.append(label)
                         if evidence and evidence in label:
                             found = True
                         if evidence and case["app"] in ("text-editor", "document-viewer"):
@@ -200,7 +203,7 @@ def window(case):
                         continue
                     if found and len(names) >= 3:
                         return {"pid": pid, "title": frame.get_name(), "controls": names[:40],
-                                "content": evidence}
+                                "content": evidence, **({"focused": focused} if focused else {})}
         except (FileNotFoundError, ProcessLookupError, PermissionError, GLib.Error):
             pass  # A transient system window or a rebuilding app tree.
         time.sleep(.2)
@@ -290,6 +293,18 @@ if __name__ == "__main__":
                    "/org/a11y/bus", "--method", "org.freedesktop.DBus.Properties.Set",
                    "org.a11y.Status", "IsEnabled", "<true>")
             result = context
+        elif action in ("seed-alarm", "watcher", "mime-defaults", "review", "inventory"):
+            import packaging_checks as packaging
+            if action == "seed-alarm":
+                result = packaging.seed_alarm()
+            elif action == "watcher":
+                result = packaging.watcher()
+            elif action == "mime-defaults":
+                result = packaging.mime_defaults(json.loads(args[0]))
+            elif action == "review":
+                result = packaging.review(json.loads(args[0]))
+            else:
+                result = packaging.installed_state()[1]
         elif action == "launch":
             result = launch(json.loads(args[0]), Path(__file__).parent)
         elif action == "window":

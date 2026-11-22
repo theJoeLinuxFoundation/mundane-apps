@@ -95,7 +95,27 @@ def qualify(vm, plan, report):
             report["session_wait"] = str(err)
             return None
     report["session"] = wait("GNOME Wayland autologin: " + str(run), session, 180)
+    # With no saved alarms the shipped watcher exits immediately. Seed a future
+    # alarm in the guest home, then observe the next genuine GDM autologin.
+    initial = report["session"]["session"]
+    report["alarm_fixture"] = probe(vm, "seed-alarm")
+    vm.shell("systemctl restart display-manager", timeout=90)
+    def new_login():
+        active = session()
+        return active if active and active["session"] != initial else None
+    report["session"] = wait("GNOME autologin after seeding alarm", new_login, 180)
+    report["first_session"] = initial
+    report["alarm_watcher"] = probe(vm, "watcher")
     report.pop("session_wait", None)
+    associations = {m: c["desktop"] for c in plan for m in c["mimes"]}
+    defaults = probe(vm, "mime-defaults", sorted(associations))
+    report["mime_defaults"] = defaults
+    baseline = json.loads(Path(__file__).with_name("gnome-defaults.json").read_text())
+    report["default_mismatches"] = [
+        {"desktop": profile, "mime": mime, "expected": expected, "actual": defaults[profile][mime]}
+        for profile, mapping in {"mundane": associations, **baseline}.items()
+        for mime, expected in mapping.items() if defaults[profile][mime] != expected
+    ]
     vm.key("esc")
     time.sleep(1)
     first = probe(vm, "cursor")
@@ -112,20 +132,57 @@ def qualify(vm, plan, report):
             baseline = samples(run / "baseline.ppm")
             record["launch"] = probe(vm, "launch", case)
             record["window"] = probe(vm, "window", case)
-            def rendered():
-                vm.capture("current.ppm")
-                return painted(baseline, samples(run / "current.ppm"), case)
-            wait(name + " painted content", rendered, 15)
-            image = name + ".png"
-            subprocess.run(["magick", "current.ppm", image], cwd=run, check=True,
-                           env={"PATH": os.environ["PATH"], "HOME": str(run),
-                                "TMPDIR": str(run), "MAGICK_TEMPORARY_PATH": str(run)})
-            record["screenshot"] = image
+            def screenshot(filename, before):
+                def rendered():
+                    vm.capture("current.ppm")
+                    return painted(before, samples(run / "current.ppm"), case)
+                wait(name + " painted content", rendered, 15)
+                subprocess.run(["magick", "current.ppm", filename], cwd=run, check=True,
+                               env={"PATH": os.environ["PATH"], "HOME": str(run),
+                                    "TMPDIR": str(run), "MAGICK_TEMPORARY_PATH": str(run)})
+                return filename
+            record["screenshot"] = screenshot(name + ".png", baseline)
+            if case["app"] == "packages":
+                visible = [n.removeprefix("Inspect ") for n in record["window"]["controls"]
+                           if n.startswith("Inspect ")]
+                review = probe(vm, "review", visible)
+                record["review"] = review
+                package = review["plan"]["remove"][0]["name"]
+                vm.key("ctrl", "f")
+                for char in package:
+                    vm.key("minus" if char == "-" else char)
+                    time.sleep(.12)
+                vm.key("ret")
+                def focused(label):
+                    page = probe(vm, "window", {**case, "evidence": label})
+                    if label not in page.get("focused", []):
+                        raise RuntimeError(f"Expected focus on {label}, saw {page}")
+                    return page
+                focused("Inspect " + package)
+                vm.key("ret")
+                focused("Review removal…")
+                vm.key("ret")
+                modal = probe(vm, "window", {**case, "evidence": review["displayed_change"]})
+                if not {"Review package changes", "Cancel", "Apply changes"} <= set(modal["controls"]):
+                    raise RuntimeError(f"Expected review dialog, saw {modal}")
+                if "Cancel" not in modal.get("focused", []):
+                    raise RuntimeError("Review did not focus Cancel")
+                review["dialog"] = modal
+                review["screenshot"] = screenshot("packages-review.png", baseline)
+                vm.key("esc")
+                details = probe(vm, "window", {**case, "evidence": "Review removal…"})
+                if "Review package changes" in details["controls"]:
+                    raise RuntimeError("Packages review remained open after Escape")
+                review["inventory_after_cancel"] = probe(vm, "inventory")
+                if review["installed_sha256"] != review["inventory_after_cancel"]:
+                    raise RuntimeError("Installed packages changed while previewing removal")
             vm.key("alt", "f4")
             probe(vm, "closed", record["window"]["pid"], case["binary"])
             record["closed"] = True
             if case["app"] == "packages":
                 record["runtime"] = probe(vm, "packages")
+                if not record["runtime"]["polkit_action_installed"]:
+                    record.setdefault("packaging", []).append("Missing dave change policy")
                 listed = record["runtime"]["dave list --json"]
                 if listed["exit"] or listed.get("schema") != "dave.list/1" or not listed.get("count"):
                     record.setdefault("packaging", []).append("dave list --json could not list installed packages")
@@ -137,6 +194,8 @@ def qualify(vm, plan, report):
         finally:
             record["journal"] = probe(vm, "journal", cursor, case)
             launch = record.get("launch", {})
+            if case["app"] == "clocks" and not report["alarm_watcher"]:
+                record.setdefault("packaging", []).append("No Clocks login watcher for the saved alarm")
             if launch.get("alarm_autostart") is False:
                 record.setdefault("packaging", []).append("Missing Clocks alarm watcher XDG autostart entry")
             if launch and not launch["icon_found"]:
@@ -156,7 +215,7 @@ def qualify(vm, plan, report):
         late = probe(vm, "journal", first, case)["crashes"]
         if late:
             report.setdefault("crashes", {})[case["app"]] = late
-    if report.get("crashes") or any(c["status"] != "passed" for c in report["checks"]):
+    if report["default_mismatches"] or report.get("crashes") or any(c["status"] != "passed" for c in report["checks"]):
         raise RuntimeError("One or more VM checks failed; see report.json")
 
 
