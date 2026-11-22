@@ -113,26 +113,30 @@ pub fn button_base(
         .on_click(move |_, window, cx| activate(window, cx))
 }
 
+/// The AT-SPI bridge reads a static label's value from its text runs.
+pub fn text_label(id: impl Into<ElementId>, text: impl Into<SharedString>) -> Stateful<Div> {
+    let text = text.into();
+    div()
+        .id(id)
+        .role(Role::Label)
+        .a11y_synthetic_children(move |tree| {
+            let run_id = tree.synthetic_node_id("text");
+            let mut run = accesskit::Node::new(Role::TextRun);
+            if let Some(bounds) = tree.parent_node().bounds() {
+                run.set_bounds(bounds);
+            }
+            run.set_value(text.as_ref());
+            run.set_character_lengths(text.chars().map(|c| c.len_utf8() as u8).collect::<Vec<_>>());
+            tree.push_child(run_id, run);
+        })
+}
+
 /// Orca browses the heading by level and reads its static label via AT-SPI Text.
 pub fn heading(id: &'static str, text: &'static str) -> Stateful<Div> {
-    Role::Heading.control(id, text).aria_level(1).child(
-        div()
-            .id("label")
-            .role(Role::Label)
-            .a11y_synthetic_children(move |tree| {
-                let run_id = tree.synthetic_node_id("text");
-                let mut run = accesskit::Node::new(Role::TextRun);
-                if let Some(bounds) = tree.parent_node().bounds() {
-                    run.set_bounds(bounds);
-                }
-                run.set_value(text);
-                run.set_character_lengths(
-                    text.chars().map(|c| c.len_utf8() as u8).collect::<Vec<_>>(),
-                );
-                tree.push_child(run_id, run);
-            })
-            .child(text),
-    )
+    Role::Heading
+        .control(id, text)
+        .aria_level(1)
+        .child(text_label("label", text).child(text))
 }
 
 /// Keep the modal's covered controls painted while excluding them from AT navigation.

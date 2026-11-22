@@ -3101,6 +3101,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "mundane-packages"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "gpui",
+ "gpui_linux",
+ "mundane-services",
+ "mundane-ui",
+ "tempfile",
+]
+
+[[package]]
 name = "mundane-services"
 version = "0.1.0"
 dependencies = [
@@ -3117,6 +3129,8 @@ dependencies = [
  "mime_guess",
  "png 0.18.1",
  "rustix",
+ "serde",
+ "serde_json",
  "tempfile",
  "url",
 ]

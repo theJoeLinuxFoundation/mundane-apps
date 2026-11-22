@@ -81,6 +81,19 @@ Enter an arithmetic expression or use the keypad. Calculator handles parentheses
 | Clear the expression / close Calculator | Ctrl+L / Ctrl+W |
 | Reach the header / return to the expression | F6 / Escape |
 
+## Packages
+
+Use **Installed** to browse local packages, or search for a name or description. Open a result to inspect dependencies and review installation or removal. **Updates** shows the running deployment, the next boot, and upgrades prepared for shutdown. Each change requires confirmation of a specific dave plan. [Packages tests and polkit contract](docs/packages-tests.md)
+
+| Action | Shortcut |
+| --- | --- |
+| Search packages | Ctrl+F, type, then Enter |
+| Open Updates / refresh the current view | Ctrl+U / F5 |
+| Focus the header | F6 |
+| Cancel review or return from details | Escape |
+| Browse a longer plan | Page Up / Page Down |
+| Increase, decrease or reset text size | Ctrl++ / Ctrl+- / Ctrl+0 |
+
 ## Document Viewer
 
 Open a local PDF from Files, the command line, or the **Open** button. Jump to a page, search across the document, and zoom in to read a match. The page exposes its embedded text to screen readers. Document Viewer loads the system PDFium shared library at runtime. [Engine comparison, installation and tests](docs/document-tests.md)
@@ -119,6 +132,7 @@ cargo build --workspace --release --locked
 ./target/release/mundane-system-monitor
 ./target/release/mundane-image-viewer "tests/fixtures/North Point.jpg"
 ./target/release/mundane-calculator
+./target/release/mundane-packages
 ./target/release/mundane-document-viewer "tests/fixtures/Coastal survey.pdf"
 ./target/release/mundane-video "tests/fixtures/Coastal passage.webm"
 ```

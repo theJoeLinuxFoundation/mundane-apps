@@ -1,0 +1,21 @@
+[package]
+name = "mundane-packages"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+gpui.workspace = true
+gpui_linux.workspace = true
+mundane-ui = { path = "../../crates/mundane-ui" }
+mundane-services = { path = "../../crates/mundane-services", features = ["packages"] }
+anyhow.workspace = true
+
+[dev-dependencies]
+gpui = { workspace = true, features = ["test-support"] }
+tempfile = "3"
+
+[[example]]
+name = "packages-fixture"
+path = "../../tests/wayland/packages_fixture.rs"

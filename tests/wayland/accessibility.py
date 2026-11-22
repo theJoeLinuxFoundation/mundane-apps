@@ -202,6 +202,7 @@ if suite == "Processes":
 tree = [(n.get_role_name(), n.get_name(), n.get_interfaces()) for n in walk(root)]
 print(json.dumps(tree, ensure_ascii=False), flush=True)
 expected = {"Terminal": ["Find in Terminal", "Find match", "Find text"],
+            "Packages": ["Review package changes", "Install chartroom", "Cancel", "Apply changes"],
             "Video": ["Coastal passage.webm", "Play", "Playback position", "Playback status"],
             "DocumentViewer": ["Page 2 of 2", "Page number", "Find text", "Document status"],
             "Calculator": ["Expression", "Result", "History", "Use result", "Clear history"],
@@ -210,11 +211,19 @@ expected = {"Terminal": ["Find in Terminal", "Find match", "Find text"],
             "TextEditor": ["Document status", "Find", "Save"],
             "SystemMonitor": ["End process?", "Cancel", "End process"]}
 assert all(named(root, name) for name in expected[suite]), tree
-if suite in ("Files", "Terminal", "SystemMonitor"):
+if suite in ("Files", "Terminal", "SystemMonitor", "Packages"):
     dialog = next(n for n in walk(root) if n.get_role() == Atspi.Role.DIALOG)
     assert dialog.get_state_set().contains(Atspi.StateType.MODAL)
     assert dialog.get_description()
     assert all(n.get_role() != Atspi.Role.TITLE_BAR for n in walk(root))
+if suite == "Packages":
+    assert named(root, "Cancel").get_state_set().contains(Atspi.StateType.FOCUSED)
+    assert named(root, "Apply changes").get_role() == Atspi.Role.PUSH_BUTTON
+    assert named(root, "Install libtide · 1.4 · Dependency")
+    transition = "Upgrade coast-data · 3.0 → 3.1 · Dependency"
+    row = named(root, transition)
+    assert row and Atspi.Text.get_text(row, 0, -1) == transition
+    assert "Cached repository index" in dialog.get_description()
 if suite == "Video":
     screen = named(root, "Coastal passage.webm")
     assert screen.get_state_set().contains(Atspi.StateType.FOCUSED)

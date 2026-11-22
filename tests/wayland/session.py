@@ -1,5 +1,6 @@
 """Run inside the private session created by tests/wayland/run."""
 import argparse
+import json
 from files_fixture import create as create_files_fixture, png
 from contextlib import ExitStack
 import os
@@ -245,7 +246,7 @@ def exercise_monitor(args, scale, stack, app, app_id):
 def main():
     global OUTPUT
     parser = argparse.ArgumentParser()
-    parser.add_argument("--app", choices=["terminal", "files", "text-editor", "system-monitor", "image-viewer", "calculator", "document-viewer", "video"], default="terminal")
+    parser.add_argument("--app", choices=["terminal", "files", "text-editor", "system-monitor", "image-viewer", "calculator", "document-viewer", "video", "packages"], default="terminal")
     parser.add_argument("--missing-video-decoder", action="store_true", help="inspect Video with the vpx plugin absent")
     parser.add_argument("--fields", action="store_true", help="exercise two-window activation, password and multiline fields")
     parser.add_argument("--cost", type=Path, help="directory containing the two release cost fixture binaries")
@@ -305,9 +306,10 @@ seat seat0 fallback true
         display = until(lambda: next((p for p in RUNTIME.glob("wayland-*") if p.is_socket()), None), "private Wayland socket")
         os.environ["WAYLAND_DISPLAY"] = display.name
         run("dbus-update-activation-environment", "WAYLAND_DISPLAY", "XDG_CURRENT_DESKTOP")
+        if args.app == "packages" or (args.at_spi and args.app in (
+                "terminal", "image-viewer", "calculator", "document-viewer", "video") and not args.cost):
+            launch(stack, "wtype", "-k", "Shift_L", "-s", "300000", log="seat.log")
         if args.at_spi:
-            if args.app in ("terminal", "image-viewer", "calculator", "document-viewer", "video") and not args.cost:
-                launch(stack, "wtype", "-k", "Shift_L", "-s", "300000", log="seat.log")
             from gi.repository import Gio, GLib
             launch(stack, "/usr/lib/at-spi-bus-launcher", "--launch-immediately", log="a11y-bus.log")
             bus = Gio.bus_get_sync(Gio.BusType.SESSION)
@@ -379,6 +381,12 @@ seat seat0 fallback true
         suite_app = args.app
         app_id = f"org.joelinux.mundane.{suite_app.title().replace('-', '')}"
         argv = [str(Path(os.environ.get(f"MUNDANE_{suite_app.upper().replace('-', '_')}_BIN", ROOT / f"target/debug/mundane-{suite_app}")).resolve())]
+        if suite_app == "packages":
+            pkg_dir = RUNTIME / "packages"
+            pkg_dir.mkdir()
+            for cmd in ("dave", "pkexec"):
+                (pkg_dir / cmd).symlink_to(ROOT / "tests/packages/fixture.py")
+            argv = [str(Path(argv[0]).parent / "examples/packages-fixture"), str(pkg_dir)]
         if suite_app == "files":
             os.environ["GSETTINGS_BACKEND"] = "keyfile"
             run("gsettings", "set", "org.gnome.desktop.interface", "icon-theme", "Papirus")
@@ -429,6 +437,43 @@ seat seat0 fallback true
                 return "ack_configure" in (OUTPUT / log).read_text(errors="replace")
             return app_id in command("-t", "get_tree")
         until(mapped, f"mapped {suite_app}")
+        if suite_app == "packages":
+            def calls():
+                return [json.loads(line) for line in (pkg_dir / "calls.jsonl").read_text().splitlines()]
+            until((pkg_dir / "calls.jsonl").exists, "initial package list")
+            until(lambda: ".enter(" in (OUTPUT / log).read_text(errors="replace"), "package window on output")
+            key("f", "ctrl")
+            type_text("chart")
+            key("Return")
+            until(lambda: ["dave", "search", "--json", "--", "chart"] in calls(), "package search")
+            key("Return")
+            until(lambda: ["dave", "info", "--json", "chartroom"] in calls(), "package details")
+            key("Return")
+            plan = ["dave", "install", "--dry-run", "--json", "chartroom"]
+            until(lambda: plan in calls(), "package plan")
+            if args.profile == "contrast":
+                key("equal", "ctrl")
+            name = f"packages-{args.compositor}-{args.profile}.png"
+            compare_screenshot(name, scale)
+            if args.at_spi:
+                inspect_accessibility(stack, app_id, app.pid)
+            key("Escape")
+            assert not any(c[0] == "pkexec" for c in calls())
+            key("Return")
+            until(lambda: calls().count(plan) == 2, "second review")
+            key("Tab")
+            key("Return")
+            until((pkg_dir / "applied").exists, "confirmed change")
+            assert (pkg_dir / "applied").read_text() == "install\n"
+            auth, = (c for c in calls() if c[0] == "pkexec")
+            assert auth[:6] == ["pkexec", "/usr/bin/dave", "install", "-y", "--json", "--expect"]
+            assert auth[6].startswith("sha256:") and auth[7:] == ["chartroom"]
+            key("u", "ctrl")
+            until(lambda: ["dave", "status", "--json"] in calls(), "deployment status")
+            key("w", "ctrl")
+            assert app.wait(timeout=8) == 0
+            print(f"Passed {name}, cancellation, one digest-bound change and update status")
+            return
         if args.missing_video_decoder:
             run("python3", str(HERE / "accessibility.py"), str(app.pid), "MissingVideoDecoder")
             key("w", "ctrl")

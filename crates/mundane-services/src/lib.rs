@@ -11,3 +11,6 @@ pub mod processes;
 
 #[cfg(feature = "video")]
 pub mod playback;
+
+#[cfg(feature = "packages")]
+pub mod packages;

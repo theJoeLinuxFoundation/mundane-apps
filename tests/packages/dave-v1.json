@@ -1,0 +1,121 @@
+{
+  "installed": {
+    "schema": "dave.list/1",
+    "packages": [
+      {
+        "name": "tree",
+        "version": "2.2-r1",
+        "requested": true
+      }
+    ]
+  },
+  "info": {
+    "schema": "dave.info/1",
+    "name": "hello",
+    "description": "says hello",
+    "license": "MIT",
+    "installed": null,
+    "available": {
+      "version": "2.0-r1",
+      "repository": "test",
+      "download_size": 323,
+      "installed_size": 9
+    },
+    "depends": [
+      "libgreet >=1.1"
+    ],
+    "required_by": []
+  },
+  "search": {
+    "schema": "dave.search/1",
+    "index": "fresh",
+    "packages": [
+      {
+        "name": "hello",
+        "version": "2.0-r1",
+        "description": "says hello",
+        "installed": null
+      },
+      {
+        "name": "libgreet",
+        "version": "1.1-r1",
+        "description": "greetings for hello",
+        "installed": null
+      }
+    ]
+  },
+  "install": {
+    "schema": "dave.plan/1",
+    "operation": "install",
+    "index": "fresh",
+    "digest": "sha256:e73afc4190a6292538504714cb91f8465a3473da52ab26508f4622a1c2dce2e5",
+    "install": [
+      {
+        "name": "hello",
+        "version": "2.0-r1",
+        "from": null,
+        "named": true,
+        "requested": true
+      },
+      {
+        "name": "libgreet",
+        "version": "1.1-r1",
+        "from": null,
+        "named": false,
+        "requested": false
+      }
+    ],
+    "upgrade": [],
+    "remove": [],
+    "download_size": 637,
+    "disk_change": 20,
+    "prepared": null
+  },
+  "remove": {
+    "schema": "dave.plan/1",
+    "operation": "remove",
+    "index": "cached",
+    "digest": "sha256:ac4d668b49b2ddbb4426686d842f7a1d922bc341578973c56a2f03fffbf93ad2",
+    "install": [],
+    "upgrade": [],
+    "remove": [
+      {
+        "name": "tree",
+        "version": "2.2-r1",
+        "from": null,
+        "named": true,
+        "requested": false
+      }
+    ],
+    "download_size": 0,
+    "disk_change": -5,
+    "prepared": null
+  },
+  "upgrade": {
+    "schema": "dave.plan/1",
+    "operation": "upgrade",
+    "index": "fresh",
+    "digest": null,
+    "install": [],
+    "upgrade": [],
+    "remove": [],
+    "download_size": 0,
+    "disk_change": 0,
+    "prepared": null
+  },
+  "status": {
+    "schema": "dave.status/1",
+    "revision": "39553c33b0e7e844",
+    "managed": false,
+    "complete": true,
+    "running": null,
+    "next_boot": null,
+    "deployments": [],
+    "prepared_upgrade": null,
+    "last_upgrade": null
+  },
+  "refusal": {
+    "schema": "dave.error/1",
+    "message": "hello is not installed"
+  }
+}

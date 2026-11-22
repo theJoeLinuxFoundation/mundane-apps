@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Packages
+Exec=mundane-packages
+Icon=system-software-install
+Categories=System;PackageManager;
+Terminal=false
