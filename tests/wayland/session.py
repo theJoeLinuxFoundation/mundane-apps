@@ -246,7 +246,7 @@ def exercise_monitor(args, scale, stack, app, app_id):
 def main():
     global OUTPUT
     parser = argparse.ArgumentParser()
-    parser.add_argument("--app", choices=["terminal", "files", "text-editor", "system-monitor", "image-viewer", "calculator", "document-viewer", "video", "packages", "music", "archive-manager"], default="terminal")
+    parser.add_argument("--app", choices=["terminal", "files", "text-editor", "system-monitor", "image-viewer", "calculator", "document-viewer", "video", "packages", "music", "archive-manager", "disk-usage"], default="terminal")
     parser.add_argument("--missing-video-decoder", action="store_true", help="inspect Video with the vpx plugin absent")
     parser.add_argument("--fields", action="store_true", help="exercise two-window activation, password and multiline fields")
     parser.add_argument("--cost", type=Path, help="directory containing the two release cost fixture binaries")
@@ -306,7 +306,7 @@ seat seat0 fallback true
         display = until(lambda: next((p for p in RUNTIME.glob("wayland-*") if p.is_socket()), None), "private Wayland socket")
         os.environ["WAYLAND_DISPLAY"] = display.name
         run("dbus-update-activation-environment", "WAYLAND_DISPLAY", "XDG_CURRENT_DESKTOP")
-        if args.app in ("packages", "music", "archive-manager") or (args.at_spi and args.app in (
+        if args.app in ("packages", "music", "archive-manager", "disk-usage") or (args.at_spi and args.app in (
                 "terminal", "image-viewer", "calculator", "document-viewer", "video") and not args.cost):
             launch(stack, "wtype", "-k", "Shift_L", "-s", "300000", log="seat.log")
         if args.at_spi:
@@ -381,6 +381,20 @@ seat seat0 fallback true
         suite_app = args.app
         app_id = f"org.joelinux.mundane.{suite_app.title().replace('-', '')}"
         argv = [str(Path(os.environ.get(f"MUNDANE_{suite_app.upper().replace('-', '_')}_BIN", ROOT / f"target/debug/mundane-{suite_app}")).resolve())]
+        if suite_app == "disk-usage":
+            survey = Path.home() / "Coastal survey"
+            for name, size in [("Charts/soundings.bin", 512 * 1024), ("Photographs/coast.dat", 256 * 1024),
+                               ("Field notes.txt", 8192)]:
+                path = survey / name
+                path.parent.mkdir(exist_ok=True, parents=True)
+                path.write_bytes(bytes(size))
+            restricted = survey / "Private records"
+            restricted.mkdir(mode=0o700)
+            restricted.chmod(0)
+            stack.callback(restricted.chmod, 0o700)
+            argv.append(str(survey))
+            launch(stack, "python3", str(HERE / "chooser_portal.py"), str(survey / "Charts"), log="usage-portal.log")
+            until((RUNTIME / "chooser-ready").exists, "private FileChooser")
         if suite_app == "archive-manager":
             archive_dest = Path.home() / "Extracted"
             archive_dest.mkdir()
@@ -454,6 +468,28 @@ seat seat0 fallback true
                 return "ack_configure" in (OUTPUT / log).read_text(errors="replace")
             return app_id in command("-t", "get_tree")
         until(mapped, f"mapped {suite_app}")
+        if suite_app == "disk-usage":
+            until(lambda: "Coastal survey — Disk Usage" in (OUTPUT / log).read_text(), "finished usage scan")
+            key("Shift_L")
+            if labwc:
+                run("wlrctl", "toplevel", "waitfor", app_id, "state:active")
+            key("a")  # Logical sizes are identical across CI filesystems.
+            key("Home")
+            key("Return")
+            key("BackSpace")
+            key("End")
+            if args.profile == "contrast":
+                key("equal", "ctrl")
+            name = f"usage-{args.compositor}-{args.profile}.png"
+            compare_screenshot(name, scale)
+            if args.at_spi:
+                inspect_accessibility(stack, app_id, app.pid)
+            key("o", "ctrl")
+            until(lambda: "Charts — Disk Usage" in (OUTPUT / log).read_text(), "scan folder chosen through portal")
+            key("w", "ctrl")
+            assert app.wait(timeout=8) == 0
+            print(f"Passed {name}, unreadable directory, drill down, back and portal scan")
+            return
         if suite_app == "archive-manager":
             until(lambda: "Coastal survey.zip — Archive Manager" in (OUTPUT / log).read_text()
                   and "wl_keyboard" in (OUTPUT / log).read_text() and ".enter(" in (OUTPUT / log).read_text(),

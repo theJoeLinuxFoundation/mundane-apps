@@ -8,6 +8,7 @@ pub struct BrowserRow {
     pub detail: String,
     pub value: String,
     pub depth: usize,
+    pub fraction: Option<f32>,
 }
 pub struct BrowserList {
     pub focus: FocusHandle,
@@ -104,7 +105,27 @@ impl BrowserList {
                                 )
                             }),
                     )
-                    .child(div().flex_none().text_sm().child(row.value.clone()))
+                    .when_some(row.fraction, |el, f| {
+                        el.child(
+                            div()
+                                .w(relative(0.20))
+                                .h(px(5.))
+                                .bg(rgb(theme.border))
+                                .child(
+                                    div()
+                                        .h_full()
+                                        .w(relative(f.clamp(0., 1.)))
+                                        .bg(rgb(theme.focus)),
+                                ),
+                        )
+                    })
+                    .child(
+                        div()
+                            .flex_none()
+                            .text_sm()
+                            .when(row.fraction.is_some(), |el| el.w(rems(6.)).text_right())
+                            .child(row.value.clone()),
+                    )
                     .on_click(move |e, w, cx| click(i, e.click_count() == 2, w, cx))
                 })
                 .collect::<Vec<_>>()

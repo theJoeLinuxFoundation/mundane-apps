@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Disk Usage
+Exec=mundane-disk-usage %f
+Icon=drive-harddisk
+Categories=System;Filesystem;
+Terminal=false

@@ -139,6 +139,10 @@ Music plays local FLAC, PCM WAV, Ogg Opus and Ogg Vorbis through PipeWire. **Add
 
 Open a ZIP, tar or gzip-compressed tar archive with Ctrl+O. Use Up and Down to browse the tree and Space to mark entries. Ctrl+E extracts the marked entries or the focused entry, including a selected folder’s descendants. Ctrl+Shift+E extracts the whole archive. Choose a destination in the portal. Archive Manager creates a new folder there and preserves existing files. [Extraction rules and tests](docs/archive-tests.md)
 
+## Disk Usage
+
+Open a folder with Ctrl+O to see where its space goes. Enter or double-click opens a child folder. Backspace returns to its parent. Press A to switch between allocated space and logical file sizes, F5 to rescan, or Escape to cancel a scan. Unreadable folders stay visible and their totals are marked incomplete. [Accounting and tests](docs/usage-tests.md)
+
 ## Building
 
 Use a Rust toolchain with Cargo, a C/C++ toolchain, pkg-config, and the Linux development files for Wayland, xkbcommon and fontconfig. The release build was tested with Rust 1.100 on x86-64 Linux. Run Terminal in a Wayland session with Mesa, a Vulkan driver, installed fonts and xterm-256color terminfo.

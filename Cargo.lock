@@ -3073,6 +3073,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "mundane-disk-usage"
+version = "0.1.0"
+dependencies = [
+ "gpui",
+ "mundane-services",
+ "mundane-ui",
+ "tempfile",
+]
+
+[[package]]
 name = "mundane-document-viewer"
 version = "0.1.0"
 dependencies = [

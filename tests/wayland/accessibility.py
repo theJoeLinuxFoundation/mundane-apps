@@ -204,6 +204,7 @@ print(json.dumps(tree, ensure_ascii=False), flush=True)
 expected = {"Terminal": ["Find in Terminal", "Find match", "Find text"],
             "Packages": ["Review package changes", "Install chartroom", "Cancel", "Apply changes"],
             "ArchiveManager": ["Archive entries", "Extract selected…", "Extract all…", "2 marked"],
+            "DiskUsage": ["Folder contents", "Private records", "Show allocated space", "Rescan"],
             "Music": ["Harbour Lights", "Play", "Playback position", "Add tracks…", "Next track"],
             "Video": ["Coastal passage.webm", "Play", "Playback position", "Playback status"],
             "DocumentViewer": ["Page 2 of 2", "Page number", "Find text", "Document status"],
@@ -230,6 +231,12 @@ if suite == "ArchiveManager":
     row = named(root, "tides.csv")
     assert row.get_state_set().contains(Atspi.StateType.SELECTED)
     assert "Marked" in row.get_description()
+if suite == "DiskUsage":
+    row = named(root, "Private records")
+    assert row.get_state_set().contains(Atspi.StateType.SELECTED)
+    assert "permission denied" in row.get_description()
+    assert "512.0 KiB" in named(root, "Charts").get_description()
+    assert any("Incomplete scan" in n.get_name() for n in walk(root))
 if suite == "Music":
     queue = next(n for n in walk(root) if n.get_role() == Atspi.Role.LIST_BOX)
     rows = children(queue)

@@ -17,3 +17,6 @@ pub mod packages;
 
 #[cfg(feature = "archive")]
 pub mod archive;
+
+#[cfg(feature = "usage")]
+pub mod usage;

@@ -97,6 +97,7 @@ impl Manager {
                             String::new()
                         },
                         depth: e.path.components().count() - 1,
+                        fraction: None,
                     }
                 })
                 .collect(),
