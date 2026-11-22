@@ -24,7 +24,7 @@ The shared tokens use rem units. At the default 16 logical pixels per rem, capti
 
 Spacing steps are 4, 8, 12, 16 and 24. Compact button groups use 4 between actions. Form rows use 8, with 12 inside grouped panels. Control and dialog radii are 6 and 8. Use a one-logical-pixel border and a visible focus outline in the focus colour. A flat panel and its border establish grouping. A modal adds a translucent black scrim and an opaque panel. The shared components use no drop shadow.
 
-Icon slots are 14, 16 and 24. Titlebar symbols are stroked geometry, with 14 logical pixels of artwork inside a 32-pixel target. Supply an action name independently of the artwork. Feedback and transition durations are 100 and 180 ms. Both resolve to zero with reduced motion. State changes and completion feedback still render. [Design tokens](../crates/mundane-ui/src/tokens.rs)
+Icon slots are 14, 16, 24 and 32 logical pixels at the default text scale. Titlebar symbols are stroked geometry, with 14 logical pixels of artwork inside a 32-pixel target. Supply an action name independently of the artwork. Feedback and transition durations are 100 and 180 ms. Both resolve to zero with reduced motion. State changes and completion feedback still render. [Design tokens](../crates/mundane-ui/src/tokens.rs)
 
 ## Core components
 
@@ -55,6 +55,23 @@ The screenshots use the production renderers, private labwc, software rendering 
 | Buttons, toggle, badges and tooltip | [Dark](design/panel-dark.png) | [Light](design/panel-light.png) | [Contrast](design/panel-high-contrast.png) | [Contrast](design/panel-light-high-contrast.png) | [Accent](design/panel-accent.png) | [Reduced](design/panel-reduced-motion.png) |
 
 Run `tests/wayland/run --design-sheet panel` for the images and the private-bus keyboard and AT-SPI checks.
+
+## Launcher rows and icon slots
+
+Use `icon_slot(tokens::icon::LARGE, artwork)` for a 24-pixel list icon and `icon_slot(tokens::icon::EXTRA_LARGE, artwork)` for a 32-pixel pinned or taskbar icon. The slot centers its artwork, reserves its width and height, and clips overflow. Supply artwork sized to the slot. Both sizes follow the text and output scales.
+
+`launcher_row(name, focus, selected, enabled, theme, activate)` accepts icon and text children. Keep the focus handle with the item’s stable key. Idle rows have no visible border. Hover adds an accent tint, selection uses the selected background, keyboard focus draws the focus ring and holding the primary button inverts the fill and foreground. Disabled rows use the disabled colour and expose no activation action. A row exposes its name, button role and selected value. Enter, Space, pointer release and the direct AccessKit Click action run the caller’s callback. Containers own arrow navigation and context menus. Searchable `ChoiceMenu` uses the same renderer with the list-option role and selection state. Packages uses it for installed packages, search and discovery.
+
+| Appearance | Hover, focus and selection | Primary button held |
+| --- | --- | --- |
+| Dark | [Rows and slots](design/launcher-dark.png) | [Pressed](design/launcher-dark-pressed.png) |
+| Light | [Rows and slots](design/launcher-light.png) | [Pressed](design/launcher-light-pressed.png) |
+| Dark high contrast | [Rows and slots](design/launcher-high-contrast.png) | [Pressed](design/launcher-high-contrast-pressed.png) |
+| Light high contrast | [Rows and slots](design/launcher-light-high-contrast.png) | [Pressed](design/launcher-light-high-contrast-pressed.png) |
+| Custom accent | [Rows and slots](design/launcher-accent.png) | [Pressed](design/launcher-accent-pressed.png) |
+| Reduced motion | [Rows and slots](design/launcher-reduced-motion.png) | [Pressed](design/launcher-reduced-motion-pressed.png) |
+
+Replay with `tests/wayland/run --design-sheet launcher` after building the design sheet and the header-pointer example. The private labwc test checks pixel references, keyboard activation and a direct AT-SPI click.
 
 ## Popovers and choices
 

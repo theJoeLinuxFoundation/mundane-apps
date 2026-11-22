@@ -293,7 +293,7 @@ def main():
     parser.add_argument("--round-four", choices=["before", "after"], help="round four daily-use comparisons on private Sway")
     parser.add_argument("--round-three", choices=["before","after"], help="round three isolated daily-use workflows")
     parser.add_argument("--round-two", choices=["before","after"], help="daily-use round two workflow")
-    parser.add_argument("--design-sheet",choices=["core","panel","menus","settings","notifications"],help="capture the shared components on private labwc")
+    parser.add_argument("--design-sheet",choices=["core","panel","launcher","menus","settings","notifications"],help="capture the shared components on private labwc")
     args = parser.parse_args()
     if args.design_sheet:
         args.compositor="labwc"

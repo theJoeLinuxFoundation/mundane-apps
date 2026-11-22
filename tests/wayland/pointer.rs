@@ -50,6 +50,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         use wayland_client::protocol::wl_pointer::ButtonState;
         for action in env::args().skip(3) {
             match action.as_str() {
+                "wait" => {
+                    use std::io::{self, Write};
+                    println!("ready");
+                    io::stdout().flush()?;
+                    let mut line = String::new();
+                    if io::stdin().read_line(&mut line)? == 0 {
+                        return Ok(());
+                    }
+                }
                 "press" => pointer.button(time(), 0x110, ButtonState::Pressed),
                 "release" => pointer.button(time(), 0x110, ButtonState::Released),
                 pair => {

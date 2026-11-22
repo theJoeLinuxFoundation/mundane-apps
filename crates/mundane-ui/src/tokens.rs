@@ -28,6 +28,7 @@ pub mod icon {
     pub const SMALL: Rems = rems(0.875);
     pub const NORMAL: Rems = rems(1.);
     pub const LARGE: Rems = rems(1.5);
+    pub const EXTRA_LARGE: Rems = rems(2.);
 }
 #[derive(Clone, Copy)]
 pub enum Motion {

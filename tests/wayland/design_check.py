@@ -49,7 +49,24 @@ def check(group, stack, launch, until, key, compare, root, runtime, output, reco
         focus = "9933cc" if custom else { (1,0):"a0dfb3",(2,0):"23623e",(1,1):"ffff00",(2,1):"000099"}[(scheme,contrast)]
         title = f"Design sheet · {mode} · {motion} · {focus}"
         until(lambda: title in subprocess.check_output(["wlrctl", "toplevel", "list"], text=True), title)
-        compare(f"{group}-{name}.png", 1, refs)
+        if group == "launcher":
+            # Coordinates use the virtual pointer helper's 800 × 500 coordinate space.
+            # Hover Files, hold the primary button, then release outside the row.
+            import select
+            socket = runtime / os.environ["WAYLAND_DISPLAY"]
+            with subprocess.Popen([root / "target/debug/examples/header-pointer", socket, "gesture",
+                                   "300,245", "wait", "press", "wait", "780,480", "release"],
+                                  stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True) as pointer:
+                for state in ("", "-pressed"):
+                    assert select.select([pointer.stdout], [], [], 4)[0] and pointer.stdout.readline().strip() == "ready"
+                    compare(f"{group}-{name}{state}.png", 1, refs)
+                    pointer.stdin.write("continue\n")
+                    pointer.stdin.flush()
+                assert pointer.wait(timeout=4) == 0
+            # Restore the selected keyboard target independently of pointer focus.
+            key("Home")
+        else:
+            compare(f"{group}-{name}.png", 1, refs)
         if group == "settings":
             key("F8")
             compare(f"confirmation-{name}.png", 1, refs)

@@ -185,6 +185,8 @@ pub fn external_link(
 mod tabs;
 pub use tabs::tab_strip;
 
+mod launcher;
+pub use launcher::{icon_slot, launcher_row};
 mod panel;
 pub use panel::{
     PanelState, badge, panel_button, toggle, tooltip, with_keyboard_tooltip, with_tooltip,

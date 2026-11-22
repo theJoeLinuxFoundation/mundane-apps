@@ -118,6 +118,83 @@ impl Showcase {
             launches: 0,
         }
     }
+    fn launcher(&self, cx: &Context<Self>) -> Div {
+        use ui::tokens::icon;
+        let t = Theme::current(cx);
+        let slot = |size, symbol: &'static str| {
+            ui::icon_slot(size, div().text_size(size).line_height(size).child(symbol))
+        };
+        let mut rows = div().max_w(rems(25.)).flex().flex_col();
+        for (i, (title, symbol)) in [
+            ("Calculator", "±"),
+            ("Characters", "Ω"),
+            ("Clocks", "◷"),
+            ("Files", "▤"),
+            ("Maps", "⊕"),
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            let v = cx.weak_entity();
+            rows = rows.child(
+                ui::launcher_row(title, &self.handles[i], i == 1, i != 4, t, move |_, cx| {
+                    let _ = v.update(cx, |s, cx| {
+                        s.chosen = title.into();
+                        s.launches += 1;
+                        cx.notify();
+                    });
+                })
+                .flex()
+                .items_center()
+                .gap_2()
+                .child(slot(icon::LARGE, symbol))
+                .child(title),
+            );
+        }
+        div()
+            .flex()
+            .gap_4()
+            .child(
+                div()
+                    .w(rems(18.))
+                    .flex()
+                    .flex_col()
+                    .gap_2()
+                    .child(ui::heading("slots", "Icon slots"))
+                    .child(
+                        div()
+                            .flex()
+                            .items_center()
+                            .gap_2()
+                            .child(slot(icon::LARGE, "◷"))
+                            .child("24 logical pixels"),
+                    )
+                    .child(
+                        div()
+                            .flex()
+                            .items_center()
+                            .gap_2()
+                            .child(slot(icon::EXTRA_LARGE, "◷"))
+                            .child("32 logical pixels"),
+                    ),
+            )
+            .child(
+                div()
+                    .flex_1()
+                    .flex()
+                    .flex_col()
+                    .gap_2()
+                    .child(ui::heading("apps", "Applications"))
+                    .child(rows)
+                    .child(
+                        ui::text_label(
+                            "launch-result",
+                            format!("Opened: {} ({})", self.chosen, self.launches),
+                        )
+                        .child(format!("Opened: {} ({})", self.chosen, self.launches)),
+                    ),
+            )
+    }
     fn menus(&self, cx: &Context<Self>) -> Div {
         let trigger = cx.weak_entity();
         let dismiss = cx.weak_entity();
@@ -518,6 +595,7 @@ impl Render for Showcase {
             w.set_window_title(&title);
         }
         let (heading, body) = match self.group.as_str() {
+            "launcher" => ("Launcher rows and icons", self.launcher(cx)),
             "notifications" => ("Notifications and levels", self.notices(cx)),
             "settings" => ("Settings controls", self.settings(cx)),
             "menus" => ("Menus and searchable options", self.menus(cx)),
@@ -582,6 +660,25 @@ impl Render for Showcase {
             .text_color(rgb(t.text))
             .font_family("DejaVu Sans")
             .capture_key_down(cx.listener(|s, e: &KeyDownEvent, w, cx| {
+                if s.group == "launcher" {
+                    let index = s.handles[..4]
+                        .iter()
+                        .position(|h| h.is_focused(w))
+                        .unwrap_or(0);
+                    let next = match e.keystroke.key.as_str() {
+                        "home" => Some(0),
+                        "end" => Some(3),
+                        "down" => Some((index + 1) % 4),
+                        "up" => Some((index + 3) % 4),
+                        _ => None,
+                    };
+                    if let Some(next) = next {
+                        s.handles[next].focus(w, cx);
+                        w.prevent_default();
+                        cx.stop_propagation();
+                        return;
+                    }
+                }
                 if s.group == "menus" && e.keystroke.key == "f9" {
                     let mut rows: Vec<_> = (0..36)
                         .map(|i| {

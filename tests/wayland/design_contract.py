@@ -69,7 +69,19 @@ def verify(group, pid, key, transcript):
                         return True
             return False
         wait(check, "focus on " + name)
-    if group == "panel":
+    if group == "launcher":
+        focused("Calculator")
+        assert named("Calculator").get_role() == Atspi.Role.PUSH_BUTTON
+        key("Return")
+        named("Opened: Calculator (1)")
+        key("Tab")
+        focused("Characters")
+        key("space")
+        named("Opened: Characters (2)")
+        click("Clocks")
+        named("Opened: Clocks (3)")
+        assert named("Maps").get_n_actions() == 0
+    elif group == "panel":
         focused("Overview")
         key("Return")
         named("Commands activated: 1")

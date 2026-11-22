@@ -262,25 +262,33 @@ impl Render for ChoiceMenu {
                             visible += 1;
                             let selected = self.active == Some(i);
                             let view = cx.weak_entity();
-                            let role = if searchable {
-                                Role::ListBoxOption
-                            } else {
-                                Role::MenuItem
+                            let activate = move |w: &mut Window, cx: &mut App| {
+                                let _ = view.update(cx, |m, cx| m.choose(i, w, cx));
                             };
-                            let row = focus_ring(role.control(f, c.label.clone()), f, t)
-                                .when(searchable, |el| el.aria_selected(selected))
-                                .flex_none()
-                                .px_2()
-                                .py_1()
-                                .when(selected, |el| el.bg(rgb(t.selected())))
-                                .text_color(rgb(if c.enabled { t.text } else { t.disabled() }))
-                                .child(c.label.clone())
-                                .when(c.enabled, |el| {
-                                    el.cursor_pointer().on_click(move |_, w, cx| {
-                                        let _ = view.update(cx, |m, cx| m.choose(i, w, cx));
-                                    })
-                                });
-                            unavailable(row, !c.enabled)
+                            if searchable {
+                                launcher_row(c.label.clone(), f, selected, c.enabled, t, activate)
+                                    .role(Role::ListBoxOption)
+                                    .aria_selected(selected)
+                                    .child(c.label.clone())
+                            } else {
+                                let row =
+                                    focus_ring(Role::MenuItem.control(f, c.label.clone()), f, t)
+                                        .flex_none()
+                                        .px_2()
+                                        .py_1()
+                                        .when(selected, |el| el.bg(rgb(t.selected())))
+                                        .text_color(rgb(if c.enabled {
+                                            t.text
+                                        } else {
+                                            t.disabled()
+                                        }))
+                                        .child(c.label.clone())
+                                        .when(c.enabled, |el| {
+                                            el.cursor_pointer()
+                                                .on_click(move |_, w, cx| activate(w, cx))
+                                        });
+                                unavailable(row, !c.enabled)
+                            }
                         }),
                 );
             el.flex()

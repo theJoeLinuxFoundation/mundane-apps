@@ -1,5 +1,5 @@
 use super::*;
-use mundane_ui::{ControlRole, Role, button, button_base, unavailable};
+use mundane_ui::{ControlRole, Role, button, launcher_row, unavailable};
 
 const REVIEW_PAGE: usize = 5;
 pub(super) fn label(id: impl Into<ElementId>, text: impl Into<String>) -> Stateful<Div> {
@@ -304,9 +304,11 @@ impl Packages {
         for (i, (name, detail)) in rows.enumerate() {
             let view = cx.weak_entity();
             let target = name.clone();
-            let row = button_base(
+            let row = launcher_row(
                 format!("Inspect {name}"),
                 &self.rows[i],
+                false,
+                !self.busy,
                 theme,
                 move |w, cx| {
                     let _ = view.update(cx, |v, cx| v.start(Job::Info(target.clone()), w, cx));
@@ -315,12 +317,11 @@ impl Packages {
             .aria_description(detail.clone())
             .px_3()
             .py_1()
-            .bg(rgb(theme.panel))
             .flex()
             .flex_col()
             .child(div().font_weight(FontWeight::SEMIBOLD).child(name))
-            .child(div().text_color(rgb(theme.secondary)).child(detail));
-            body = body.child(unavailable(row, self.busy))
+            .child(div().text_sm().child(detail));
+            body = body.child(row)
         }
         self.pagination(body, count, cx)
     }

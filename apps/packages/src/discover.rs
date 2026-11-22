@@ -1,5 +1,5 @@
 use super::*;
-use mundane_ui::{ControlRole, button_base};
+use mundane_ui::{ControlRole, launcher_row};
 use std::collections::BTreeSet;
 
 #[derive(Clone)]
@@ -136,34 +136,40 @@ impl Packages {
         {
             let view = cx.weak_entity();
             body = body.child(
-                button_base(name.clone(), &self.rows[i], t, move |w, cx| {
-                    let _ = view.update(cx, |v, cx| {
-                        if v.busy {
-                            return;
-                        }
-                        match &row {
-                            Row::Category(c) => {
-                                v.category = Some(c.clone());
-                                v.offset = 0;
-                                v.rows[0].focus(w, cx);
+                launcher_row(
+                    name.clone(),
+                    &self.rows[i],
+                    false,
+                    !self.busy,
+                    t,
+                    move |w, cx| {
+                        let _ = view.update(cx, |v, cx| {
+                            if v.busy {
+                                return;
                             }
-                            Row::Application(i) => {
-                                v.app_index = Some(*i);
-                                v.back.focus(w, cx);
+                            match &row {
+                                Row::Category(c) => {
+                                    v.category = Some(c.clone());
+                                    v.offset = 0;
+                                    v.rows[0].focus(w, cx);
+                                }
+                                Row::Application(i) => {
+                                    v.app_index = Some(*i);
+                                    v.back.focus(w, cx);
+                                }
                             }
-                        }
-                        v.scroll.set_offset(Default::default());
-                        cx.notify();
-                    });
-                })
+                            v.scroll.set_offset(Default::default());
+                            cx.notify();
+                        });
+                    },
+                )
                 .aria_description(detail.clone())
                 .px_3()
                 .py_1()
-                .bg(rgb(t.panel))
                 .flex()
                 .flex_col()
                 .child(div().font_weight(FontWeight::SEMIBOLD).child(name))
-                .child(div().text_color(rgb(t.secondary)).child(detail)),
+                .child(div().text_sm().child(detail)),
             );
         }
         self.pagination(body, count, cx)

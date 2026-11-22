@@ -9,7 +9,10 @@ def exercise(app, side, key, type_text, until, compare, root, log):
     after = side == "after"
 
     def shot(state):
-        compare(f"{app}-{state}.png", 1, root / "docs/parity/round-3" / side)
+        filename = f"{app}-{state}.png"
+        current = root / "tests/wayland/parity/round-3"
+        refs = current if after and (current / filename).exists() else root / "docs/parity/round-3" / side
+        compare(filename, 1, refs)
 
     key("Shift_L")
     if app == "files":
