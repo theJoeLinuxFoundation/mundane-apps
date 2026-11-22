@@ -29,7 +29,7 @@ With Terminal's Find dialog open, the test focuses the search field, moves focus
 
 With AT-SPI2 2.62.1 and Orca 51.1, the inspector found the GTK application, its frame and the button named “Probe button”. Orca listed the GTK application. Terminal had no application root in either inspection. Consequently neither tool could read the field text, observe focus changes, discover the dialog role or activate the button through AT-SPI. Keyboard selection and activation are covered separately by the GPUI and Wayland tests.
 
-Milestone 1 used Zed `deb48ceb`. The current revision, `f4fe0be1`, includes an AccessKit adapter. The existing probe uses a private accessibility bus. Enabling the adapter through the session bus and verifying control roles, text and actions with Orca belong to the shared accessibility milestone. [Accessibility gates](plan.md#accessibility)
+Those observations were made at the milestone 1 pin, Zed `deb48ceb`. For current results at `f4fe0be1`, including the recorded Terminal Find transcript, see the shared accessibility report. [Current acceptance results](accessibility/report.md)
 
 The joe Linux VM smoke test is pending until the distribution packages mundaneDE and Terminal together.
 

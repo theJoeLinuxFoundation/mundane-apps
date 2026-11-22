@@ -23,6 +23,6 @@ Each run opens a CRLF document by path, appends text and finds two words in the 
 
 A private FileChooser service exercises Save As, Open cancellation and opening another document over the session bus. The test compares the saved copy byte for byte and checks the title after opening the second file. Install the Python GObject bindings for GIO along with the compositor and rendering dependencies. [Test dependencies](terminal-tests.md#software-rendered-wayland-tests)
 
-The private AT-SPI probe ran with Find focused. The inspector and Orca both identified the GTK positive control. Neither listed Text Editor. The editor's text fields, buttons and confirmation dialog have role and name declarations in the shared UI, ready for the GPUI bridge work.
+The AT-SPI test reads the document and query while Find is focused and checks the shared buttons and status bar. [Current acceptance results](accessibility/report.md)
 
 The joe Linux VM smoke test is pending until the distribution packages mundaneDE and Text Editor.

@@ -29,6 +29,4 @@ Install GNU coreutils with `mv --update=none-fail` support, GLib's `gio` and `gs
 
 ## Accessibility probe
 
-Run `tests/wayland/run --app files --at-spi` with the AT-SPI and Orca test dependencies. With the Files location dialog open, the AT-SPI inspector found the GTK control window and its named button. Orca listed the GTK control application. Files had no application root in either result, so its dialog, field and buttons remain unavailable to screen readers through this backend. [Terminal probe](terminal-tests.md#at-spi-probe-result)
-
-The joe Linux VM smoke test is pending until the distribution packages mundaneDE and Files.
+Run `tests/wayland/run --app files --at-spi` to inspect the live location dialog, field and actions alongside the GTK control. [Current acceptance results](accessibility/report.md)

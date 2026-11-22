@@ -1,0 +1,188 @@
+{
+  "may": {
+    "cached": {
+      "median_us": 14.38,
+      "p95_us": 16.581,
+      "allocations": 15.0,
+      "other_cpu_us": 0.036
+    },
+    "blink": {
+      "median_us": 14.69,
+      "p95_us": 16.299,
+      "allocations": 15.0,
+      "other_cpu_us": 0.046
+    },
+    "edit": {
+      "median_us": 95.971,
+      "p95_us": 114.777,
+      "allocations": 1720.0,
+      "other_cpu_us": 0.14
+    },
+    "scroll": {
+      "median_us": 73.896,
+      "p95_us": 85.374,
+      "allocations": 1032.064,
+      "other_cpu_us": 0.13
+    }
+  },
+  "inactive": {
+    "cached": {
+      "median_us": 10.529,
+      "p95_us": 12.436,
+      "allocations": 10.0,
+      "other_cpu_us": 0.025
+    },
+    "blink": {
+      "median_us": 10.619,
+      "p95_us": 11.781,
+      "allocations": 10.0,
+      "other_cpu_us": 0.013
+    },
+    "edit": {
+      "median_us": 62.407,
+      "p95_us": 69.171,
+      "allocations": 278.0,
+      "other_cpu_us": 0.072
+    },
+    "scroll": {
+      "median_us": 63.368,
+      "p95_us": 68.393,
+      "allocations": 279.164,
+      "other_cpu_us": 0.071
+    }
+  },
+  "active": {
+    "cached": {
+      "median_us": 11.309,
+      "p95_us": 14.377,
+      "allocations": 16.0,
+      "other_cpu_us": 0.025
+    },
+    "blink": {
+      "median_us": 11.401,
+      "p95_us": 13.623,
+      "allocations": 16.0,
+      "other_cpu_us": 0.028
+    },
+    "edit": {
+      "median_us": 72.766,
+      "p95_us": 84.702,
+      "allocations": 416.097,
+      "other_cpu_us": 3.722
+    },
+    "scroll": {
+      "median_us": 92.505,
+      "p95_us": 103.189,
+      "allocations": 631.149,
+      "other_cpu_us": 97.438
+    }
+  },
+  "trials": 20,
+  "inactive_upper95_percent": {
+    "cached": -18.63,
+    "blink": -17.772,
+    "edit": -29.572,
+    "scroll": -13.681
+  },
+  "edit_upper95_added_p95_us": 21.554,
+  "trace": {
+    "active": {
+      "cached": {
+        "frames": 1050,
+        "updates": 1050,
+        "nodes": 1050,
+        "json_bytes": 215250,
+        "first_snapshot_us": 1826.05,
+        "bus_signals": 22,
+        "bus_bytes": 4976,
+        "adapter_cpu_us_per_frame": 0.295,
+        "semantic_allocations": 0
+      },
+      "blink": {
+        "frames": 1050,
+        "updates": 1050,
+        "nodes": 1050,
+        "json_bytes": 215250,
+        "first_snapshot_us": 1826.05,
+        "bus_signals": 0,
+        "bus_bytes": 0,
+        "adapter_cpu_us_per_frame": 0.0,
+        "semantic_allocations": 0
+      },
+      "edit": {
+        "frames": 1050,
+        "updates": 1050,
+        "nodes": 23100,
+        "json_bytes": 5183850,
+        "first_snapshot_us": 1826.05,
+        "bus_signals": 1050,
+        "bus_bytes": 260400,
+        "adapter_cpu_us_per_frame": 7.54,
+        "semantic_allocations": 0
+      },
+      "scroll": {
+        "frames": 1050,
+        "updates": 1050,
+        "nodes": 23100,
+        "json_bytes": 5242428,
+        "first_snapshot_us": 1826.05,
+        "bus_signals": 25092,
+        "bus_bytes": 6142736,
+        "adapter_cpu_us_per_frame": 101.623,
+        "semantic_allocations": 0
+      }
+    },
+    "inactive": {
+      "cached": {
+        "frames": 1050,
+        "updates": 0,
+        "nodes": 0,
+        "json_bytes": 0,
+        "first_snapshot_us": 0.0,
+        "bus_signals": 0,
+        "bus_bytes": 0,
+        "adapter_cpu_us_per_frame": 0.0,
+        "semantic_allocations": 0
+      },
+      "blink": {
+        "frames": 1050,
+        "updates": 0,
+        "nodes": 0,
+        "json_bytes": 0,
+        "first_snapshot_us": 0.0,
+        "bus_signals": 0,
+        "bus_bytes": 0,
+        "adapter_cpu_us_per_frame": 0.0,
+        "semantic_allocations": 0
+      },
+      "edit": {
+        "frames": 1050,
+        "updates": 0,
+        "nodes": 0,
+        "json_bytes": 0,
+        "first_snapshot_us": 0.0,
+        "bus_signals": 0,
+        "bus_bytes": 0,
+        "adapter_cpu_us_per_frame": 0.0,
+        "semantic_allocations": 0
+      },
+      "scroll": {
+        "frames": 1050,
+        "updates": 0,
+        "nodes": 0,
+        "json_bytes": 0,
+        "first_snapshot_us": 0.0,
+        "bus_signals": 0,
+        "bus_bytes": 0,
+        "adapter_cpu_us_per_frame": 0.0,
+        "semantic_allocations": 0
+      }
+    }
+  },
+  "activation_us": {
+    "trials": 20,
+    "median": 2155.176,
+    "p95": 46549.176
+  },
+  "cached_semantics_pass": false
+}

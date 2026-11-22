@@ -15,7 +15,7 @@ Terminal runs the user's shell in a PTY. It supports scrollback, text selection,
 | Focus the header or return to the shell | F6 |
 | Dismiss Find | Escape |
 
-Set `MUNDANE_HIGH_CONTRAST=1` for the high-contrast palette. The suite now uses GPUI’s upstream AccessKit bridge. Screen-reader support for the shared controls is pending the accessibility milestone. [Accessibility probe and test instructions](docs/terminal-tests.md)
+Set `MUNDANE_HIGH_CONTRAST=1` for the high-contrast palette. The suite now uses GPUI’s upstream AccessKit bridge. The four apps expose their shared controls through AT-SPI. Disabled-button state, Orca character echo in Find and cached GPUI subtrees have open release checks. [Accessibility results and recording](docs/accessibility/report.md)
 
 ## Files
 
