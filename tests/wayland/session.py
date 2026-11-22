@@ -430,6 +430,8 @@ seat seat0 fallback true
         suite_app = args.app
         app_id = f"org.joelinux.mundane.{suite_app.title().replace('-', '')}"
         argv = [str(Path(os.environ.get(f"MUNDANE_{suite_app.upper().replace('-', '_')}_BIN", ROOT / f"target/debug/mundane-{suite_app}")).resolve())]
+        if suite_app == "system-monitor" and args.round_three:
+            argv = [str(Path(argv[0]).parent / "examples/monitor-fixture")]
         if suite_app in ("weather", "maps"):
             provider = launch(stack, "python3", str(ROOT / "tests/providers/server.py"), str(RUNTIME), log="provider.log")
             address = until(lambda: (RUNTIME / "address").exists() and (RUNTIME / "address").read_text(), "loopback provider")

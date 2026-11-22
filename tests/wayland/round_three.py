@@ -33,6 +33,17 @@ def exercise(app, side, key, type_text, until, compare, root, log):
             subprocess.run([root / "target/debug/examples/header-pointer", socket, "gesture", "340,194", "press", "355,187", "350,149", "release"], check=True)
             until(lambda: all((folder / "Archive" / n).exists() and not (folder/n).exists()
                               for n in ("draft.txt", "palette.png")), "dragged selection moved to folder")
+    elif app == "system-monitor":
+        runtime = Path(os.environ["XDG_RUNTIME_DIR"])
+        until((runtime/"sampled").exists, "repeatable process samples")
+        if after:
+            key("f", "ctrl")
+            type_text("editor")
+        shot("filter")
+        if after:
+            key("r", "ctrl")
+            until((runtime/"history-ready").exists, "five resource samples")
+        shot("resources")
     elif app == "document-viewer":
         runtime = Path(os.environ["XDG_RUNTIME_DIR"])
         until(lambda: "Field guide.pdf — Document Viewer" in log.read_text(), "PDF open")

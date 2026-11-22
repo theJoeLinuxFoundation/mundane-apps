@@ -31,7 +31,7 @@ The suite now uses GPUI’s upstream AccessKit bridge. The apps expose their sha
 
 Use the places sidebar for local folders, bookmarks and mounted media. Ctrl+D toggles the current bookmark, Ctrl+F searches filenames below the current folder, and Escape returns to browsing. [GNOME parity and screenshots](docs/parity.md)
 
-Files browses local directories, opens files in the preferred application, and copies, moves, renames or trashes a selected item. When names collide, Files shows the size and modification date of the incoming and existing items. Choose Cancel, Keep both, or Replace. Cancel has initial focus. Visible rows use cached thumbnails, generate previews for PNG and JPEG files, or display a system MIME icon.
+Files browses local directories, opens files in the preferred application, and can copy, move or trash multiple items together. Shift extends a selection, Ctrl+Space toggles one item and Ctrl+A selects all. Drop the selection on a folder to move it, or hold Ctrl to copy it. When names collide, Files shows the size and modification date of the incoming and existing items. Choose Cancel, Keep both, or Replace. Cancel has initial focus. Visible rows use cached thumbnails, generate previews for PNG and JPEG files, or display a system MIME icon.
 
 | Action | Shortcut |
 | --- | --- |
@@ -68,6 +68,7 @@ System Monitor samples visible processes every two seconds. CPU is measured acro
 
 | Action | Shortcut |
 | --- | --- |
+| Filter by name or PID / show resource history | Ctrl+F / Ctrl+R |
 | Sort by process name, PID, CPU or memory | N, P, C or M |
 | Reverse the current sort | Activate the same column again |
 | Select a process | ↑ / ↓, Home or End |
@@ -76,12 +77,13 @@ System Monitor samples visible processes every two seconds. CPU is measured acro
 
 ## Image Viewer
 
-Open a local PNG or JPEG from Files, the command line, or the **Open** button. The viewer applies embedded orientation, fits the whole image to the window, and shows its upright dimensions. Zoom is relative to that fit. A failed Open leaves the current image available. [Image Viewer tests](docs/viewer-tests.md)
+Open a local PNG, JPEG, WebP or standalone SVG from Files, the command line, or the **Open** button. The viewer applies embedded orientation, fits the whole image to the window, and shows its upright dimensions. Zoom is relative to that fit. A failed Open leaves the current image available. [Image Viewer tests](docs/viewer-tests.md)
 
 | Action | Shortcut |
 | --- | --- |
 | Open / close | Ctrl+O / Ctrl+W |
 | Zoom in / out | + / − (also Ctrl+= / Ctrl+-) |
+| Previous / next image in the folder | Page Up / Page Down |
 | Pan a zoomed image | Arrow keys or scroll |
 | Fit to window | F or Ctrl+0 |
 | Reach Open / return to the image | F6 / Escape |
@@ -100,7 +102,7 @@ Enter an arithmetic expression or use the keypad. Calculator handles parentheses
 
 ## Packages
 
-Use **Installed** to browse local packages, or search for a name or description. Open a result to inspect dependencies and review installation or removal. **Updates** shows the running deployment, the next boot, and upgrades prepared for shutdown. Each change requires confirmation of a specific dave plan. [Packages tests and polkit contract](docs/packages-tests.md)
+Open **Discover** (Ctrl+D) to browse applications by category and launch installed apps. Use **Installed** to browse local packages, or search for a name or description. Open a result to inspect dependencies and review installation or removal. **Updates** shows the running deployment, the next boot, and upgrades prepared for shutdown. Each change requires confirmation of a specific dave plan. [Packages tests and polkit contract](docs/packages-tests.md)
 
 | Action | Shortcut |
 | --- | --- |
@@ -119,6 +121,9 @@ Open a local PDF from Files, the command line, or the **Open** button. Jump to a
 | --- | --- |
 | Open / close | Ctrl+O / Ctrl+W |
 | Previous / next page | Page Up / Page Down |
+| Toggle continuous scrolling / open the outline | Ctrl+J / Ctrl+B |
+| Select and copy page text | Drag or Shift+Left/Right, then Ctrl+C |
+| Print | Ctrl+P |
 | Enter a page number | Ctrl+L, then Enter |
 | Find text | Ctrl+F, type a phrase, then Enter |
 | Next / previous match | F3 / Shift+F3 |

@@ -49,6 +49,19 @@ impl ProcessService for Fixture {
             processes,
         })
     }
+    fn resources(&self) -> Option<mundane_services::processes::ResourceSample> {
+        let i = *self.count.lock().unwrap();
+        let at = self.epoch + Duration::from_secs(i * 2);
+        if i == 5 {
+            fs::write(self.output.join("history-ready"), b"ready").ok()?;
+        }
+        Some(mundane_services::processes::ResourceSample {
+            at,
+            cpu: Some((20 * i + [0, 5, 12, 4, 20][(i % 5) as usize], 100 * i)),
+            memory: Some(((2000 + (i % 5) * 64) << 20, 8192 << 20)),
+            interfaces: Some([("net0".into(), (i * i * 512, i * 1024))].into()),
+        })
+    }
     fn terminate(&self, id: ProcessId) -> io::Result<()> {
         use std::io::Write;
         let mut log = fs::OpenOptions::new()

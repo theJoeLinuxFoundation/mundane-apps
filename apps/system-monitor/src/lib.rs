@@ -1,3 +1,4 @@
+mod resources;
 #[cfg(test)]
 mod tests;
 mod view;
@@ -43,6 +44,14 @@ struct Monitor {
     _sampling: Task<()>,
     history: History,
     rows: Vec<Process>,
+    processes: Vec<Process>,
+    filter: Entity<mundane_ui::TextField>,
+    filtering: bool,
+    filter_focus: FocusHandle,
+    resources_focus: FocusHandle,
+    graphs: bool,
+    previous_resource: Option<mundane_services::processes::ResourceSample>,
+    samples: std::collections::VecDeque<(std::time::Instant, mundane_services::processes::Usage)>,
     selected: Option<ProcessId>,
     column: Column,
     descending: bool,
@@ -68,9 +77,23 @@ impl Monitor {
         let sampling = cx.spawn_in(window, async move |view, cx| {
             loop {
                 let source = sampler.clone();
-                let sample = executor.spawn(async move { source.sample() }).await;
+                let (sample, metrics) = executor
+                    .spawn(async move { (source.sample(), source.resources()) })
+                    .await;
                 if view
                     .update_in(cx, |this: &mut Self, window, cx| {
+                        if let Some(metrics) = metrics {
+                            while this.samples.front().is_some_and(|(at, _)| {
+                                metrics.at.saturating_duration_since(*at) > Duration::from_secs(60)
+                            }) {
+                                this.samples.pop_front();
+                            }
+                            this.samples.push_back((
+                                metrics.at,
+                                metrics.usage(this.previous_resource.as_ref()),
+                            ));
+                            this.previous_resource = Some(metrics);
+                        }
                         this.refresh(sample, window, cx)
                     })
                     .is_err()
@@ -80,7 +103,26 @@ impl Monitor {
                 executor.timer(INTERVAL).await;
             }
         });
+        let filter = cx.new(|cx| {
+            mundane_ui::TextField::new("Filter by process name or PID", Theme::current(cx), cx)
+        });
+        cx.observe(&filter, |v, _, cx| {
+            v.filter_rows(cx);
+            if v.position().is_none() {
+                v.selected = None;
+            }
+            cx.notify()
+        })
+        .detach();
         Self {
+            filter,
+            filtering: false,
+            filter_focus: cx.focus_handle().tab_stop(true),
+            resources_focus: cx.focus_handle().tab_stop(true),
+            graphs: false,
+            previous_resource: None,
+            samples: Default::default(),
+            processes: vec![],
             service,
             _sampling: sampling,
             history: History::default(),
@@ -106,8 +148,8 @@ impl Monitor {
         match result {
             Ok(sample) => {
                 self.sample_error = None;
-                self.rows = self.history.update(sample);
-                self.sort_rows();
+                self.processes = self.history.update(sample);
+                self.filter_rows(cx);
                 if self.selected.is_some() && self.position().is_none() {
                     self.selected = None;
                     if self.status.is_none() {
@@ -117,6 +159,7 @@ impl Monitor {
             }
             Err(err) => {
                 self.sample_error = Some(format!("Could not read processes. {err}"));
+                self.processes.clear();
                 self.rows.clear();
                 self.selected = None;
             }
@@ -130,6 +173,43 @@ impl Monitor {
         cx.notify();
     }
 
+    fn filter_rows(&mut self, cx: &App) {
+        let q = if self.filtering {
+            self.filter.read(cx).text().trim().to_lowercase()
+        } else {
+            String::new()
+        };
+        self.rows = self
+            .processes
+            .iter()
+            .filter(|p| {
+                q.is_empty()
+                    || p.name.to_lowercase().contains(&q)
+                    || p.id.pid.to_string().contains(&q)
+            })
+            .cloned()
+            .collect();
+        self.sort_rows();
+    }
+    fn show_filter(&mut self, w: &mut Window, cx: &mut Context<Self>) {
+        self.graphs = false;
+        self.filtering = true;
+        self.filter.update(cx, |f, cx| {
+            f.select_match(0..f.text().len(), cx);
+            f.focus_handle(cx).focus(w, cx);
+        });
+        self.filter_rows(cx);
+        cx.notify()
+    }
+    fn toggle_resources(&mut self, w: &mut Window, cx: &mut Context<Self>) {
+        self.graphs = !self.graphs;
+        if self.graphs {
+            self.resources_focus.focus(w, cx);
+        } else {
+            self.list_focus.focus(w, cx);
+        }
+        cx.notify()
+    }
     fn position(&self) -> Option<usize> {
         let id = self.selected?;
         self.rows.iter().position(|p| p.id == id)
@@ -250,6 +330,7 @@ pub fn run(service: Arc<dyn ProcessService>) {
         std::process::exit(1);
     }
     mundane_ui::run(move |cx| {
+        mundane_ui::bind_text_keys(cx);
         cx.on_window_closed(|cx, _| {
             if cx.windows().is_empty() {
                 cx.quit()

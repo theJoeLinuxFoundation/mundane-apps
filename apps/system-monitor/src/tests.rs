@@ -97,3 +97,29 @@ fn sort_select_and_confirm_the_same_process(cx: &mut TestAppContext) {
     });
     assert_eq!(*fake.signals.lock().unwrap(), [id]);
 }
+
+#[gpui::test]
+fn filter_by_name_or_pid_and_return_from_resources(cx: &mut TestAppContext) {
+    let service = Arc::new(Fake {
+        start: Instant::now(),
+        step: Mutex::new(0),
+        signals: Mutex::new(vec![]),
+    });
+    cx.update(mundane_ui::bind_text_keys);
+    let (view, ui) = cx.add_window_view(|w, cx| Monitor::new(service, w, cx));
+    ui.simulate_keystrokes("ctrl-f W O R K enter");
+    ui.run_until_parked();
+    view.read_with(ui, |v, _| {
+        assert_eq!(v.rows.len(), 1);
+        assert_eq!(v.selected.unwrap().pid, 20)
+    });
+    ui.simulate_keystrokes("ctrl-f 1 0");
+    ui.run_until_parked();
+    view.read_with(ui, |v, _| {
+        assert_eq!(v.rows.len(), 1);
+        assert_eq!(v.rows[0].name, "alpha");
+        assert!(v.selected.is_none())
+    });
+    ui.simulate_keystrokes("ctrl-r ctrl-r escape");
+    assert_eq!(view.read_with(ui, |v, _| v.rows.len()), 2);
+}

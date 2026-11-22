@@ -185,7 +185,12 @@ if suite == "Processes":
         return [n.get_name() for n in children(listbox)] != before
     wait(reordered, "row reorder")
     assert named(listbox, row.get_name()) == row
-    subprocess.run(["swaymsg", "-q", "output HEADLESS-1 mode 720x240"], check=True)
+    # Sway mode sizes are physical. Keep the same clipped list viewport at every scale.
+    outputs = json.loads(subprocess.check_output(["swaymsg","-r","-t","get_outputs"]))
+    scale = next(o["scale"] for o in outputs if o["name"] == "HEADLESS-1")
+    def resize_list(height):
+        subprocess.run(["swaymsg", "-q", f"output HEADLESS-1 mode {int(720*scale)}x{int(height*scale)}"], check=True)
+    resize_list(240)
     subprocess.run(["wtype", "-s", "150", "-k", "End", "-s", "100"], check=True)
     def selected_last():
         listbox.clear_cache()
@@ -198,7 +203,7 @@ if suite == "Processes":
     rect = Atspi.Component.get_extents(listbox, Atspi.CoordType.WINDOW)
     cell = Atspi.Component.get_extents(last, Atspi.CoordType.WINDOW)
     assert rect.y <= cell.y < rect.y + rect.height and cell.y+cell.height <= rect.y+rect.height+1
-    subprocess.run(["swaymsg", "-q", "output HEADLESS-1 mode 720x440"], check=True)
+    resize_list(440)
     subprocess.run(["wtype", "-s", "150", "-k", "Home", "-s", "100"], check=True)
     wait(lambda: named(listbox, "file-indexer (PID 1978)"), "rematerialized first row")
     row = named(listbox, "file-indexer (PID 1978)")

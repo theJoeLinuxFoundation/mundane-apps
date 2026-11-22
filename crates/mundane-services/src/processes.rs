@@ -1,4 +1,6 @@
 //! Linux process accounting and confirmed SIGTERM delivery.
+mod resources;
+pub use resources::{ResourceSample, Usage};
 use rustix::{
     fs::{Mode, OFlags, openat},
     process::{Signal, pidfd_send_signal},
@@ -31,6 +33,9 @@ pub struct Sample {
 }
 
 pub trait ProcessService: Send + Sync {
+    fn resources(&self) -> Option<ResourceSample> {
+        None
+    }
     fn sample(&self) -> io::Result<Sample>;
     fn terminate(&self, id: ProcessId) -> io::Result<()>;
 }
@@ -62,6 +67,9 @@ fn parse_stat(bytes: &[u8], page_size: u64) -> Option<Counters> {
 }
 
 impl ProcessService for Procfs {
+    fn resources(&self) -> Option<ResourceSample> {
+        Some(ResourceSample::read())
+    }
     fn sample(&self) -> io::Result<Sample> {
         let at = Instant::now();
         let page_size = rustix::param::page_size() as u64;
@@ -113,6 +121,7 @@ impl ProcessService for Procfs {
     }
 }
 
+#[derive(Clone)]
 pub struct Process {
     pub id: ProcessId,
     pub name: String,

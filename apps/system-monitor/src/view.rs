@@ -3,7 +3,7 @@ use mundane_ui::ControlRole as _;
 use mundane_ui::{Role, button, focus_ring};
 use std::ops::Range;
 
-fn memory(bytes: u64) -> String {
+pub(super) fn memory(bytes: u64) -> String {
     for (size, unit) in [(1 << 30, "GiB"), (1 << 20, "MiB"), (1 << 10, "KiB")] {
         if bytes >= size {
             return format!("{:.1} {unit}", bytes as f64 / size as f64);
@@ -38,6 +38,24 @@ impl Monitor {
             }
         } else {
             match key.key.as_str() {
+                "f" if key.modifiers.control => self.show_filter(window, cx),
+                "r" if key.modifiers.control => self.toggle_resources(window, cx),
+                "escape" if self.filtering && !self.graphs => {
+                    self.filtering = false;
+                    self.filter.update(cx, |f, cx| {
+                        f.select_match(0..f.text().len(), cx);
+                        f.replace_text_in_range(None, "", window, cx)
+                    });
+                    self.filter_rows(cx);
+                    self.list_focus.focus(window, cx);
+                }
+                "enter" if self.filtering && self.filter.focus_handle(cx).is_focused(window) => {
+                    if self.rows.is_empty() {
+                        self.list_focus.focus(window, cx)
+                    } else {
+                        self.select(0, window, cx)
+                    }
+                }
                 "tab" if key.modifiers.shift => window.focus_prev(cx),
                 "tab" => window.focus_next(cx),
                 "f6" => self.end_focus.focus(window, cx),
@@ -49,6 +67,11 @@ impl Monitor {
                         "0" => 16.,
                         _ => (self.text_size + 2.).min(28.),
                     };
+                }
+                _ if self.graphs
+                    || (self.filtering && self.filter.focus_handle(cx).is_focused(window)) =>
+                {
+                    return;
                 }
                 "n" => self.sort(Column::Name, cx),
                 "p" => self.sort(Column::Pid, cx),
@@ -237,6 +260,27 @@ impl Render for Monitor {
             },
         );
         let end = mundane_ui::unavailable(end, self.sending || self.confirm.is_some());
+        let filter = cx.weak_entity();
+        let graphs = cx.weak_entity();
+        let nav = div()
+            .flex()
+            .gap_1()
+            .child(button("Filter", &self.filter_focus, theme, move |w, cx| {
+                let _ = filter.update(cx, |v, cx| v.show_filter(w, cx));
+            }))
+            .child(button(
+                if self.graphs {
+                    "Processes"
+                } else {
+                    "Resources"
+                },
+                &self.resources_focus,
+                theme,
+                move |w, cx| {
+                    let _ = graphs.update(cx, |v, cx| v.toggle_resources(w, cx));
+                },
+            ))
+            .when(!self.graphs, |nav| nav.child(end));
         let list = uniform_list("process-rows", self.rows.len(), cx.processor(Self::rows))
             .track_scroll(&self.scroll)
             .size_full();
@@ -249,62 +293,78 @@ impl Render for Monitor {
             .font_family("DejaVu Sans")
             .bg(rgb(theme.surface))
             .text_color(rgb(theme.text))
-            .child(
-                self.header
-                    .render("System Monitor", end, &self.list_focus, theme, window),
-            )
-            .child(self.headings(cx))
-            .child(
-                focus_ring(
-                    Role::ListBox
-                        .control("processes", "Processes")
-                        .aria_size_of_set(self.rows.len()),
-                    &self.list_focus,
-                    theme,
+            .child(self.header.render(
+                "System Monitor",
+                nav,
+                if self.graphs {
+                    &self.resources_focus
+                } else {
+                    &self.list_focus
+                },
+                theme,
+                window,
+            ))
+            .when(self.graphs, |el| el.child(self.resources(cx)))
+            .when(!self.graphs, |el| {
+                el.when(self.filtering, |el| {
+                    el.child(div().p_2().child(self.filter.clone()))
+                })
+                .child(self.headings(cx))
+                .child(
+                    focus_ring(
+                        Role::ListBox
+                            .control("processes", "Processes")
+                            .aria_size_of_set(self.rows.len()),
+                        &self.list_focus,
+                        theme,
+                    )
+                    .flex_1()
+                    .min_h_0()
+                    .overflow_hidden()
+                    .text_size(px(self.text_size))
+                    .when(self.filtering && self.rows.is_empty(), |el| {
+                        el.child(div().p_3().child("No matching processes."))
+                    })
+                    .child(list),
                 )
-                .flex_1()
-                .min_h_0()
-                .overflow_hidden()
-                .text_size(px(self.text_size))
-                .child(list),
-            )
-            .child(
-                Role::Status
-                    .control("process-status", "Process status")
-                    .aria_description(format!(
-                        "{} processes. {}",
-                        self.rows.len(),
-                        self.sample_error
-                            .as_deref()
-                            .or(self.status.as_deref())
-                            .unwrap_or("Updates every 2 s")
-                    ))
-                    .px_3()
-                    .py_2()
-                    .gap_2()
-                    .flex()
-                    .justify_between()
-                    .items_center()
-                    .bg(rgb(theme.panel))
-                    .text_sm()
-                    .text_color(rgb(theme.secondary))
-                    .child(format!(
-                        "{} {}",
-                        self.rows.len(),
-                        if self.rows.len() == 1 {
-                            "process"
-                        } else {
-                            "processes"
-                        }
-                    ))
-                    .child(
-                        self.sample_error
-                            .as_deref()
-                            .or(self.status.as_deref())
-                            .unwrap_or("Updates every 2 s")
-                            .to_owned(),
-                    ),
-            );
+                .child(
+                    Role::Status
+                        .control("process-status", "Process status")
+                        .aria_description(format!(
+                            "{} processes. {}",
+                            self.rows.len(),
+                            self.sample_error
+                                .as_deref()
+                                .or(self.status.as_deref())
+                                .unwrap_or("Updates every 2 s")
+                        ))
+                        .px_3()
+                        .py_2()
+                        .gap_2()
+                        .flex()
+                        .justify_between()
+                        .items_center()
+                        .bg(rgb(theme.panel))
+                        .text_sm()
+                        .text_color(rgb(theme.secondary))
+                        .child(format!(
+                            "{} {}",
+                            self.rows.len(),
+                            if self.rows.len() == 1 {
+                                "process"
+                            } else {
+                                "processes"
+                            }
+                        ))
+                        .child(
+                            self.sample_error
+                                .as_deref()
+                                .or(self.status.as_deref())
+                                .unwrap_or("Updates every 2 s")
+                                .to_owned(),
+                        ),
+                )
+            });
         div()
             .relative()
             .size_full()
