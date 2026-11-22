@@ -44,7 +44,7 @@ Each tab runs its own PTY and keeps its scrollback. New tab starts in the active
 | --- | --- | --- |
 | Start a second shell in the working directory | [Single shell](parity/before/terminal-shells.png) | [Two shell tabs](parity/after/terminal-shells.png) |
 
-Persistent profiles, new-window controls, configurable shortcuts, and warnings before closing a running job remain open.
+Round one left persistent profiles, new-window controls, configurable shortcuts and running-job warnings for later work.
 
 ## Text Editor delivery
 
@@ -55,7 +55,7 @@ Open a second file or use New tab for another draft. Each tab keeps its text, se
 | Keep two documents open and return to line four of the first | [Single document](parity/before/text-editor-documents.png) | [Tabs, gutter and caret](parity/after/text-editor-documents.png) |
 | Enter a line number | [Original editor](parity/before/text-editor-go-to-line.png) | [Go to line](parity/after/text-editor-go-to-line.png) |
 
-Recent files, syntax highlighting, indentation settings, search and replace, autosave and crash recovery remain open.
+Round one left recent files, syntax highlighting, indentation settings, search and replace, autosave and crash recovery for later work.
 
 ## Reproduce the comparisons
 

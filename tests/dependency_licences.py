@@ -10,7 +10,10 @@ ROOT = Path(__file__).resolve().parents[1]
 REVIEWED = set("""0BSD Apache-2.0 BSD-2-Clause BSD-3-Clause BSL-1.0 CC0-1.0 ISC
 MIT MPL-2.0 Unicode-3.0 Unlicense Zlib""".split())
 # Cargo 'links' names in the target graph. FreeType uses its FTL option.
-LINKS = {"curl", "z", "freetype", "fontconfig", "rayon-core", "wasm_bindgen"}
+# Tree-sitter builds its bundled MIT C parser. Its MIT language crate supplies
+# build metadata for grammar crates and links no external library on Linux.
+LINKS = {"curl", "z", "freetype", "fontconfig", "rayon-core", "wasm_bindgen",
+         "tree-sitter", "tree-sitter-language"}
 
 
 def allowed(expression):
