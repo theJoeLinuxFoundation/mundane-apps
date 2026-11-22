@@ -608,6 +608,9 @@ seat seat0 fallback true
             elif suite_app == "weather":
                 from round_four import weather
                 weather(args.round_four, ROOT, OUTPUT / log, key, type_text, until, compare_screenshot)
+            elif suite_app == "maps":
+                from round_four import maps
+                maps(args.round_four, ROOT, OUTPUT / log, key, type_text, until, compare_screenshot)
             else:
                 raise ValueError(f"No round-four scenario for {suite_app}")
             return

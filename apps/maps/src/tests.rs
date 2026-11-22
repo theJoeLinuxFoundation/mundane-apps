@@ -10,6 +10,7 @@ use gpui::TestAppContext;
 mod fixture;
 fn source(f: &fixture::Server) -> Source {
     Source {
+        data: f.dir.path().join("places"),
         dir: f.dir.path().join("maps"),
         tiles: format!("{}/tilejson", f.address),
         search: format!("{}/search", f.address),
@@ -122,4 +123,19 @@ fn select_pan_zoom_save_and_reopen(cx: &mut TestAppContext) {
     ui.run_until_parked();
     assert!(v.read_with(ui, |v, _| v.offline.is_some()
         && v.status == "Saved area · offline"));
+}
+
+#[test]
+fn favourites_round_trip_without_a_provider() {
+    let f = fixture::Server::new();
+    let source = source(&f);
+    let place = super::source::Place {
+        display_name: "Harbour".into(),
+        lat: "45".into(),
+        lon: "8".into(),
+    };
+    assert!(source.toggle_favourite(&place).unwrap());
+    assert_eq!(source.favourites().unwrap()[0].point(), place.point());
+    assert!(!source.toggle_favourite(&place).unwrap());
+    assert!(source.favourites().unwrap().is_empty());
 }

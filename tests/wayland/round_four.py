@@ -179,3 +179,35 @@ def weather(side, root, log, key, type_text, until, compare):
         (runtime/"location-deny").unlink()
         key("g", "ctrl")
         until(lambda: "Current location — Weather" in log.read_text(), "permitted location forecast")
+
+
+def maps(side,root,log,key,type_text,until,compare):
+    key("Shift_L")
+    key("f","ctrl")
+    type_text("quay")
+    key("Return")
+    until(lambda:"Place results — Maps" in log.read_text(),"place results")
+    key("Down")
+    key("Return")
+    until(lambda:"Harbour Point · Zoom" in log.read_text(),"selected place")
+    key("d","ctrl")
+    key("b","ctrl")
+    compare("maps-favourites.png",1,root/"docs/parity/round-4"/side)
+    key("Escape")
+    if side=="after":
+        runtime=Path(os.environ["XDG_RUNTIME_DIR"])
+        (runtime/"location-deny").touch()
+        key("g","ctrl")
+        until((runtime/"location-closed").exists,"denied location request closed")
+        assert "Current location · Zoom" not in log.read_text()
+        (runtime/"location-deny").unlink()
+        key("g","ctrl")
+        until(lambda:"Current location · Zoom" in log.read_text(),"permitted current location")
+    compare("maps-location.png",1,root/"docs/parity/round-4"/side)
+    if side=="after":
+        key("b","ctrl")
+        type_text("Harbour")
+        key("Down")
+        key("Return")
+        until(lambda:log.read_text().count("Harbour Point · Zoom")>=2,"reopened favourite")
+        assert sum("/search?" in line for line in (runtime/"requests").read_text().splitlines())==1

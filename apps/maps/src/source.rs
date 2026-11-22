@@ -12,6 +12,7 @@ pub const MAX_BYTES: usize = 50_000_000;
 pub const MAX_TILE: usize = 4_000_000;
 #[derive(Clone)]
 pub struct Source {
+    pub data: PathBuf,
     pub dir: PathBuf,
     pub tiles: String,
     pub search: String,
@@ -113,6 +114,30 @@ impl Area {
     }
 }
 impl Source {
+    pub fn favourites(&self) -> Result<Vec<Place>> {
+        let path = self.data.join("favourites.json");
+        if path.try_exists()? {
+            net::read(&path, 1024 * 1024)
+        } else {
+            Ok(vec![])
+        }
+    }
+    pub fn toggle_favourite(&self, place: &Place) -> Result<bool> {
+        ensure!(place.point().is_some(), "Invalid place coordinates");
+        let _lock = net::lock(&self.data.join("places.lock"))?;
+        let mut list = self.favourites()?;
+        let added = if let Some(i) = list.iter().position(|p| p.point() == place.point()) {
+            list.remove(i);
+            false
+        } else {
+            ensure!(list.len() < 512, "The favourites list is full.");
+            list.push(place.clone());
+            true
+        };
+        net::store(&self.data.join("favourites.json"), &list)?;
+        Ok(added)
+    }
+
     fn area_path(&self) -> PathBuf {
         self.dir.join(format!("{}.area", net::key(&self.tiles)))
     }

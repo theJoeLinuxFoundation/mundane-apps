@@ -1,4 +1,5 @@
 mod atlas;
+mod favourites;
 mod geo;
 mod source;
 mod vector;
@@ -26,6 +27,9 @@ struct Maps {
     search_status: String,
     focus: FocusHandle,
     search: FocusHandle,
+    saved_places: Entity<mundane_ui::ChoiceMenu>,
+    favourites: Vec<Place>,
+    locating: bool,
     zoom_in: FocusHandle,
     zoom_out: FocusHandle,
     save: FocusHandle,
@@ -131,7 +135,22 @@ impl Maps {
             }
         })
         .detach();
+        let saved_places = cx.new(|cx| mundane_ui::ChoiceMenu::new("Places", vec![], true, cx));
+        cx.observe(&saved_places, |_, _, cx| cx.notify()).detach();
+        cx.subscribe_in(
+            &saved_places,
+            w,
+            |v: &mut Self, _, event: &mundane_ui::MenuEvent, w, cx| {
+                if let mundane_ui::MenuEvent::Selected(key) = event {
+                    v.place_action(key, w, cx);
+                }
+            },
+        )
+        .detach();
         let mut v = Self {
+            saved_places,
+            favourites: vec![],
+            locating: false,
             source,
             header: WindowHeader::new(cx),
             query,
@@ -168,6 +187,7 @@ impl Maps {
             jobs,
             generation,
         };
+        v.refresh_favourites(w, cx);
         if v.source.has_area() {
             v.has_area = true;
             v.open_area(w, cx)
@@ -275,15 +295,7 @@ impl Maps {
             .cloned()
             && let Some((lat, lon)) = p.point()
         {
-            self.camera = Camera {
-                lat,
-                lon,
-                zoom: 12u8.clamp(self.range.0, self.range.1),
-            };
-            self.place = Some(p);
-            self.show_results = false;
-            self.focus.focus(w, cx);
-            self.draw(false, cx)
+            self.centre(p, lat, lon, w, cx);
         }
     }
     fn save_area(&mut self, w: &mut Window, cx: &mut Context<Self>) {
@@ -354,6 +366,12 @@ impl Maps {
         let k = &e.keystroke;
         let map = self.focus.is_focused(w) && !self.show_results;
         match (k.key.as_str(), k.modifiers.control) {
+            ("d", true) => self.toggle_favourite(w, cx),
+            ("b", true) => {
+                self.refresh_favourites(w, cx);
+                self.saved_places.update(cx, |m, cx| m.toggle(w, cx));
+            }
+            ("g", true) => self.locate(w, cx),
             ("f6", false) => if self.has_area {
                 &self.open
             } else {
@@ -621,17 +639,32 @@ impl Render for Maps {
             .bg(rgb(t.surface))
             .text_color(rgb(t.text))
             .on_key_down(cx.listener(Self::keys))
-            .child(self.header.render(
-                "Maps",
-                div().flex().gap_2().child(save).child(open),
-                if self.show_results {
-                    &self.results.focus
-                } else {
-                    &self.focus
-                },
-                t,
-                w,
-            ))
+            .child(
+                self.header.render(
+                    "Maps",
+                    div()
+                        .flex()
+                        .gap_1()
+                        .child(mundane_ui::menu_trigger(
+                            "Places",
+                            &self.saved_places,
+                            t,
+                            cx,
+                        ))
+                        .child(save)
+                        .child(open),
+                    if self.show_results {
+                        &self.results.focus
+                    } else {
+                        &self.focus
+                    },
+                    t,
+                    w,
+                ),
+            )
+            .when(self.saved_places.read(cx).is_open(), |el| {
+                el.child(self.saved_places.clone())
+            })
             .child(div().p_2().child(tools));
         if self.show_results {
             let v = cx.weak_entity();
@@ -681,11 +714,15 @@ impl Render for Maps {
     }
 }
 fn main() {
-    let Ok(dir) = mundane_services::provider::cache_dir("maps") else {
+    let (Ok(dir), Ok(data)) = (
+        mundane_services::provider::cache_dir("maps"),
+        mundane_services::provider::data_dir("maps"),
+    ) else {
         eprintln!("Maps needs a cache directory.");
         return;
     };
     let source = Source {
+        data,
         dir,
         tiles: std::env::var("MUNDANE_MAPS_TILEJSON").unwrap_or_else(|_| source::TILES.into()),
         search: std::env::var("MUNDANE_MAPS_SEARCH").unwrap_or_else(|_| source::SEARCH.into()),

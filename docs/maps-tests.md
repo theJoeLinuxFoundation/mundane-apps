@@ -26,3 +26,5 @@ The HTTP fixture serves original harbour geometry encoded as gzipped MVT and syn
 Ship system libcurl with HTTPS, zlib and trusted CA certificates, as for Weather. Rust dependencies include prost (Apache-2.0), tiny-skia (BSD-3-Clause) and rmp-serde (MIT). Provider data stays in the user cache. The repository’s synthetic tile and search fixtures use the suite licence.
 
 Run `cargo test -p mundane-maps`, `cargo build -p mundane-maps` and `tests/wayland/run --app maps`. The harness accepts `--compositor labwc`, `--profile fractional|contrast` and, on Sway, `--at-spi`.
+
+Places (Ctrl+B) lists favourites and the current-location action. Ctrl+D saves or removes the marked place, or the map centre when there is no marker. The favourites file lives under the XDG user data directory and can be reopened offline. Ctrl+G requests a one-shot fix from the XDG Location portal. The private-bus test refuses the first request, grants the next, then navigates back to the saved place without another search. Directions are deferred by provider decision.

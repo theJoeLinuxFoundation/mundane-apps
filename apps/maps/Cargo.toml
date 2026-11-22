@@ -19,7 +19,7 @@ serde_bytes = "0.11"
 url = "2"
 gpui.workspace = true
 mundane-ui = { path = "../../crates/mundane-ui" }
-mundane-services = { path = "../../crates/mundane-services", features = ["provider"] }
+mundane-services = { path = "../../crates/mundane-services", features = ["provider", "location"] }
 
 [dev-dependencies]
 gpui = { workspace = true, features = ["test-support"] }
