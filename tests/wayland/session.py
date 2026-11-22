@@ -291,7 +291,10 @@ def main():
     parser.add_argument("--compositor", choices=["sway", "labwc"], default="sway")
     parser.add_argument("--mundanede-echo", type=Path, metavar="CHECKOUT", help="test physical typing echo in a scratch build of mundaneDE")
     parser.add_argument("--round-two", choices=["before","after"], help="daily-use round two workflow")
+    parser.add_argument("--design-sheet",choices=["core"],help="capture the shared components on private labwc")
     args = parser.parse_args()
+    if args.design_sheet:
+        args.compositor="labwc"
     if args.mundanede_echo:
         args.at_spi = True
     if args.missing_video_decoder:
@@ -350,6 +353,10 @@ seat seat0 fallback true
         display = until(lambda: next((p for p in RUNTIME.glob("wayland-*") if p.is_socket()), None), "private Wayland socket")
         os.environ["WAYLAND_DISPLAY"] = display.name
         run("dbus-update-activation-environment", "WAYLAND_DISPLAY", "XDG_CURRENT_DESKTOP")
+        if args.design_sheet:
+            from design_check import check
+            check(args.design_sheet,stack,launch,until,key,compare_screenshot,ROOT,RUNTIME,OUTPUT)
+            return
         if args.appearance:
             from appearance_check import check
             check(stack, ROOT, RUNTIME, launch, until, key, compare_screenshot)

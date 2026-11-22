@@ -2,21 +2,35 @@
 use super::*;
 use std::{path::PathBuf, rc::Rc, sync::Arc};
 
-pub struct BrowserRow {
-    pub key: PathBuf,
+/// Stable identity is independent of the displayed or translated label.
+pub trait RowKey: PartialEq + 'static {
+    fn row_id(&self) -> ElementId;
+}
+impl RowKey for PathBuf {
+    fn row_id(&self) -> ElementId {
+        ElementId::Path(Arc::from(self.as_path()))
+    }
+}
+impl RowKey for SharedString {
+    fn row_id(&self) -> ElementId {
+        self.clone().into()
+    }
+}
+pub struct BrowserRow<K = PathBuf> {
+    pub key: K,
     pub label: String,
     pub detail: String,
     pub value: String,
     pub depth: usize,
     pub fraction: Option<f32>,
 }
-pub struct BrowserList {
+pub struct BrowserList<K = PathBuf> {
     pub focus: FocusHandle,
     pub selected: Option<usize>,
-    pub rows: Rc<[BrowserRow]>,
+    pub rows: Rc<[BrowserRow<K>]>,
     scroll: UniformListScrollHandle,
 }
-impl BrowserList {
+impl<K: RowKey> BrowserList<K> {
     pub fn new(cx: &App) -> Self {
         Self {
             focus: cx.focus_handle().tab_stop(true),
@@ -25,7 +39,7 @@ impl BrowserList {
             scroll: UniformListScrollHandle::new(),
         }
     }
-    pub fn replace(&mut self, rows: Vec<BrowserRow>) {
+    pub fn replace(&mut self, rows: Vec<BrowserRow<K>>) {
         let old = self.selected.and_then(|i| self.rows.get(i)).map(|r| &r.key);
         let next = old
             .and_then(|key| rows.iter().position(|r| &r.key == key))
@@ -69,64 +83,58 @@ impl BrowserList {
                     let row = &rows[i];
                     let active = Some(i) == selected;
                     let click = click.clone();
-                    option(
-                        ElementId::Path(Arc::from(row.key.as_path())),
-                        row.label.clone(),
-                        i,
-                        active,
-                        focused,
-                    )
-                    .aria_description(format!("{} {}", row.detail, row.value).trim().to_owned())
-                    .h(rems(3.))
-                    .w_full()
-                    .flex()
-                    .items_center()
-                    .gap_2()
-                    .pr_3()
-                    .pl(rems(0.75 + row.depth.min(12) as f32))
-                    .border_l_2()
-                    .border_color(rgb(if active { theme.focus } else { theme.surface }))
-                    .when(active, |s| s.bg(rgb(theme.selection)))
-                    .when(!active, |s| s.hover(move |s| s.bg(rgb(theme.panel))))
-                    .child(
-                        div()
-                            .min_w_0()
-                            .flex_1()
-                            .flex()
-                            .flex_col()
-                            .child(div().truncate().child(row.label.clone()))
-                            .when(!row.detail.is_empty(), |e| {
-                                e.child(
-                                    div()
-                                        .truncate()
-                                        .text_sm()
-                                        .text_color(rgb(theme.secondary))
-                                        .child(row.detail.clone()),
-                                )
-                            }),
-                    )
-                    .when_some(row.fraction, |el, f| {
-                        el.child(
+                    option(row.key.row_id(), row.label.clone(), i, active, focused)
+                        .aria_description(format!("{} {}", row.detail, row.value).trim().to_owned())
+                        .h(rems(3.))
+                        .w_full()
+                        .flex()
+                        .items_center()
+                        .gap_2()
+                        .pr_3()
+                        .pl(rems(0.75 + row.depth.min(12) as f32))
+                        .border_l_2()
+                        .border_color(rgb(if active { theme.focus } else { theme.surface }))
+                        .when(active, |s| s.bg(rgb(theme.selection)))
+                        .when(!active, |s| s.hover(move |s| s.bg(rgb(theme.panel))))
+                        .child(
                             div()
-                                .w(relative(0.20))
-                                .h(px(5.))
-                                .bg(rgb(theme.border))
-                                .child(
-                                    div()
-                                        .h_full()
-                                        .w(relative(f.clamp(0., 1.)))
-                                        .bg(rgb(theme.focus)),
-                                ),
+                                .min_w_0()
+                                .flex_1()
+                                .flex()
+                                .flex_col()
+                                .child(div().truncate().child(row.label.clone()))
+                                .when(!row.detail.is_empty(), |e| {
+                                    e.child(
+                                        div()
+                                            .truncate()
+                                            .text_sm()
+                                            .text_color(rgb(theme.secondary))
+                                            .child(row.detail.clone()),
+                                    )
+                                }),
                         )
-                    })
-                    .child(
-                        div()
-                            .flex_none()
-                            .text_sm()
-                            .when(row.fraction.is_some(), |el| el.w(rems(6.)).text_right())
-                            .child(row.value.clone()),
-                    )
-                    .on_click(move |e, w, cx| click(i, e.click_count() == 2, w, cx))
+                        .when_some(row.fraction, |el, f| {
+                            el.child(
+                                div()
+                                    .w(relative(0.20))
+                                    .h(px(5.))
+                                    .bg(rgb(theme.border))
+                                    .child(
+                                        div()
+                                            .h_full()
+                                            .w(relative(f.clamp(0., 1.)))
+                                            .bg(rgb(theme.focus)),
+                                    ),
+                            )
+                        })
+                        .child(
+                            div()
+                                .flex_none()
+                                .text_sm()
+                                .when(row.fraction.is_some(), |el| el.w(rems(6.)).text_right())
+                                .child(row.value.clone()),
+                        )
+                        .on_click(move |e, w, cx| click(i, e.click_count() == 2, w, cx))
                 })
                 .collect::<Vec<_>>()
         })

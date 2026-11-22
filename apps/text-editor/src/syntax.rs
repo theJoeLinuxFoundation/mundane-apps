@@ -1,4 +1,24 @@
-use mundane_ui::SyntaxRole;
+use mundane_ui::{TextColor, Theme};
+const KEYWORD: TextColor = TextColor {
+    light: 0x733684,
+    dark: 0xe7a6ed,
+};
+pub(super) const STRING: TextColor = TextColor {
+    light: 0x27612d,
+    dark: 0xa5dfaa,
+};
+const COMMENT: TextColor = TextColor {
+    light: Theme::LIGHT.secondary,
+    dark: Theme::DARK.secondary,
+};
+const LITERAL: TextColor = TextColor {
+    light: 0x824514,
+    dark: 0xf2be87,
+};
+const NAME: TextColor = TextColor {
+    light: 0x1d547d,
+    dark: 0x9dceff,
+};
 use std::{ops::Range, path::Path, sync::OnceLock};
 use tree_sitter_highlight::{HighlightConfiguration, HighlightEvent, Highlighter};
 
@@ -10,7 +30,7 @@ pub fn language(path: Option<&Path>) -> Option<&'static str> {
         _ => None,
     }
 }
-pub fn spans(language: &str, source: &str) -> Vec<(Range<usize>, SyntaxRole)> {
+pub fn spans(language: &str, source: &str) -> Vec<(Range<usize>, TextColor)> {
     static RUST: OnceLock<HighlightConfiguration> = OnceLock::new();
     static PYTHON: OnceLock<HighlightConfiguration> = OnceLock::new();
     static JSON: OnceLock<HighlightConfiguration> = OnceLock::new();
@@ -53,11 +73,11 @@ pub fn spans(language: &str, source: &str) -> Vec<(Range<usize>, SyntaxRole)> {
                 HighlightEvent::Source { start, end } => {
                     if let Some(i) = active.last() {
                         let role = match i {
-                            0 => SyntaxRole::Keyword,
-                            1 => SyntaxRole::String,
-                            2 => SyntaxRole::Comment,
-                            3 | 4 => SyntaxRole::Literal,
-                            _ => SyntaxRole::Name,
+                            0 => KEYWORD,
+                            1 => STRING,
+                            2 => COMMENT,
+                            3 | 4 => LITERAL,
+                            _ => NAME,
                         };
                         spans.push((start..end, role));
                     }

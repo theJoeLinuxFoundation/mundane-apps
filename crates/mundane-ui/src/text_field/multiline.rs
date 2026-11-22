@@ -2,29 +2,20 @@ use super::*;
 use gpui::{KeyDownEvent, ScrollEvent, TextAlign, canvas};
 use std::collections::VecDeque;
 
+/// Foreground for an attributed range of text. High contrast uses the normal text role.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum SyntaxRole {
-    Keyword,
-    String,
-    Comment,
-    Literal,
-    Name,
+pub struct TextColor {
+    pub light: u32,
+    pub dark: u32,
 }
-impl SyntaxRole {
+impl TextColor {
     fn color(self, t: Theme) -> u32 {
         if t.high_contrast {
-            return t.text;
-        }
-        match (self, t.light) {
-            (Self::Keyword, true) => 0x733684,
-            (Self::Keyword, false) => 0xe7a6ed,
-            (Self::String, true) => 0x27612d,
-            (Self::String, false) => 0xa5dfaa,
-            (Self::Comment, _) => t.secondary,
-            (Self::Literal, true) => 0x824514,
-            (Self::Literal, false) => 0xf2be87,
-            (Self::Name, true) => 0x1d547d,
-            (Self::Name, false) => 0x9dceff,
+            t.text
+        } else if t.light {
+            self.light
+        } else {
+            self.dark
         }
     }
 }
@@ -38,8 +29,9 @@ struct Snapshot {
 #[derive(Default)]
 pub(super) struct Multiline {
     starts: Vec<usize>,
-    syntax: Vec<(Range<usize>, SyntaxRole)>,
+    colors: Vec<(Range<usize>, TextColor)>,
     numbered: bool,
+    rem_scale: Option<f32>,
     pub(super) zoom: i32,
     top: usize,
     left: Pixels,
@@ -56,7 +48,7 @@ pub(super) struct Multiline {
 impl Multiline {
     pub(super) fn reindex(&mut self, text: &str) {
         self.lines.clear();
-        self.syntax.clear();
+        self.colors.clear();
         self.starts.clear();
         self.starts.push(0);
         self.starts
@@ -85,7 +77,7 @@ impl Multiline {
     }
 
     fn row_height(&self) -> f32 {
-        25. + self.zoom as f32 * 1.5
+        (25. + self.zoom as f32 * 1.5) * self.rem_scale.unwrap_or(1.)
     }
 
     fn page(&self) -> usize {
@@ -175,11 +167,11 @@ impl TextField {
 
     pub fn set_highlights(
         &mut self,
-        spans: Vec<(Range<usize>, SyntaxRole)>,
+        spans: Vec<(Range<usize>, TextColor)>,
         cx: &mut Context<Self>,
     ) {
         if let Some(layout) = &mut self.multi {
-            layout.syntax = spans;
+            layout.colors = spans;
             cx.notify();
         }
     }
@@ -414,6 +406,7 @@ impl TextField {
     fn layout_document(&mut self, mut bounds: Bounds<Pixels>, window: &Window) {
         let cursor = self.cursor_offset();
         let m = self.multi.as_mut().unwrap();
+        m.rem_scale = Some(f32::from(window.rem_size()) / 16.);
         if m.numbered {
             let digits = m.starts.len().ilog10() + 1;
             let width = px(14. + digits as f32 * (m.row_height() * 0.55)).min(bounds.size.width);
@@ -443,9 +436,9 @@ impl TextField {
             let mut runs = Vec::new();
             let mut cursor = range.start;
             let first = m
-                .syntax
+                .colors
                 .partition_point(|(span, _)| span.end <= range.start);
-            for (span, role) in m.syntax[first..]
+            for (span, role) in m.colors[first..]
                 .iter()
                 .take_while(|(span, _)| span.start < range.end)
             {

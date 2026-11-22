@@ -258,10 +258,8 @@ fn supported_grammars_highlight_unicode_and_multiline_strings() {
     ] {
         let spans = super::syntax::spans(lang, text);
         assert!(
-            spans
-                .iter()
-                .any(|(r, role)| *role == mundane_ui::SyntaxRole::String
-                    && text[r.clone()].contains(['東', '波']))
+            spans.iter().any(|(r, role)| *role == super::syntax::STRING
+                && text[r.clone()].contains(['東', '波']))
         );
         assert!(spans.windows(2).all(|s| s[0].0.end <= s[1].0.start));
     }

@@ -6,7 +6,7 @@ use crate::ControlRole as _;
 mod accessible;
 mod multiline;
 use multiline::Multiline;
-pub use multiline::SyntaxRole;
+pub use multiline::TextColor;
 use std::ops::Range;
 
 use gpui::{
@@ -747,8 +747,10 @@ impl Render for TextField {
             .on_mouse_up_out(MouseButton::Left, cx.listener(Self::on_mouse_up))
             .on_mouse_move(cx.listener(Self::on_mouse_move))
             .bg(rgb(self.theme.surface))
-            .line_height(px(24.))
-            .text_size(px(16. + self.multi.as_ref().map_or(0, |m| m.zoom) as f32))
+            .line_height(gpui::rems(1.5))
+            .text_size(gpui::rems(
+                1. + self.multi.as_ref().map_or(0, |m| m.zoom) as f32 / 16.,
+            ))
             .when(multi, |el| {
                 el.size_full()
                     .min_h_0()
@@ -761,7 +763,7 @@ impl Render for TextField {
             .when(!multi, |el| {
                 el.child(
                     div()
-                        .h(px(32.))
+                        .h(gpui::rems(2.))
                         .w_full()
                         .p(px(4.))
                         .overflow_hidden()

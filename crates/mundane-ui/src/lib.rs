@@ -4,7 +4,7 @@ use gpui::{prelude::*, *};
 mod header;
 pub use header::WindowHeader;
 mod text_field;
-pub use text_field::{SyntaxRole, TextField, bind_text_keys};
+pub use text_field::{TextColor, TextField, bind_text_keys};
 
 pub use gpui::Role;
 
@@ -39,6 +39,7 @@ pub fn option(
 }
 
 mod appearance;
+pub mod tokens;
 pub use appearance::{Theme, run};
 
 pub fn focus_ring(control: Stateful<Div>, focus: &FocusHandle, theme: Theme) -> Stateful<Div> {
@@ -56,8 +57,8 @@ pub fn button(
     activate: impl Fn(&mut Window, &mut App) + 'static,
 ) -> Stateful<Div> {
     button_base(label, focus, theme, activate)
-        .px_3()
-        .py_1()
+        .px(tokens::space::MD)
+        .py(tokens::space::XS)
         .child(label)
 }
 
@@ -68,9 +69,9 @@ pub fn button_base(
     activate: impl Fn(&mut Window, &mut App) + 'static,
 ) -> Stateful<Div> {
     focus_ring(Role::Button.control(focus, label), focus, theme)
-        .rounded_md()
+        .rounded(tokens::radius::CONTROL)
         .cursor_pointer()
-        .text_sm()
+        .text_size(tokens::text::CONTROL)
         .text_color(rgb(theme.text))
         .hover(move |style| style.bg(rgb(theme.selection)))
         .on_click(move |_, window, cx| activate(window, cx))
@@ -161,7 +162,7 @@ mod playback;
 pub use playback::{PlaybackControls, TransportAction, TransportState, playback_time};
 
 mod browser;
-pub use browser::{BrowserList, BrowserRow, browser_key, browser_window, byte_size};
+pub use browser::{BrowserList, BrowserRow, RowKey, browser_key, browser_window, byte_size};
 
 /// External attribution and licence links share the suite's keyboard focus styling.
 pub fn external_link(
