@@ -197,6 +197,7 @@ if suite == "Processes":
 tree = [(n.get_role_name(), n.get_name(), n.get_interfaces()) for n in walk(root)]
 print(json.dumps(tree, ensure_ascii=False), flush=True)
 expected = {"Terminal": ["Find in Terminal", "Find match", "Find text"],
+            "Calculator": ["Expression", "Result", "History", "Use result", "Clear history"],
             "ImageViewer": ["North Point.jpg", "Open", "Zoom out", "Zoom in", "Fit", "Image status"],
             "Files": ["Open folder", "Cancel", "Open"],
             "TextEditor": ["Document status", "Find", "Save"],
@@ -207,6 +208,23 @@ if suite in ("Files", "Terminal", "SystemMonitor"):
     assert dialog.get_state_set().contains(Atspi.StateType.MODAL)
     assert dialog.get_description()
     assert all(n.get_role() != Atspi.Role.TITLE_BAR for n in walk(root))
+if suite == "Calculator":
+    field = named(root, "Expression")
+    assert field.get_state_set().contains(Atspi.StateType.FOCUSED)
+    assert Atspi.Text.get_text(field, 0, -1) == "23.25 × 4"
+    assert named(root, "Result").get_description() == "93"
+    def click(name):
+        button = named(root, name)
+        assert button and button.get_role() == Atspi.Role.PUSH_BUTTON
+        assert button.get_action_name(0) == "click" and button.do_action(0)
+    click("Reuse 18.75 + 4.50 = 23.25")
+    wait(lambda: Atspi.Text.get_text(field, 0, -1) == "23.25", "reuse history entry")
+    for label in ("Add", "2", "Equals"):
+        click(label)
+    wait(lambda: named(root, "Result").get_description() == "25.25", "keypad calculation")
+    click("Clear history")
+    wait(lambda: not any(n.get_name().startswith("Reuse ") for n in walk(root)), "history cleared")
+    assert named(root, "Result").get_description() == "25.25"
 if suite == "ImageViewer":
     picture = named(root, "North Point.jpg")
     assert picture.get_role() == Atspi.Role.IMAGE

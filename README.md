@@ -15,7 +15,7 @@ Terminal runs the user's shell in a PTY. It supports scrollback, text selection,
 | Focus the header or return to the shell | F6 |
 | Dismiss Find | Escape |
 
-Set `MUNDANE_HIGH_CONTRAST=1` for the high-contrast palette. The suite now uses GPUI’s upstream AccessKit bridge. The four apps expose their shared controls through AT-SPI. Disabled-button state, Orca character echo in Find and cached GPUI subtrees have open release checks. [Accessibility results and recording](docs/accessibility/report.md)
+Set `MUNDANE_HIGH_CONTRAST=1` for the high-contrast palette. The suite now uses GPUI’s upstream AccessKit bridge. The apps expose their shared controls through AT-SPI. Disabled-button state, Orca character echo in Find and cached GPUI subtrees have open release checks. [Accessibility results and recording](docs/accessibility/report.md)
 
 ## Files
 
@@ -69,6 +69,18 @@ Open a local PNG or JPEG from Files, the command line, or the **Open** button. T
 | Fit to window | F or Ctrl+0 |
 | Reach Open / return to the image | F6 / Escape |
 
+## Calculator
+
+Enter an arithmetic expression or use the keypad. Calculator handles parentheses and decimal arithmetic exactly. It displays repeating decimals as reduced fractions. Choose **Use result** to continue a calculation or select an earlier history row to reuse its answer. The window keeps the latest 50 successful calculations. **Clear history** leaves the current expression and result visible. [Calculator tests](docs/calculator-tests.md)
+
+| Action | Shortcut |
+| --- | --- |
+| Evaluate the expression | Enter |
+| Use the displayed result | Ctrl+R |
+| Reach the newest history entry | Alt+H |
+| Clear the expression / close Calculator | Ctrl+L / Ctrl+W |
+| Reach the header / return to the expression | F6 / Escape |
+
 ## Building
 
 Use a Rust toolchain with Cargo, a C/C++ toolchain, pkg-config, and the Linux development files for Wayland, xkbcommon and fontconfig. The release build was tested with Rust 1.100 on x86-64 Linux. Run Terminal in a Wayland session with Mesa, a Vulkan driver, installed fonts and xterm-256color terminfo.
@@ -80,6 +92,7 @@ cargo build --workspace --release --locked
 ./target/release/mundane-text-editor
 ./target/release/mundane-system-monitor
 ./target/release/mundane-image-viewer "tests/fixtures/North Point.jpg"
+./target/release/mundane-calculator
 ```
 
 Files uses the OpenURI desktop portal or GIO's default handler, GIO Trash, and GNU coreutils for recursive copies and cross-filesystem moves. Its desktop entry handles local directories. Text Editor accepts a local path and declares `text/plain`. Its Open and Save As dialogs use the FileChooser desktop portal. Distribution packaging and the joe image smoke test are pending. [Development plan](docs/plan.md)

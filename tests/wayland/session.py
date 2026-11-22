@@ -245,7 +245,7 @@ def exercise_monitor(args, scale, stack, app, app_id):
 def main():
     global OUTPUT
     parser = argparse.ArgumentParser()
-    parser.add_argument("--app", choices=["terminal", "files", "text-editor", "system-monitor", "image-viewer"], default="terminal")
+    parser.add_argument("--app", choices=["terminal", "files", "text-editor", "system-monitor", "image-viewer", "calculator"], default="terminal")
     parser.add_argument("--fields", action="store_true", help="exercise two-window activation, password and multiline fields")
     parser.add_argument("--cost", type=Path, help="directory containing the two release cost fixture binaries")
     parser.add_argument("--at-spi", action="store_true")
@@ -300,7 +300,7 @@ seat seat0 fallback true
         os.environ["WAYLAND_DISPLAY"] = display.name
         run("dbus-update-activation-environment", "WAYLAND_DISPLAY", "XDG_CURRENT_DESKTOP")
         if args.at_spi:
-            if args.app in ("terminal", "image-viewer") and not args.cost:
+            if args.app in ("terminal", "image-viewer", "calculator") and not args.cost:
                 launch(stack, "wtype", "-k", "Shift_L", "-s", "300000", log="seat.log")
             from gi.repository import Gio, GLib
             launch(stack, "/usr/lib/at-spi-bus-launcher", "--launch-immediately", log="a11y-bus.log")
@@ -405,6 +405,34 @@ seat seat0 fallback true
                 return "ack_configure" in (OUTPUT / log).read_text(errors="replace")
             return app_id in command("-t", "get_tree")
         until(mapped, f"mapped {suite_app}")
+        if suite_app == "calculator":
+            resize(372, 550)
+            key("Shift_L")
+            if labwc:
+                run("wlrctl", "toplevel", "waitfor", app_id, "state:active")
+            type_text("18.75 + 4.50")
+            key("Return")
+            key("r", "ctrl")
+            type_text(" × 4")
+            key("Return")
+            name = f"calculator-{args.compositor}-{args.profile}.png"
+            compare_screenshot(name, scale)
+            if args.at_spi:
+                inspect_accessibility(stack, app_id, app.pid)
+            else:
+                key("h", "alt")
+                key("Tab")
+                key("Return")
+                key("a", "ctrl")
+                key("c", "ctrl")
+                until(lambda: clipboard() == "23.25", "reuse earlier result")
+                key("h", "alt")
+                key("Tab", "shift")
+                key("Return")
+            key("w", "ctrl")
+            assert app.wait(timeout=8) == 0
+            print(f"Passed {name}, keyboard calculation, result reuse and clear history")
+            return
         if suite_app == "image-viewer":
             resize(720, 440)
             until(lambda: "North Point.jpg — Image Viewer" in (OUTPUT / log).read_text(), "oriented JPEG")
