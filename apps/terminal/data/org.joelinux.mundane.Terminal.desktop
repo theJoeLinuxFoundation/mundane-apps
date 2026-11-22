@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Terminal
+Exec=mundane-terminal
+Icon=utilities-terminal
+Categories=System;TerminalEmulator;
+Terminal=false

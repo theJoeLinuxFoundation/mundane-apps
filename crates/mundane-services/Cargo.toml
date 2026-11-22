@@ -1,0 +1,13 @@
+[package]
+name = "mundane-services"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+async-channel.workspace = true
+alacritty_terminal = { workspace = true, optional = true }
+
+[features]
+terminal = ["dep:alacritty_terminal"]

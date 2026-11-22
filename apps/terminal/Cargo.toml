@@ -1,0 +1,18 @@
+[package]
+name = "mundane-terminal"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+gpui.workspace = true
+gpui_linux.workspace = true
+anyhow.workspace = true
+regex = "1"
+alacritty_terminal.workspace = true
+mundane-ui = { path = "../../crates/mundane-ui" }
+mundane-services = { path = "../../crates/mundane-services", features = ["terminal"] }
+
+[dev-dependencies]
+gpui = { workspace = true, features = ["test-support"] }
