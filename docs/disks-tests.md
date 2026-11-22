@@ -25,3 +25,5 @@ tests/wayland/run --app disks --at-spi
 ```
 
 The fake requires dbus-daemon, Python and PyGObject with Gio. The tests need no administrator privileges.
+
+Round four adds a partition layout and private-bus Eject, PowerOff and Unlock tests. The fake service checks the interactive authorization flag, records no passphrases, rejects a wrong passphrase, and exposes the cleartext child after success. Tests verify dismissal, a mounted or unlocked child blocking removal, disappearance, and the selected identity and capability recheck. Unpartitioned bytes measure gaps in the partition table, including alignment space. UDisks arbitrates whether hardware can be removed. [Drive methods](https://storaged.org/doc/udisks2-api/latest/gdbus-org.freedesktop.UDisks2.Drive.html) · [Encrypted volumes](https://storaged.org/doc/udisks2-api/latest/gdbus-org.freedesktop.UDisks2.Encrypted.html)

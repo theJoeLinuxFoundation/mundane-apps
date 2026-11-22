@@ -455,6 +455,8 @@ seat seat0 fallback true
         if suite_app == "disks":
             fake_disks = RUNTIME / "udisks"
             fake_disks.mkdir()
+            if args.round_four:
+                (fake_disks / "encrypted").touch()
             # Route the release binary's system-bus connection to this test's private daemon.
             os.environ["DBUS_SYSTEM_BUS_ADDRESS"] = os.environ["DBUS_SESSION_BUS_ADDRESS"]
             launch(stack, "python3", str(ROOT / "tests/disks/udisks.py"),
@@ -614,6 +616,9 @@ seat seat0 fallback true
             elif suite_app == "maps":
                 from round_four import maps
                 maps(args.round_four, ROOT, OUTPUT / log, key, type_text, until, compare_screenshot)
+            elif suite_app == "disks":
+                from round_four import disks
+                disks(args.round_four, ROOT, fake_disks, key, type_text, until, compare_screenshot)
             elif suite_app == "fonts":
                 from round_four import fonts
                 fonts(args.round_four, ROOT, OUTPUT / log, key, until, compare_screenshot)

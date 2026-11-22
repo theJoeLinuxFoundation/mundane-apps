@@ -246,3 +246,20 @@ def fonts(side, root, log, key, until, compare):
     if side == "after":
         key("Escape")
         until(lambda: "DejaVu" in log.read_text().split("Survey Fixture · Regular — Fonts")[-1], "returned to installed families")
+
+
+def disks(side, root, service, key, type_text, until, compare):
+    until((service / "listed").exists, "drive inventory")
+    key("Shift_L")
+    key("Home")
+    compare("disks-layout.png", 1, root / "docs/parity/round-4" / side)
+    key("e", "ctrl")
+    compare("disks-remove.png", 1, root / "docs/parity/round-4" / side)
+    if side == "after":
+        key("Return")
+        assert not (service / "powered-off").exists()
+        key("End")
+        key("u", "ctrl")
+        type_text("survey")
+        key("Return")
+        until((service / "unlocked").exists, "UDisks unlocked the encrypted fixture")

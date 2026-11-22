@@ -142,3 +142,12 @@ Open a downloaded font or collection from Files or Ctrl+O, browse its faces and 
 | --- | --- | --- |
 | Preview a download | [Installed families](parity/round-4/before/fonts-file.png) | [Downloaded collection](parity/round-4/after/fonts-file.png) |
 | Install for this user | [Installed families](parity/round-4/before/fonts-installed.png) | [Installation result](parity/round-4/after/fonts-installed.png) |
+
+### Disks
+
+Select a drive or partition table to see the filesystems and unpartitioned regions in disk order. Select a drive to eject its media or power it off according to UDisks capabilities. Removal asks for confirmation with Cancel focused. Select a locked volume and use Unlock (Ctrl+U) to enter its passphrase. Formatting, partition editing and SMART diagnostics remain.
+
+| Task | Before | After |
+| --- | --- | --- |
+| Inspect disk layout | [Device list](parity/round-4/before/disks-layout.png) | [Partition layout](parity/round-4/after/disks-layout.png) |
+| Safely remove hardware | [Drive selected](parity/round-4/before/disks-remove.png) | [Power-off confirmation](parity/round-4/after/disks-remove.png) |

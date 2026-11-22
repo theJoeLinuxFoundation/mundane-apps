@@ -151,3 +151,43 @@ fn select_mount_unmount_and_lose_selection(cx: &mut TestAppContext) {
     ui.simulate_keystrokes("ctrl-m");
     assert_eq!(f.calls(), 2);
 }
+
+#[test]
+fn drive_operations_require_capability_stable_identity_and_idle_volumes() {
+    use mundane_services::disks::Operation;
+    let f = Fixture::new();
+    let d = f.temp.path();
+    fs::write(d.join("encrypted"), "").unwrap();
+    let items = f.client.list().unwrap();
+    let power = items[0]
+        .actions
+        .iter()
+        .find(|a| a.operation == Operation::PowerOff)
+        .unwrap();
+    let eject = items[0]
+        .actions
+        .iter()
+        .find(|a| a.operation == Operation::Eject)
+        .unwrap();
+    let regions = &items[1].regions;
+    assert_eq!(regions.iter().map(|r| r.bytes).sum::<u64>(), items[1].size);
+    assert!(regions.iter().any(|r| r.free));
+    fs::write(d.join("mounted"), "").unwrap();
+    assert!(f.client.perform(power, "").is_err());
+    assert!(!d.join("powered-off").exists());
+    fs::remove_file(d.join("mounted")).unwrap();
+    let unlock = items.last().unwrap().actions.first().unwrap();
+    fs::write(d.join("deny"), "").unwrap();
+    assert!(f.client.perform(unlock, "survey").is_err());
+    fs::remove_file(d.join("deny")).unwrap();
+    assert!(f.client.perform(unlock, "wrong").is_err());
+    f.client.perform(unlock, "survey").unwrap();
+    assert!(f.client.perform(power, "").is_err());
+    assert!(f.client.perform(unlock, "survey").is_err());
+    fs::remove_file(d.join("unlocked")).unwrap();
+    f.client.perform(eject, "").unwrap();
+    assert!(f.client.perform(power, "").is_err());
+    fs::remove_file(d.join("ejected")).unwrap();
+    f.client.perform(power, "").unwrap();
+    assert!(d.join("powered-off").exists());
+}

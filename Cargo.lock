@@ -3240,6 +3240,7 @@ dependencies = [
 name = "mundane-disks"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "gpui",
  "mundane-services",
  "mundane-ui",

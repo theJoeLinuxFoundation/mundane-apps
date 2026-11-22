@@ -1,13 +1,19 @@
+mod operations;
 use gpui::{prelude::*, *};
 use mundane_services::disks::{Item, UDisks, Volume};
 use mundane_ui::{
     BrowserList, BrowserRow, ControlRole, Role, Theme, WindowHeader, browser_key, browser_window,
     button, byte_size, unavailable,
 };
+use operations::Prompt;
 use std::time::Duration;
 
 struct Disks {
     service: UDisks,
+    prompt: Option<Prompt>,
+    operations: [FocusHandle; 3],
+    cancel: FocusHandle,
+    unlock_button: FocusHandle,
     items: Vec<Item>,
     list: BrowserList,
     header: WindowHeader,
@@ -21,10 +27,15 @@ struct Disks {
 }
 impl Disks {
     fn new(service: UDisks, w: &mut Window, cx: &mut Context<Self>) -> Self {
+        mundane_ui::bind_text_keys(cx);
         let list = BrowserList::new(cx);
         list.focus.focus(w, cx);
         let mut this = Self {
             service,
+            prompt: None,
+            operations: std::array::from_fn(|_| cx.focus_handle().tab_stop(true)),
+            cancel: cx.focus_handle().tab_stop(true),
+            unlock_button: cx.focus_handle().tab_stop(true),
             items: vec![],
             list,
             header: WindowHeader::new(cx),
@@ -140,6 +151,17 @@ impl Disks {
         if self.changing || self.selected() != Some(&target) {
             return;
         }
+        self.run_change(move |s| s.change(&target), w, cx);
+    }
+    fn run_change(
+        &mut self,
+        operation: impl FnOnce(&UDisks) -> anyhow::Result<String> + Send + 'static,
+        w: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if self.changing {
+            return;
+        }
         self.changing = true;
         self.generation += 1;
         self.error = None;
@@ -147,7 +169,7 @@ impl Disks {
         cx.notify();
         let service = self.service.clone();
         let task = cx.background_executor().spawn(async move {
-            let reply = service.change(&target);
+            let reply = operation(&service);
             let snapshot = service.list();
             (reply, snapshot)
         });
@@ -183,7 +205,48 @@ impl Disks {
     }
     fn keys(&mut self, e: &KeyDownEvent, w: &mut Window, cx: &mut Context<Self>) {
         let k = &e.keystroke;
+        if let Some(prompt) = &self.prompt {
+            if let Prompt::Unlock(_, field) = prompt {
+                match k.key.as_str() {
+                    "escape" => {
+                        self.prompt = None;
+                        self.list.focus.focus(w, cx);
+                        cx.notify();
+                    }
+                    "enter" if field.focus_handle(cx).is_focused(w) => self.unlock(w, cx),
+                    "tab" => {
+                        let order = [
+                            field.focus_handle(cx),
+                            self.cancel.clone(),
+                            self.unlock_button.clone(),
+                        ];
+                        let i = order.iter().position(|f| f.is_focused(w)).unwrap_or(0);
+                        order[(i + if k.modifiers.shift { 2 } else { 1 }) % 3].focus(w, cx);
+                    }
+                    _ => return,
+                }
+                w.prevent_default();
+                cx.stop_propagation()
+            }
+            return;
+        }
         match (k.key.as_str(), k.modifiers.control) {
+            ("e" | "u", true) => {
+                if let Some(action) = self
+                    .list
+                    .selected
+                    .and_then(|i| self.items.get(i))
+                    .and_then(|n| {
+                        n.actions.iter().find(|a| {
+                            (a.operation == mundane_services::disks::Operation::Unlock)
+                                == (k.key == "u")
+                        })
+                    })
+                    .cloned()
+                {
+                    self.ask(action, w, cx)
+                }
+            }
             ("m", true) => {
                 if let Some(t) = self.selected().cloned() {
                     self.change(t, w, cx)
@@ -234,6 +297,36 @@ impl Render for Disks {
             }),
             !enabled,
         );
+        let selected = self.list.selected.and_then(|i| self.items.get(i));
+        let mut controls = div().flex().gap_2().child(change);
+        if let Some(item) = selected {
+            for (i, target) in item.actions.iter().cloned().enumerate() {
+                let v = cx.weak_entity();
+                controls = controls.child(unavailable(
+                    button(
+                        target.operation.label(),
+                        &self.operations[i],
+                        theme,
+                        move |w, cx| {
+                            let _ = v.update(cx, |this, cx| this.ask(target.clone(), w, cx));
+                        },
+                    ),
+                    self.changing,
+                ));
+            }
+        }
+        let table = self.list.selected.and_then(|i| {
+            if !self.items[i].regions.is_empty() {
+                return self.items.get(i);
+            }
+            if self.items[i].depth == 0 {
+                return self.items[i + 1..]
+                    .iter()
+                    .take_while(|n| n.depth > 0)
+                    .find(|n| !n.regions.is_empty());
+            }
+            None
+        });
         let status = self.error.as_ref().cloned().unwrap_or_else(|| {
             if !self.notice.is_empty() {
                 self.notice.clone()
@@ -285,8 +378,38 @@ impl Render for Disks {
                         mundane_ui::heading("storage-heading", "Storage devices")
                             .font_weight(FontWeight::SEMIBOLD),
                     )
-                    .child(change),
+                    .child(controls),
             )
+            .when_some(table, |el, table| {
+                let mut bar = div().h(rems(1.)).w_full().flex().overflow_hidden();
+                let mut legend = vec![];
+                for r in &table.regions {
+                    let color = if r.free {
+                        theme.panel
+                    } else if legend.len() % 2 == 0 {
+                        theme.focus
+                    } else {
+                        theme.selection
+                    };
+                    bar = bar.child(
+                        div()
+                            .h_full()
+                            .w(relative(r.bytes as f32 / table.size.max(1) as f32))
+                            .bg(rgb(color))
+                            .border_1()
+                            .border_color(rgb(theme.border)),
+                    );
+                    legend.push(format!("{} {}", r.label, byte_size(r.bytes)));
+                }
+                let label = legend.join(" · ");
+                el.child(
+                    div().px_3().py_2().child(bar).child(
+                        mundane_ui::text_label("partition-layout", label.clone())
+                            .text_sm()
+                            .child(label),
+                    ),
+                )
+            })
             .child(list)
             .child(
                 Role::Status
@@ -296,6 +419,7 @@ impl Render for Disks {
                     .bg(rgb(theme.panel))
                     .child(status),
             )
+            .child(self.overlay(cx))
     }
 }
 fn main() {

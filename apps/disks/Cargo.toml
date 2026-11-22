@@ -6,6 +6,7 @@ license.workspace = true
 publish.workspace = true
 
 [dependencies]
+anyhow.workspace = true
 gpui.workspace = true
 mundane-ui = { path = "../../crates/mundane-ui" }
 mundane-services = { path = "../../crates/mundane-services", features = ["disks"] }

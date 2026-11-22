@@ -1,4 +1,4 @@
-//! Inventory and the two user-initiated UDisks filesystem operations.
+//! UDisks inventory and user-reviewed storage operations.
 use anyhow::{Context, Result, bail, ensure};
 use std::{collections::HashMap, ffi::OsString, os::unix::ffi::OsStringExt, path::PathBuf};
 use zbus::{
@@ -13,6 +13,8 @@ const ROOT: &str = "/org/freedesktop/UDisks2";
 const DRIVE: &str = "org.freedesktop.UDisks2.Drive";
 const BLOCK: &str = "org.freedesktop.UDisks2.Block";
 const PART: &str = "org.freedesktop.UDisks2.Partition";
+const ENCRYPTED: &str = "org.freedesktop.UDisks2.Encrypted";
+const TABLE: &str = "org.freedesktop.UDisks2.PartitionTable";
 const FS: &str = "org.freedesktop.UDisks2.Filesystem";
 type Props = HashMap<String, OwnedValue>;
 
@@ -40,6 +42,38 @@ impl Volume {
             && self.partition_uuid == other.partition_uuid
     }
 }
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Operation {
+    PowerOff,
+    Eject,
+    Unlock,
+}
+impl Operation {
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::PowerOff => "Power off",
+            Self::Eject => "Eject",
+            Self::Unlock => "Unlock",
+        }
+    }
+}
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct DeviceAction {
+    pub operation: Operation,
+    path: String,
+    owner: String,
+    id: String,
+    detected: u64,
+    device_number: u64,
+    sibling: String,
+}
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Region {
+    pub label: String,
+    pub bytes: u64,
+    pub free: bool,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Item {
     pub path: String,
@@ -48,6 +82,9 @@ pub struct Item {
     pub size: u64,
     pub depth: usize,
     pub volume: Option<Volume>,
+    pub actions: Vec<DeviceAction>,
+    pub regions: Vec<Region>,
+    unlocked: bool,
     parent: Option<String>,
     offset: u64,
 }
@@ -72,6 +109,63 @@ impl UDisks {
     }
     pub fn list(&self) -> Result<Vec<Item>> {
         inventory(&self.connect()?)
+    }
+    pub fn perform(&self, target: &DeviceAction, passphrase: &str) -> Result<String> {
+        let conn = self.connect()?;
+        let items = inventory(&conn)?;
+        ensure!(
+            items.iter().any(|n| n.actions.contains(target)),
+            "The selected device or its capabilities changed."
+        );
+        let opts: HashMap<&str, Value<'_>> = HashMap::new();
+        let flags = MethodFlags::AllowInteractiveAuth.into();
+        if target.operation == Operation::Unlock {
+            ensure!(!passphrase.is_empty(), "Enter a passphrase.");
+            let proxy = Proxy::new(
+                &conn,
+                target.owner.as_str(),
+                target.path.as_str(),
+                ENCRYPTED,
+            )?;
+            let result = proxy.call_with_flags::<_, _, zbus::zvariant::OwnedObjectPath>(
+                "Unlock",
+                flags,
+                &(passphrase, opts),
+            );
+            return operation_result(result.map(|v| v.map(|_| "Volume unlocked.".into())));
+        }
+        for (i, item) in items.iter().enumerate() {
+            let affected = item.path == target.path
+                || (target.operation == Operation::PowerOff
+                    && !target.sibling.is_empty()
+                    && item.actions.iter().any(|a| a.sibling == target.sibling));
+            if affected {
+                let busy = items[i + 1..]
+                    .iter()
+                    .take_while(|n| n.depth > item.depth)
+                    .any(|n| {
+                        n.unlocked
+                            || n.volume
+                                .as_ref()
+                                .is_some_and(|v| !v.mount_points.is_empty())
+                    });
+                ensure!(
+                    !busy,
+                    "A volume on this device is mounted or unlocked. Release it first."
+                );
+            }
+        }
+        let proxy = Proxy::new(&conn, target.owner.as_str(), target.path.as_str(), DRIVE)?;
+        let (method, message) = match target.operation {
+            Operation::PowerOff => ("PowerOff", "Drive powered off."),
+            Operation::Eject => ("Eject", "Media ejected."),
+            _ => unreachable!(),
+        };
+        operation_result(
+            proxy
+                .call_with_flags::<_, _, ()>(method, flags, &(opts,))
+                .map(|v| v.map(|()| message.into())),
+        )
     }
     pub fn change(&self, selected: &Volume) -> Result<String> {
         let conn = self.connect()?;
@@ -98,29 +192,30 @@ impl UDisks {
                 .call_with_flags::<_, _, ()>("Unmount", flags, &(opts,))
                 .map(|r| r.map(|()| "Volume unmounted.".into()))
         };
-        match result {
-            Ok(Some(msg)) => Ok(msg),
-            Ok(None) => bail!("No UDisks reply."),
-            Err(zbus::Error::MethodError(name, detail, _)) => {
-                let message = match name.as_str() {
-                    "org.freedesktop.UDisks2.Error.NotAuthorizedDismissed" => {
-                        "Authorization dismissed."
-                    }
-                    "org.freedesktop.UDisks2.Error.NotAuthorized"
-                    | "org.freedesktop.UDisks2.Error.NotAuthorizedCanObtain" => {
-                        "Authorization denied."
-                    }
-                    "org.freedesktop.DBus.Error.UnknownObject"
-                    | "org.freedesktop.DBus.Error.UnknownInterface" => {
-                        "The selected volume is no longer available."
-                    }
-                    "org.freedesktop.UDisks2.Error.DeviceBusy" => "The volume is busy.",
-                    _ => "UDisks could not complete the operation.",
-                };
-                bail!("{message} {}", detail.as_deref().unwrap_or(""))
-            }
-            Err(e) => Err(e.into()),
+        operation_result(result)
+    }
+}
+fn operation_result(result: zbus::Result<Option<String>>) -> Result<String> {
+    match result {
+        Ok(Some(msg)) => Ok(msg),
+        Ok(None) => bail!("No UDisks reply."),
+        Err(zbus::Error::MethodError(name, detail, _)) => {
+            let message = match name.as_str() {
+                "org.freedesktop.UDisks2.Error.NotAuthorizedDismissed" => {
+                    "Authorization dismissed."
+                }
+                "org.freedesktop.UDisks2.Error.NotAuthorized"
+                | "org.freedesktop.UDisks2.Error.NotAuthorizedCanObtain" => "Authorization denied.",
+                "org.freedesktop.DBus.Error.UnknownObject"
+                | "org.freedesktop.DBus.Error.UnknownInterface" => {
+                    "The selected volume is no longer available."
+                }
+                "org.freedesktop.UDisks2.Error.DeviceBusy" => "The volume is busy.",
+                _ => "UDisks could not complete the operation.",
+            };
+            bail!("{message} {}", detail.as_deref().unwrap_or(""))
         }
+        Err(e) => Err(e.into()),
     }
 }
 fn string(p: &Props, key: &str) -> String {
@@ -193,6 +288,24 @@ fn inventory(conn: &Connection) -> Result<Vec<Item>> {
                 parent: None,
                 offset: 0,
                 volume: None,
+                unlocked: false,
+                regions: vec![],
+                actions: [
+                    ("CanPowerOff", Operation::PowerOff),
+                    ("Ejectable", Operation::Eject),
+                ]
+                .into_iter()
+                .filter(|(key, _)| p.get(*key).and_then(|v| bool::try_from(v).ok()) == Some(true))
+                .map(|(_, operation)| DeviceAction {
+                    operation,
+                    path: path.to_string(),
+                    owner: owner.clone(),
+                    id: string(p, "Id"),
+                    detected: number(p, "TimeDetected").max(number(p, "TimeMediaDetected")),
+                    device_number: 0,
+                    sibling: string(p, "SiblingId"),
+                })
+                .collect(),
             });
             continue;
         }
@@ -272,7 +385,59 @@ fn inventory(conn: &Connection) -> Result<Vec<Item>> {
         } else {
             None
         };
-        if let Some(table) = ifaces.get("org.freedesktop.UDisks2.PartitionTable") {
+        let crypto = ifaces.get(ENCRYPTED);
+        let unlocked = crypto.is_some_and(|p| object(p, "CleartextDevice").is_some());
+        let mut actions = vec![];
+        if crypto.is_some() {
+            detail.push(if unlocked { "Unlocked" } else { "Locked" }.into());
+            if !unlocked {
+                actions.push(DeviceAction {
+                    operation: Operation::Unlock,
+                    path: path.to_string(),
+                    owner: owner.clone(),
+                    id: format!(
+                        "{}:{}",
+                        string(p, "IdUUID"),
+                        part.map(|p| string(p, "UUID")).unwrap_or_default()
+                    ),
+                    detected: drive_props
+                        .map(|p| number(p, "TimeMediaDetected").max(number(p, "TimeDetected")))
+                        .unwrap_or(0),
+                    device_number: number(p, "DeviceNumber"),
+                    sibling: String::new(),
+                });
+            }
+        }
+        let mut regions = vec![];
+        if let Some(table) = ifaces.get(TABLE) {
+            let mut spans = Vec::new();
+            for (_, interfaces) in &objects {
+                if let Some(part) = interfaces.get(PART)
+                    && object(part, "Table").as_deref() == Some(path.as_str())
+                    && !part
+                        .get("IsContainer")
+                        .and_then(|v| bool::try_from(v).ok())
+                        .unwrap_or(false)
+                    && let Some(block) = interfaces.get(BLOCK)
+                {
+                    let start = number(part, "Offset");
+                    let size = part
+                        .get("Size")
+                        .and_then(|v| u64::try_from(v).ok())
+                        .unwrap_or_else(|| number(block, "Size"));
+                    let kind = string(block, "IdType");
+                    spans.push((
+                        start,
+                        size,
+                        if kind.is_empty() {
+                            "Partition".into()
+                        } else {
+                            kind
+                        },
+                    ));
+                }
+            }
+            regions = partition_regions(number(p, "Size"), spans);
             detail.push(format!(
                 "{} partition table",
                 string(table, "Type").to_uppercase()
@@ -280,12 +445,18 @@ fn inventory(conn: &Connection) -> Result<Vec<Item>> {
         }
         items.push(Item {
             path: path.to_string(),
-            parent: part.and_then(|p| object(p, "Table")).or(drive),
+            parent: part
+                .and_then(|p| object(p, "Table"))
+                .or_else(|| object(p, "CryptoBackingDevice"))
+                .or(drive),
             label,
             detail: detail.join(" · "),
             size: number(p, "Size"),
             depth: 0,
             volume,
+            actions,
+            unlocked,
+            regions,
             offset: part.map(|p| number(p, "Offset")).unwrap_or(0),
         })
     }
@@ -323,4 +494,38 @@ fn inventory(conn: &Connection) -> Result<Vec<Item>> {
         "Inconsistent UDisks device hierarchy."
     );
     Ok(result)
+}
+
+fn partition_regions(size: u64, mut spans: Vec<(u64, u64, String)>) -> Vec<Region> {
+    spans.sort();
+    let mut regions = vec![];
+    let mut cursor = 0;
+    for (offset, len, label) in spans {
+        let start = offset.min(size);
+        let end = offset.saturating_add(len).min(size);
+        if start > cursor {
+            regions.push(Region {
+                label: "Unpartitioned".into(),
+                bytes: start - cursor,
+                free: true,
+            });
+        }
+        let left = cursor.max(start);
+        if end > left {
+            regions.push(Region {
+                label,
+                bytes: end - left,
+                free: false,
+            });
+        }
+        cursor = cursor.max(end);
+    }
+    if size > cursor {
+        regions.push(Region {
+            label: "Unpartitioned".into(),
+            bytes: size - cursor,
+            free: true,
+        });
+    }
+    regions
 }
