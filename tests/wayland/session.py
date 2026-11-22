@@ -246,7 +246,7 @@ def exercise_monitor(args, scale, stack, app, app_id):
 def main():
     global OUTPUT
     parser = argparse.ArgumentParser()
-    parser.add_argument("--app", choices=["terminal", "files", "text-editor", "system-monitor", "image-viewer", "calculator", "document-viewer", "video", "packages", "music", "archive-manager", "disk-usage", "disks"], default="terminal")
+    parser.add_argument("--app", choices=["terminal", "files", "text-editor", "system-monitor", "image-viewer", "calculator", "document-viewer", "video", "packages", "music", "archive-manager", "disk-usage", "disks", "clocks"], default="terminal")
     parser.add_argument("--missing-video-decoder", action="store_true", help="inspect Video with the vpx plugin absent")
     parser.add_argument("--fields", action="store_true", help="exercise two-window activation, password and multiline fields")
     parser.add_argument("--cost", type=Path, help="directory containing the two release cost fixture binaries")
@@ -306,7 +306,7 @@ seat seat0 fallback true
         display = until(lambda: next((p for p in RUNTIME.glob("wayland-*") if p.is_socket()), None), "private Wayland socket")
         os.environ["WAYLAND_DISPLAY"] = display.name
         run("dbus-update-activation-environment", "WAYLAND_DISPLAY", "XDG_CURRENT_DESKTOP")
-        if args.app in ("packages", "music", "archive-manager", "disk-usage", "disks") or (args.at_spi and args.app in (
+        if args.app in ("packages", "music", "archive-manager", "disk-usage", "disks", "clocks") or (args.at_spi and args.app in (
                 "terminal", "image-viewer", "calculator", "document-viewer", "video") and not args.cost):
             launch(stack, "wtype", "-k", "Shift_L", "-s", "300000", log="seat.log")
         if args.at_spi:
@@ -381,6 +381,10 @@ seat seat0 fallback true
         suite_app = args.app
         app_id = f"org.joelinux.mundane.{suite_app.title().replace('-', '')}"
         argv = [str(Path(os.environ.get(f"MUNDANE_{suite_app.upper().replace('-', '_')}_BIN", ROOT / f"target/debug/mundane-{suite_app}")).resolve())]
+        if suite_app == "clocks":
+            argv = [str(Path(argv[0]).parent / "examples/clocks-fixture")]
+            launch(stack, "python3", str(ROOT / "tests/clocks/notifications.py"), log="notifications.log")
+            until((RUNTIME / "notify-ready").exists, "private notification service")
         if suite_app == "disks":
             fake_disks = RUNTIME / "udisks"
             fake_disks.mkdir()
@@ -476,6 +480,32 @@ seat seat0 fallback true
                 return "ack_configure" in (OUTPUT / log).read_text(errors="replace")
             return app_id in command("-t", "get_tree")
         until(mapped, f"mapped {suite_app}")
+        if suite_app == "clocks":
+            key("Shift_L")
+            if labwc:
+                run("wlrctl", "toplevel", "waitfor", app_id, "state:active")
+            key("n", "ctrl")
+            type_text("New York")
+            key("Return")
+            cities = Path(os.environ["XDG_CONFIG_HOME"]) / "mundane-clocks/cities"
+            until(lambda: cities.exists() and "America/New_York" in cities.read_text(), "saved New York")
+            if args.profile == "contrast":
+                key("equal", "ctrl")
+            name = f"clocks-{args.compositor}-{args.profile}.png"
+            compare_screenshot(name, scale)
+            if args.at_spi:
+                inspect_accessibility(stack, app_id, app.pid)
+            key("t", "ctrl")
+            key("a", "ctrl")
+            type_text("1")
+            key("Return")
+            until((RUNTIME / "notified").exists, "countdown notification")
+            key("Return")
+            until((RUNTIME / "dismissed").exists, "dismissed notification")
+            key("w", "ctrl")
+            assert app.wait(timeout=8) == 0
+            print(f"Passed {name}, city search, timer expiry and dismissal")
+            return
         if suite_app == "disks":
             until((fake_disks / "listed").exists, "UDisks inventory")
             key("Shift_L")

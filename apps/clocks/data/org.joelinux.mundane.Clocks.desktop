@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Clocks
+Exec=mundane-clocks
+Icon=preferences-system-time
+Categories=Utility;Clock;
+Terminal=false

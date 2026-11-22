@@ -205,6 +205,7 @@ expected = {"Terminal": ["Find in Terminal", "Find match", "Find text"],
             "Packages": ["Review package changes", "Install chartroom", "Cancel", "Apply changes"],
             "ArchiveManager": ["Archive entries", "Extract selected…", "Extract all…", "2 marked"],
             "DiskUsage": ["Folder contents", "Private records", "Show allocated space", "Rescan"],
+            "Clocks": ["Saved cities", "UTC", "New York", "Add city", "Timer"],
             "Disks": ["Drives and volumes", "Survey", "Unmount", "Refresh"],
             "Music": ["Harbour Lights", "Play", "Playback position", "Add tracks…", "Next track"],
             "Video": ["Coastal passage.webm", "Play", "Playback position", "Playback status"],
@@ -238,6 +239,9 @@ if suite == "DiskUsage":
     assert "permission denied" in row.get_description()
     assert "512.0 KiB" in named(root, "Charts").get_description()
     assert any("Incomplete scan" in n.get_name() for n in walk(root))
+if suite == "Clocks":
+    assert "03:00" in named(root, "New York").get_description()
+    assert "07:00" in named(root, "UTC").get_description()
 if suite == "Disks":
     row = named(root, "Survey")
     assert row.get_state_set().contains(Atspi.StateType.SELECTED)

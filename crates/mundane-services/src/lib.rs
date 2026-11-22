@@ -23,3 +23,6 @@ pub mod usage;
 
 #[cfg(feature = "disks")]
 pub mod disks;
+
+#[cfg(feature = "clocks")]
+pub mod clocks;

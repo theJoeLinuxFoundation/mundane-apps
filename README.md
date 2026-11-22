@@ -147,6 +147,10 @@ Open a folder with Ctrl+O to see where its space goes. Enter or double-click ope
 
 Browse drives and partitions with Up and Down. Select a filesystem to see its mount state. The **Mount** or **Unmount** button, also available with Ctrl+M, asks UDisks to perform the operation under the system’s polkit policy. F5 refreshes the device list. [UDisks integration and tests](docs/disks-tests.md)
 
+## Clocks
+
+Use **Add city** (Ctrl+N) to find a world clock by city or IANA time zone. Open **Timer** (Ctrl+T) to start a countdown in seconds, m:ss or h:mm:ss. Escape returns to the saved cities. [Clocks tests](docs/clocks-tests.md)
+
 ## Building
 
 Use a Rust toolchain with Cargo, a C/C++ toolchain, pkg-config, and the Linux development files for Wayland, xkbcommon and fontconfig. The release build was tested with Rust 1.100 on x86-64 Linux. Run Terminal in a Wayland session with Mesa, a Vulkan driver, installed fonts and xterm-256color terminfo.
@@ -166,6 +170,7 @@ cargo build --workspace --release --locked
 ./target/release/mundane-archive-manager "tests/fixtures/archive/Coastal survey.zip"
 ./target/release/mundane-disk-usage tests/fixtures
 ./target/release/mundane-disks
+./target/release/mundane-clocks
 ```
 
 Files uses the OpenURI desktop portal or GIO's default handler, GIO Trash, and GNU coreutils for recursive copies and cross-filesystem moves. Its desktop entry handles local directories. Text Editor accepts a local path and declares `text/plain`. Its Open and Save As dialogs use the FileChooser desktop portal. Distribution packaging and the joe image smoke test are pending. [Development plan](docs/plan.md)
