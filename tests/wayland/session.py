@@ -265,6 +265,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--app", choices=["terminal", "files", "text-editor", "system-monitor", "image-viewer", "calculator", "document-viewer", "video", "packages", "music", "archive-manager", "disk-usage", "disks", "clocks", "characters", "fonts", "weather", "maps"], default="terminal")
     parser.add_argument("--appearance", action="store_true", help="run the suite-wide live Settings portal test")
+    parser.add_argument("--parity", choices=["before", "after"], help="compare the daily-use scenario for this app")
     parser.add_argument("--polish", action="store_true", help="compare the user-facing polish states on headless Sway")
     parser.add_argument("--missing-video-decoder", action="store_true", help="inspect Video with the vpx plugin absent")
     parser.add_argument("--fields", action="store_true", help="exercise two-window activation, password and multiline fields")
@@ -476,6 +477,12 @@ seat seat0 fallback true
             os.environ["GSETTINGS_BACKEND"] = "keyfile"
             run("gsettings", "set", "org.gnome.desktop.interface", "icon-theme", "Papirus")
             folder = create_files_fixture()
+            if args.parity:
+                config_dir = Path(os.environ["XDG_CONFIG_HOME"])
+                (config_dir / "user-dirs.dirs").write_text('XDG_DOCUMENTS_DIR="$HOME/Documents"\n')
+                bookmarks = config_dir / "gtk-3.0/bookmarks"
+                bookmarks.parent.mkdir(exist_ok=True)
+                bookmarks.write_text((folder / "Archive").as_uri() + " Survey archive\n")
             if labwc:
                 launch(stack, "python3", str(HERE / "open_portal.py"), log=f"portal-{args.profile}.log")
                 until((RUNTIME / "portal-ready").exists, "private OpenURI portal")
@@ -516,6 +523,8 @@ seat seat0 fallback true
             bad = {"image-viewer":"Damaged.png", "document-viewer":"Damaged.pdf", "video":"Damaged.webm"}[suite_app]
             (Path.home() / bad).write_bytes(b"Incomplete file")
             argv[-1] = bad
+        if args.parity and suite_app == "terminal":
+            (Path.home() / "Documents").mkdir(exist_ok=True)
         log = f"{suite_app}-{args.compositor}-{args.profile}.log"
         app = launch(stack, *argv,
                      log=log, env={**os.environ, "WAYLAND_DEBUG": "client"})
@@ -526,9 +535,14 @@ seat seat0 fallback true
                 return "ack_configure" in (OUTPUT / log).read_text(errors="replace")
             return app_id in command("-t", "get_tree")
         until(mapped, f"mapped {suite_app}")
+        if args.parity:
+            from parity import exercise
+            exercise(suite_app, args.parity == "before", folder if suite_app == "files" else None,
+                     key, type_text, until, compare_screenshot, ROOT, OUTPUT / log)
+            return
         if args.polish:
             def shot(state):
-                compare_screenshot(suite_app + "-" + state + ".png", scale, ROOT / "docs/polish/after")
+                compare_screenshot(suite_app + "-" + state + ".png", scale, HERE if suite_app == "files" else ROOT / "docs/polish/after")
             key("Shift_L")
             if suite_app == "files":
                 resize(720, 440)

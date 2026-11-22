@@ -1,6 +1,7 @@
 use mundane_ui::ControlRole as _;
 mod dialogs;
 mod listing;
+mod navigation;
 #[cfg(test)]
 mod tests;
 
@@ -104,6 +105,8 @@ impl Command {
 }
 
 struct Files {
+    nav: navigation::Navigation,
+    search_focus: FocusHandle,
     path: PathBuf,
     entries: Vec<Entry>,
     selected: Option<usize>,
@@ -127,6 +130,8 @@ impl Files {
         let list_focus = cx.focus_handle().tab_stop(true);
         list_focus.focus(window, cx);
         let mut this = Self {
+            nav: navigation::Navigation::new(cx),
+            search_focus: cx.focus_handle().tab_stop(true),
             path: path.clone(),
             entries: vec![],
             selected: None,
@@ -144,11 +149,13 @@ impl Files {
             dialog: None,
             previews: Previews::default(),
         };
+        this.refresh_places(cx);
         this.load(path, None, cx);
         this
     }
 
     fn load(&mut self, path: PathBuf, prefer: Option<PathBuf>, cx: &mut Context<Self>) {
+        self.nav.reset();
         self.generation += 1;
         let generation = self.generation;
         let hidden = self.show_hidden;
@@ -179,6 +186,7 @@ impl Files {
                             .or_else(|| (!entries.is_empty()).then_some(0));
                         this.entries = entries;
                         this.path = path;
+                        this.select_place();
                         this.scroll = UniformListScrollHandle::new();
                         if let Some(i) = this.selected {
                             this.scroll.scroll_to_item(i, ScrollStrategy::Nearest);
@@ -343,14 +351,25 @@ impl Files {
                     self.message = None;
                 }
                 "f6" => self.location_focus.focus(window, cx),
-                "f5" if !self.working => self.load(
-                    self.path.clone(),
-                    self.selected().map(|e| e.path.clone()),
-                    cx,
-                ),
+                "f5" if !self.working => {
+                    self.refresh_places(cx);
+                    if let Some(q) = self.nav.query.clone() {
+                        self.search(q, cx)
+                    } else {
+                        self.load(
+                            self.path.clone(),
+                            self.selected().map(|e| e.path.clone()),
+                            cx,
+                        )
+                    }
+                }
                 "h" if key.modifiers.control && !self.working => {
                     self.show_hidden = !self.show_hidden;
-                    self.load(self.path.clone(), None, cx);
+                    if let Some(q) = self.nav.query.clone() {
+                        self.search(q, cx)
+                    } else {
+                        self.load(self.path.clone(), None, cx);
+                    }
                 }
                 _ => return,
             }
@@ -420,7 +439,11 @@ impl Render for Files {
             .track_scroll(&self.scroll)
             .size_full();
         let footer = if self.loading {
-            "Loading folder…".to_string()
+            if self.nav.query.is_some() {
+                "Searching…".to_string()
+            } else {
+                "Loading folder…".to_string()
+            }
         } else if self.working {
             "Working…".into()
         } else {
@@ -436,6 +459,13 @@ impl Render for Files {
                 )
             })
         };
+        let view = cx.weak_entity();
+        let sidebar = self
+            .nav
+            .places
+            .render("Places", theme, window, move |i, _, w, cx| {
+                let _ = view.update(cx, |v, cx| v.open_place(i, w, cx));
+            });
         let body = self
             .content
             .render(self.dialog.is_some())
@@ -445,6 +475,7 @@ impl Render for Files {
             .font_family("DejaVu Sans")
             .bg(rgb(theme.surface))
             .text_color(rgb(theme.text))
+            .on_key_down(cx.listener(Self::navigation_key))
             .on_key_down(|event, window, cx| {
                 if event.keystroke.key == "w" && event.keystroke.modifiers.control {
                     window.remove_window();
@@ -458,13 +489,43 @@ impl Render for Files {
                     cx.stop_propagation();
                 }
             })
-            .child(self.header.render(
-                "Files",
-                self.tool(Command::Location, &self.location_focus, cx),
-                &self.list_focus,
-                theme,
-                window,
-            ))
+            .child(
+                self.header.render(
+                    "Files",
+                    div()
+                        .flex()
+                        .gap_1()
+                        .child(button(
+                            if self.nav.query.is_some() {
+                                "End search"
+                            } else {
+                                "Search"
+                            },
+                            &self.search_focus,
+                            theme,
+                            {
+                                let v = cx.weak_entity();
+                                move |w, cx| {
+                                    let _ = v.update(cx, |v, cx| {
+                                        if v.working {
+                                            return;
+                                        }
+                                        if v.nav.query.is_some() {
+                                            v.load(v.path.clone(), None, cx);
+                                            v.list_focus.focus(w, cx)
+                                        } else {
+                                            v.prompt(Prompt::Search, w, cx)
+                                        }
+                                    });
+                                }
+                            },
+                        ))
+                        .child(self.tool(Command::Location, &self.location_focus, cx)),
+                    &self.list_focus,
+                    theme,
+                    window,
+                ),
+            )
             .child(
                 div()
                     .px_3()
@@ -473,31 +534,68 @@ impl Render for Files {
                     .flex_col()
                     .gap_2()
                     .bg(rgb(theme.panel))
-                    .child(
-                        div()
-                            .truncate()
-                            .font_weight(FontWeight::SEMIBOLD)
-                            .child(location_label(&self.path)),
-                    )
+                    .child(div().truncate().font_weight(FontWeight::SEMIBOLD).child(
+                        if let Some(q) = &self.nav.query {
+                            format!("Search for “{q}” in {}", location_label(&self.path))
+                        } else {
+                            location_label(&self.path)
+                        },
+                    ))
                     .child(tools),
             )
             .child(
-                focus_ring(
-                    mundane_ui::Role::ListBox
-                        .control("folder", "Folder contents")
-                        .aria_size_of_set(self.entries.len()),
-                    &self.list_focus,
-                    theme,
-                )
-                .min_h_0()
-                .flex_1()
-                .overflow_hidden()
-                .on_key_down(cx.listener(Self::keys))
-                .when(
-                    self.entries.is_empty() && !self.loading && self.message.is_none(),
-                    |el| el.child(div().p_3().child("This folder is empty.")),
-                )
-                .child(list),
+                div()
+                    .flex()
+                    .min_h_0()
+                    .flex_1()
+                    .when(self.nav.visible, |row| {
+                        row.child(
+                            div()
+                                .w(relative(0.27))
+                                .max_w(rems(13.))
+                                .flex_none()
+                                .flex()
+                                .flex_col()
+                                .bg(rgb(theme.panel))
+                                .child(sidebar)
+                                .child(mundane_ui::unavailable(
+                                    button(
+                                        if self.nav.bookmarks.contains(&self.path) {
+                                            "Remove bookmark"
+                                        } else {
+                                            "Bookmark folder"
+                                        },
+                                        &self.nav.bookmark_focus,
+                                        theme,
+                                        {
+                                            let v = cx.weak_entity();
+                                            move |_, cx| {
+                                                let _ = v.update(cx, |v, cx| v.bookmark(cx));
+                                            }
+                                        },
+                                    ),
+                                    self.working || self.loading,
+                                )),
+                        )
+                    })
+                    .child(
+                        focus_ring(
+                            mundane_ui::Role::ListBox
+                                .control("folder", "Folder contents")
+                                .aria_size_of_set(self.entries.len()),
+                            &self.list_focus,
+                            theme,
+                        )
+                        .min_h_0()
+                        .flex_1()
+                        .overflow_hidden()
+                        .on_key_down(cx.listener(Self::keys))
+                        .when(
+                            self.entries.is_empty() && !self.loading && self.message.is_none(),
+                            |el| el.child(div().p_3().child("This folder is empty.")),
+                        )
+                        .child(list),
+                    ),
             )
             .child(
                 mundane_ui::Role::Status

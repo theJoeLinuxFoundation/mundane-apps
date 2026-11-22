@@ -6,6 +6,7 @@ use mundane_ui::{TextField, button};
 use std::path::{Path, PathBuf};
 
 pub(super) enum Prompt {
+    Search,
     Location,
     Rename(PathBuf),
     Trash(PathBuf),
@@ -30,6 +31,10 @@ fn name(path: &Path) -> String {
 impl Files {
     pub(super) fn prompt(&mut self, prompt: Prompt, window: &mut Window, cx: &mut Context<Self>) {
         let value = match &prompt {
+            Prompt::Search => Some((
+                "File name contains",
+                self.nav.query.clone().unwrap_or_default(),
+            )),
             Prompt::Location => Some(("Folder path", self.path.to_string_lossy().into_owned())),
             Prompt::Rename(path) => Some(("File name", name(path))),
             _ => None,
@@ -73,6 +78,11 @@ impl Files {
             .map(|f| f.read(cx).text())
             .unwrap_or("");
         match dialog.prompt {
+            Prompt::Search => {
+                let query = text.to_owned();
+                self.list_focus.focus(window, cx);
+                self.search(query, cx);
+            }
             Prompt::Location => {
                 let home = std::env::var_os("HOME").map(PathBuf::from);
                 let dest = match (text, home) {
@@ -97,6 +107,7 @@ impl Files {
     pub(super) fn dialog_view(&self, dialog: &Dialog, cx: &Context<Self>) -> impl IntoElement {
         let theme = Theme::current(cx);
         let (title, detail, action) = match &dialog.prompt {
+            Prompt::Search => ("Search this folder", None, "Search"),
             Prompt::Location => ("Open folder", None, "Open"),
             Prompt::Rename(_) => ("Rename item", None, "Rename"),
             Prompt::Trash(path) => ("Move to Trash?", Some(name(path)), "Move to Trash"),

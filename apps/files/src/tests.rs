@@ -44,3 +44,25 @@ fn browse_rename_and_cancel_copy_conflict(cx: &mut TestAppContext) {
     cx.run_until_parked();
     assert_eq!(fs::read(folder.join("notes (copy)")).unwrap(), b"one");
 }
+
+#[gpui::test]
+fn search_nested_results_and_return_to_folder(cx: &mut TestAppContext) {
+    let temp = tempfile::tempdir().unwrap();
+    let sub = temp.path().join("Archive");
+    fs::create_dir(&sub).unwrap();
+    fs::write(sub.join("Notes.txt"), "saved").unwrap();
+    cx.update(mundane_ui::bind_text_keys);
+    let (view, ui) = cx.add_window_view(|w, cx| Files::new(temp.path().into(), w, cx));
+    ui.simulate_keystrokes("ctrl-f n o t e enter");
+    ui.run_until_parked();
+    view.read_with(ui, |v, _| {
+        assert_eq!(v.nav.query.as_deref(), Some("note"));
+        assert_eq!(v.selected().unwrap().path, sub.join("Notes.txt"));
+    });
+    ui.simulate_keystrokes("escape");
+    ui.run_until_parked();
+    view.read_with(ui, |v, _| {
+        assert!(v.nav.query.is_none());
+        assert_eq!(v.selected().unwrap().path, sub)
+    });
+}

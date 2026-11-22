@@ -23,6 +23,8 @@ The suite now uses GPUI’s upstream AccessKit bridge. The apps expose their sha
 
 ## Files
 
+Use the places sidebar for local folders, bookmarks and mounted media. Ctrl+D toggles the current bookmark, Ctrl+F searches filenames below the current folder, and Escape returns to browsing. [GNOME parity and screenshots](docs/parity.md)
+
 Files browses local directories, opens files in the preferred application, and copies, moves, renames or trashes a selected item. When names collide, Files shows the size and modification date of the incoming and existing items. Choose Cancel, Keep both, or Replace. Cancel has initial focus. Visible rows use cached thumbnails, generate previews for PNG and JPEG files, or display a system MIME icon.
 
 | Action | Shortcut |

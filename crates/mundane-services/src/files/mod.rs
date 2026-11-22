@@ -1,4 +1,6 @@
 //! Local file operations. Call these on a background executor.
+mod navigation;
+pub use navigation::{Place, SearchResults, places, search, toggle_bookmark};
 mod replace;
 mod thumbnail;
 pub use replace::{Conflict, replace};

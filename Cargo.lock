@@ -3288,6 +3288,7 @@ dependencies = [
  "ashpd",
  "async-channel",
  "curl",
+ "dirs 6.0.0",
  "freedesktop-icons",
  "gstreamer",
  "gstreamer-app",

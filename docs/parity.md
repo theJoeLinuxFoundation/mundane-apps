@@ -24,3 +24,14 @@ The rankings estimate how often a person encounters a task while using that app.
 | **Disk Usage** · [Baobab 50.0](https://download.gnome.org/sources/baobab/50/baobab-50.0.tar.xz) | Scan a local tree, compare allocated/logical size and drill into folders. | Find large subtrees in a rings/treemap view and open the folder in Files. | Choose a volume from an overview and trash a selected space hog. | Scan remote folders and revisit previous scans. |
 | **Archive Manager** · [File Roller 44.7](https://download.gnome.org/sources/file-roller/44/file-roller-44.7.tar.xz) | List ZIP/tar/tar.gz and safely extract a selection or the entire archive. | Create an archive from files, add/remove entries, and open more common formats such as tar.xz. | Preview/open an entry and choose how to handle existing extraction targets. | Open encrypted archives, create password-protected archives and test integrity. |
 | **Packages** · [GNOME Software 51.1](https://download.gnome.org/sources/gnome-software/51/gnome-software-51.1.tar.xz) | Installed packages, explicit search, dependency details and digest-bound install/remove/upgrade review. | Discover applications by purpose or category, see a human-readable description and screenshots, and launch an installed app. | See update details and notifications, application licence and source information. | Explain permissions or end-of-life status where metadata supports them. AppStream/catalog work and dave backend support must be assessed separately. |
+
+## Files delivery
+
+Files has a places sidebar with Home, configured XDG user folders, local GTK bookmarks and mounted volumes under `/media`, `/run/media` and `/mnt`. Bookmark folder and Ctrl+D toggle the current folder. F5 refreshes places and F9 toggles the sidebar. Ctrl+F searches filenames recursively on the current filesystem. Results include their parent folder. Escape ends the search. Hidden-file visibility applies to the whole search, symbolic-link directories are skipped, and the view reports unreadable folders and the 1,000-result limit.
+
+| Workflow | Before | After |
+| --- | --- | --- |
+| Jump to a saved place | [Original folder](parity/before/files-places.png) | [Places and bookmarks](parity/after/files-places.png) |
+| Find notes in a subfolder | [Original listing](parity/before/files-search.png) | [Filename results](parity/after/files-search.png) |
+
+The next Files gaps are multi-folder tabs, multiselection, drag and drop, alternate views, Open With, Properties, and unmounted media.

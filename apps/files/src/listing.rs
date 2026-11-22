@@ -94,6 +94,12 @@ impl Files {
                     format!("{:.1} KiB", entry.bytes as f64 / 1024.)
                 };
                 let name: SharedString = entry.name.to_string_lossy().into_owned().into();
+                let relative_parent = entry
+                    .path
+                    .parent()
+                    .and_then(|p| p.strip_prefix(&self.path).ok())
+                    .map(|p| p.to_string_lossy().into_owned())
+                    .unwrap_or_default();
                 mundane_ui::option(
                     ElementId::Path(entry.path.clone().into()),
                     name.clone(),
@@ -143,7 +149,17 @@ impl Files {
                             el.child(img(img_source).object_fit(ObjectFit::Contain).size_full())
                         }),
                 )
-                .child(div().flex_1().min_w_0().truncate().child(name))
+                .child(
+                    div()
+                        .flex_1()
+                        .min_w_0()
+                        .flex()
+                        .flex_col()
+                        .child(div().truncate().child(name))
+                        .when(self.nav.query.is_some(), |el| {
+                            el.child(div().text_sm().truncate().child(relative_parent))
+                        }),
+                )
                 .child(
                     div()
                         .text_sm()

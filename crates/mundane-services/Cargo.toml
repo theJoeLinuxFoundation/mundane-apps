@@ -6,6 +6,7 @@ license.workspace = true
 publish.workspace = true
 
 [dependencies]
+dirs = {version="6", optional=true}
 curl = { version = "0.4", default-features = false, optional = true }
 httpdate = { version = "1", optional = true }
 sha2 = { version = "0.10", optional = true }
@@ -41,7 +42,7 @@ test-audio = ["video"]
 packages = ["dep:anyhow", "dep:serde", "dep:serde_json"]
 video = ["dep:gstreamer", "dep:gstreamer-app", "dep:gstreamer-video", "dep:anyhow", "dep:rustix", "dep:async-channel"]
 monitor = ["dep:rustix", "rustix/param", "rustix/process"]
-files = ["dep:jiff", "dep:ashpd", "dep:freedesktop-icons", "dep:image", "dep:md-5", "dep:mime_guess", "dep:png", "dep:rustix", "dep:tempfile", "dep:url"]
+files = ["dep:dirs", "dep:jiff", "dep:ashpd", "dep:freedesktop-icons", "dep:image", "dep:md-5", "dep:mime_guess", "dep:png", "dep:rustix", "dep:tempfile", "dep:url"]
 terminal = ["dep:alacritty_terminal", "dep:async-channel"]
 
 [dev-dependencies]
