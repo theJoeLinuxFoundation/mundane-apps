@@ -11,7 +11,7 @@ iface = Gio.DBusNodeInfo.new_for_xml('''<node><interface name="org.freedesktop.p
 
 def handle(bus, sender, path, interface, method, args, call):
     _, title, index, options = args.unpack()
-    assert title.endswith(".pdf") and "token" not in options
+    assert (title.endswith(".pdf") or title == "Field notes.txt") and "token" not in options
     runtime = Path(os.environ["XDG_RUNTIME_DIR"])
     address = f"{path}/request/{sender[1:].replace('.', '_')}/{options['handle_token']}"
     with os.fdopen(call.get_message().get_unix_fd_list().get(index), "rb") as f:

@@ -338,3 +338,37 @@ def terminal(side, root, key, type_text, until, compare, command):
         key("w", "ctrl", "shift")
     key("p", "ctrl", "shift")
     compare("terminal-startup.png", 1, root / "docs/parity/round-4" / side)
+
+
+def editor(side, root, log, key, type_text, until, compare):
+    until(lambda: "Field notes.txt — Text Editor" in log.read_text(), "field notes open")
+    key("Shift_L")
+    key("End", "ctrl")
+    if side == "after":
+        key("i", "ctrl", "shift")
+    key("Tab")
+    type_text("North quay")
+    key("Return")
+    type_text("Wind from the east")
+    compare("text-editor-indentation.png", 1, root / "docs/parity/round-4" / side)
+    key("o", "ctrl")
+    until(lambda: "Second.txt — Text Editor" in log.read_text(), "second file")
+    key("w", "ctrl")
+    key("t", "ctrl", "shift")
+    if side == "after":
+        until(lambda: log.read_text().count("Second.txt — Text Editor") >= 2, "closed file reopened")
+    compare("text-editor-reopen.png", 1, root / "docs/parity/round-4" / side)
+    if side == "after":
+        key("Page_Up", "ctrl")
+        key("End", "ctrl")
+        subprocess.run(["wl-copy", "--", "\n" + "\n".join(f"Observation {i:03}" for i in range(120))], check=True)
+        key("v", "ctrl")
+        key("p", "ctrl", "shift")
+        pdf = Path(os.environ["XDG_RUNTIME_DIR"]) / "print-input.pdf"
+        until(lambda: pdf.exists() and pdf.read_bytes().endswith(b"%%EOF\n"), "portal received complete PDF")
+        from print_pages import pages
+        printed = pages(pdf)
+        assert len(printed) >= 2
+        assert "Coastal survey" in printed[0] and "North quay" in printed[0]
+        assert "Observation 119" in printed[-1]
+        assert b"North quay" not in (Path.home() / "Field notes.txt").read_bytes()

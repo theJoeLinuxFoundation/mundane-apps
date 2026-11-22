@@ -15,6 +15,13 @@ impl Editor {
         })
     }
 
+    fn cycle_indent(&mut self, cx: &mut Context<Self>) {
+        match self.indent.next() {
+            Ok(i) => self.indent = i,
+            Err(e) => self.error = Some(format!("Could not save indentation. {e}")),
+        }
+        cx.notify()
+    }
     fn keys(&mut self, event: &KeyDownEvent, window: &mut Window, cx: &mut Context<Self>) {
         let key = &event.keystroke;
         if self.busy.is_some() {
@@ -36,6 +43,8 @@ impl Editor {
             }
         } else {
             match (key.key.as_str(), key.modifiers.control) {
+                ("t", true) if key.modifiers.shift => self.command(Command::Reopen, window, cx),
+                ("p", true) if key.modifiers.shift => self.command(Command::Print, window, cx),
                 ("n" | "t", true) => self.command(Command::New, window, cx),
                 ("i", true) => self.command(Command::Line, window, cx),
                 ("pageup" | "pagedown", true) => {
@@ -188,6 +197,7 @@ impl Render for Editor {
         let tools = div()
             .flex()
             .gap_1()
+            .child(self.tool(Command::Print, &self.print_focus, cx))
             .child(self.tool(Command::Recent, &self.recent_focus, cx))
             .child(self.tool(Command::New, &self.new_focus, cx))
             .children(
@@ -283,6 +293,9 @@ impl Render for Editor {
                         .when(self.recent.rows.is_empty(), |el| {
                             el.child("No recent files.")
                         })
+                        .when(!self.closed.is_empty(), |el| {
+                            el.child(self.tool(Command::Reopen, &self.reopen_focus, cx))
+                        })
                         .child(recent),
                 )
             })
@@ -336,12 +349,43 @@ impl Render for Editor {
                     .when(!self.going, |el| {
                         el.child(self.tool(Command::Line, &self.line_focus, cx))
                     })
+                    .child(
+                        mundane_ui::button_base(
+                            format!("Indentation: {}", self.indent.label()),
+                            &self.indent_focus,
+                            theme,
+                            {
+                                let v = cx.weak_entity();
+                                move |_, cx| {
+                                    let _ = v.update(cx, |s, cx| s.cycle_indent(cx));
+                                }
+                            },
+                        )
+                        .px_2()
+                        .child(self.indent.label()),
+                    )
                     .child(format!("UTF-8   ·   {ending}")),
             );
         div()
             .relative()
             .size_full()
             .capture_key_down(cx.listener(|this, event: &KeyDownEvent, w, cx| {
+                if this.indent_key(&event.keystroke, w, cx) {
+                    w.prevent_default();
+                    cx.stop_propagation();
+                    return;
+                }
+                if event.keystroke.modifiers.control
+                    && event.keystroke.modifiers.shift
+                    && event.keystroke.key == "i"
+                    && this.confirmation.is_none()
+                    && this.busy.is_none()
+                {
+                    this.cycle_indent(cx);
+                    w.prevent_default();
+                    cx.stop_propagation();
+                    return;
+                }
                 if event.keystroke.modifiers.control
                     && matches!(event.keystroke.key.as_str(), "pageup" | "pagedown")
                 {

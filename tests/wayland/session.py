@@ -577,6 +577,8 @@ seat seat0 fallback true
             launch(stack, "python3", str(HERE / "chooser_portal.py"), str(second), log="viewer-portal.log")
             until((RUNTIME / "chooser-ready").exists, "private FileChooser")
         if suite_app == "text-editor":
+            if args.round_four:
+                os.environ["MUNDANE_TEST_PRINT"] = "1"
             document = Path.home() / "Field notes.txt"
             original = "Coastal survey\r\n\r\nStation 04   東京\r\nWater temperature   12 °C\r\n\r\n".encode()
             if args.round_two:
@@ -624,6 +626,9 @@ seat seat0 fallback true
             elif suite_app == "maps":
                 from round_four import maps
                 maps(args.round_four, ROOT, OUTPUT / log, key, type_text, until, compare_screenshot)
+            elif suite_app == "text-editor":
+                from round_four import editor
+                editor(args.round_four, ROOT, OUTPUT / log, key, type_text, until, compare_screenshot)
             elif suite_app == "terminal":
                 from round_four import terminal
                 terminal(args.round_four, ROOT, key, type_text, until, compare_screenshot, command)

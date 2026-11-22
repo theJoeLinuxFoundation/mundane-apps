@@ -264,3 +264,35 @@ fn supported_grammars_highlight_unicode_and_multiline_strings() {
         assert!(spans.windows(2).all(|s| s[0].0.end <= s[1].0.start));
     }
 }
+
+#[gpui::test]
+fn indentation_keeps_mixed_line_endings_and_undo(cx: &mut TestAppContext) {
+    cx.update(mundane_ui::bind_text_keys);
+    let (v, ui) = cx.add_window_view(Editor::new);
+    ui.update(|_, cx| {
+        v.update(cx, |e, cx| {
+            e.indent = super::indent::Indent::Two;
+            e.page()
+                .body
+                .update(cx, |f, cx| f.set_document("λ\r\n東京\n".into(), cx));
+        })
+    });
+    ui.simulate_keystrokes("ctrl-a tab");
+    assert_eq!(
+        v.read_with(ui, |e, cx| e.page().body.read(cx).snapshot())
+            .as_ref(),
+        "  λ\r\n  東京\n"
+    );
+    ui.simulate_keystrokes("shift-tab");
+    assert_eq!(
+        v.read_with(ui, |e, cx| e.page().body.read(cx).snapshot())
+            .as_ref(),
+        "λ\r\n東京\n"
+    );
+    ui.simulate_keystrokes("ctrl-z");
+    assert_eq!(
+        v.read_with(ui, |e, cx| e.page().body.read(cx).snapshot())
+            .as_ref(),
+        "  λ\r\n  東京\n"
+    );
+}

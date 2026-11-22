@@ -3413,9 +3413,13 @@ dependencies = [
 name = "mundane-text-editor"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
+ "ashpd",
+ "cc",
  "dirs 6.0.0",
  "gpui",
  "mundane-ui",
+ "pkg-config",
  "rustix",
  "serde",
  "serde_json",

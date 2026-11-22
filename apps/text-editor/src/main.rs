@@ -1,5 +1,7 @@
 mod document;
 mod editing;
+mod indent;
+mod printing;
 mod state;
 mod syntax;
 mod tabs;
@@ -23,6 +25,8 @@ enum Pending {
 
 #[derive(Clone, Copy)]
 enum Command {
+    Print,
+    Reopen,
     Recent,
     Replace,
     ReplaceOne,
@@ -44,6 +48,8 @@ enum Command {
 impl Command {
     fn label(self) -> &'static str {
         match self {
+            Self::Print => "Print",
+            Self::Reopen => "Reopen closed tab",
             Self::Recent => "Recent",
             Self::Replace => "Find and replace",
             Self::ReplaceOne => "Replace",
@@ -71,6 +77,11 @@ struct Confirmation {
 }
 
 struct Editor {
+    indent: indent::Indent,
+    indent_focus: FocusHandle,
+    print_focus: FocusHandle,
+    reopen_focus: FocusHandle,
+    closed: Vec<PathBuf>,
     recent: mundane_ui::BrowserList,
     showing_recent: bool,
     recent_focus: FocusHandle,
@@ -127,7 +138,13 @@ impl Editor {
                 this.request(Pending::CloseWindow, window, cx)
             });
         });
+        let setting = indent::Indent::load();
         let mut editor = Self {
+            indent: setting.as_ref().copied().unwrap_or_default(),
+            indent_focus: cx.focus_handle().tab_stop(true),
+            print_focus: cx.focus_handle().tab_stop(true),
+            reopen_focus: cx.focus_handle().tab_stop(true),
+            closed: vec![],
             recent: mundane_ui::BrowserList::new(cx),
             showing_recent: false,
             recent_focus: cx.focus_handle().tab_stop(true),
@@ -157,6 +174,9 @@ impl Editor {
             error: None,
         };
         editor.restore(window, cx);
+        if let Err(e) = setting {
+            editor.error = Some(format!("Could not load indentation. {e}"));
+        }
         editor
     }
 
@@ -221,7 +241,16 @@ impl Editor {
             window.remove_window();
             return;
         }
-        self.pages.remove(self.active);
+        let closed = self.pages.remove(self.active);
+        if pending == Pending::CloseTab
+            && let Some(path) = closed.document.path
+        {
+            self.closed.retain(|p| p != &path);
+            self.closed.push(path);
+            if self.closed.len() > 32 {
+                self.closed.remove(0);
+            }
+        }
         self.switch(self.active.min(self.pages.len() - 1), window, cx);
         if pending == Pending::CloseWindow && self.can_leave(pending, window, cx) {
             window.remove_window();
@@ -404,6 +433,12 @@ impl Editor {
             }
         } else {
             match command {
+                Command::Print => self.print(window, cx),
+                Command::Reopen => {
+                    if let Some(path) = self.closed.pop() {
+                        self.open(path, window, cx)
+                    }
+                }
                 Command::Open => self.choose(false, None, window, cx),
                 Command::Recent => self.show_recent(window, cx),
                 Command::Replace => {

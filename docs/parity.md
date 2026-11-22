@@ -178,3 +178,14 @@ Ctrl+Shift+N opens a separate terminal in the active shell’s working directory
 | --- | --- | --- |
 | Detach a running shell | [Tabbed shells](parity/round-4/before/terminal-detach.png) | [Independent windows, same PTY](parity/round-4/after/terminal-detach.png) |
 | Configure new shells | [Original profiles](parity/round-4/before/terminal-startup.png) | [Startup, login and shortcuts](parity/round-4/after/terminal-startup.png) |
+
+### Text Editor
+
+The status bar sets indentation to tabs or 2, 4 or 8 spaces (Ctrl+Shift+I). Enter continues the current line’s indentation. Tab and Shift+Tab indent and outdent selected lines. Recent includes Reopen closed tab (Ctrl+Shift+T) for previously closed files in the same window. Print (Ctrl+Shift+P) sends the current buffer, including unsaved edits, to the desktop print dialog.
+
+| Task | Before | After |
+| --- | --- | --- |
+| Indent source lines | [Original editor](parity/round-4/before/text-editor-indentation.png) | [Two-space indentation](parity/round-4/after/text-editor-indentation.png) |
+| Reopen a closed file | [New draft](parity/round-4/before/text-editor-reopen.png) | [Reopened document](parity/round-4/after/text-editor-reopen.png) |
+
+The thirteen round-four apps now cover their highest-ranked daily tasks except Maps directions, deferred by the provider decision. The comparison table retains the regular and specialist gaps, including subtitles and audio tracks in Video, scientific functions in Calculator, stopwatch and multiple timers in Clocks, and partition editing in Disks.

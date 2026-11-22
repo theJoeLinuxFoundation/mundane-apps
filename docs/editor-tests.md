@@ -26,3 +26,7 @@ A private FileChooser service exercises Save As, Open cancellation and opening a
 The AT-SPI test reads the document and query while Find is focused and checks the shared buttons and status bar. [Current acceptance results](accessibility/report.md)
 
 The joe Linux VM smoke test is pending until the distribution packages mundaneDE and Text Editor.
+
+Round four adds saved indentation settings, reopen-closed-file and printing. Ctrl+Shift+I cycles tabs or 2, 4 and 8 spaces. A selected block can be indented and outdented as one undoable edit, preserving mixed LF and CRLF. Ctrl+Shift+T reopens a closed file from this window. Ctrl+Shift+P prints the current buffer and Ctrl+P keeps its existing Recent files shortcut.
+
+Build with pkg-config, a C compiler and PangoCairo development files. The native helper links after its static archive to dynamic system Pango and Cairo, the same rendering libraries used by Fonts. It shapes and wraps UTF-8, paginates on A4 and sends an anonymous PDF descriptor to the desktop Print portal. The round-four Wayland check reads that descriptor through system PDFium, finds unsaved content on the first page and the final observation on the last, and verifies the original file on disk.

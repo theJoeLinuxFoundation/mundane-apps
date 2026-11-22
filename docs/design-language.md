@@ -46,6 +46,8 @@ The screenshots use the production renderers, private labwc, software rendering 
 
 [Core components at 125% text scale](design/core-text-125.png)
 
+Multiline TextField supports replacing a document selection as one undo step while retaining its original line endings. Text Editor uses this for indentation across selected lines.
+
 ## Panel controls
 
 `panel_button` accepts any icon element and a separate name. A selected fill marks active, a dot marks running, and a diamond marks occupied. Its accessible description names the states. Disabled buttons suppress activation from both the pointer and keyboard. `toggle` publishes its pressed state and On/Off value. It requests a new value from its owner. A named `badge` exposes status or a count without adding a tab stop. `with_tooltip` provides a hover hint and a description for keyboard and AT users. Use `with_keyboard_tooltip` for a visible F1 hint. Escape or moving focus closes it.

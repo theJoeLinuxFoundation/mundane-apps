@@ -5,7 +5,13 @@ edition.workspace = true
 license.workspace = true
 publish.workspace = true
 
+[build-dependencies]
+cc="1"
+pkg-config="0.3"
+
 [dependencies]
+anyhow.workspace=true
+ashpd={version="0.13",default-features=false,features=["async-io","print"]}
 gpui.workspace = true
 mundane-ui = { path = "../../crates/mundane-ui" }
 tempfile = "3"

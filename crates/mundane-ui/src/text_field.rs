@@ -280,6 +280,26 @@ impl TextField {
         }
     }
 
+    fn replace_bytes(&mut self, range: Range<usize>, new_text: &str, cx: &mut Context<Self>) {
+        self.save_undo();
+        self.content =
+            (self.content[0..range.start].to_owned() + new_text + &self.content[range.end..])
+                .into();
+        self.selection_reversed = false;
+        if let Some(m) = &mut self.multi {
+            m.reindex(&self.content);
+        }
+        self.selected_range = range.start + new_text.len()..range.start + new_text.len();
+        self.marked_range.take();
+        cx.notify();
+    }
+
+    /// Replace selected document bytes in one undo step, preserving mixed line endings.
+    pub fn replace_document_selection(&mut self, text: &str, cx: &mut Context<Self>) {
+        if self.multi.is_some() && !self.password {
+            self.replace_bytes(self.selected_range.clone(), text, cx);
+        }
+    }
     fn insertion(&self, text: &str) -> String {
         match &self.multi {
             None => text.replace(['\r', '\n'], " "),
@@ -393,25 +413,14 @@ impl EntityInputHandler for TextField {
         _: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        self.save_undo();
         let new_text = self.insertion(new_text);
-        let new_text = new_text.as_str();
         let range = range_utf16
             .as_ref()
             .map(|range_utf16| self.range_from_utf16(range_utf16))
             .or(self.marked_range.clone())
             .unwrap_or(self.selected_range.clone());
 
-        self.content =
-            (self.content[0..range.start].to_owned() + new_text + &self.content[range.end..])
-                .into();
-        self.selection_reversed = false;
-        if let Some(m) = &mut self.multi {
-            m.reindex(&self.content);
-        }
-        self.selected_range = range.start + new_text.len()..range.start + new_text.len();
-        self.marked_range.take();
-        cx.notify();
+        self.replace_bytes(range, &new_text, cx);
     }
 
     fn replace_and_mark_text_in_range(
