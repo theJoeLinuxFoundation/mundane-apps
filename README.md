@@ -155,6 +155,10 @@ Use **Add city** (Ctrl+N) to find a world clock by city or IANA time zone. Open 
 
 Search by Unicode name or code point (for example, U+1D11E). Enter focuses the results. Use the arrow keys to select a character, then Ctrl+C or **Copy character** to copy it. Ctrl+F returns to search. [Characters tests](docs/characters-tests.md)
 
+## Fonts
+
+Browse installed families with Up and Down, then use Left and Right to preview another face. Ctrl+F finds a family and Ctrl+E selects the sample for replacement. The status lists any characters missing from the selected face. [Fonts tests and dependencies](docs/fonts-tests.md)
+
 ## Building
 
 Use a Rust toolchain with Cargo, a C/C++ toolchain, pkg-config, and the Linux development files for Wayland, xkbcommon and fontconfig. The release build was tested with Rust 1.100 on x86-64 Linux. Run Terminal in a Wayland session with Mesa, a Vulkan driver, installed fonts and xterm-256color terminfo.
@@ -176,6 +180,7 @@ cargo build --workspace --release --locked
 ./target/release/mundane-disks
 ./target/release/mundane-clocks
 ./target/release/mundane-characters
+./target/release/mundane-fonts
 ```
 
 Files uses the OpenURI desktop portal or GIO's default handler, GIO Trash, and GNU coreutils for recursive copies and cross-filesystem moves. Its desktop entry handles local directories. Text Editor accepts a local path and declares `text/plain`. Its Open and Save As dialogs use the FileChooser desktop portal. Distribution packaging and the joe image smoke test are pending. [Development plan](docs/plan.md)

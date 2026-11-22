@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Fonts
+Exec=mundane-fonts
+Icon=preferences-desktop-font
+Categories=Utility;
+Terminal=false

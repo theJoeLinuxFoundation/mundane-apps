@@ -246,7 +246,7 @@ def exercise_monitor(args, scale, stack, app, app_id):
 def main():
     global OUTPUT
     parser = argparse.ArgumentParser()
-    parser.add_argument("--app", choices=["terminal", "files", "text-editor", "system-monitor", "image-viewer", "calculator", "document-viewer", "video", "packages", "music", "archive-manager", "disk-usage", "disks", "clocks", "characters"], default="terminal")
+    parser.add_argument("--app", choices=["terminal", "files", "text-editor", "system-monitor", "image-viewer", "calculator", "document-viewer", "video", "packages", "music", "archive-manager", "disk-usage", "disks", "clocks", "characters", "fonts"], default="terminal")
     parser.add_argument("--missing-video-decoder", action="store_true", help="inspect Video with the vpx plugin absent")
     parser.add_argument("--fields", action="store_true", help="exercise two-window activation, password and multiline fields")
     parser.add_argument("--cost", type=Path, help="directory containing the two release cost fixture binaries")
@@ -306,7 +306,7 @@ seat seat0 fallback true
         display = until(lambda: next((p for p in RUNTIME.glob("wayland-*") if p.is_socket()), None), "private Wayland socket")
         os.environ["WAYLAND_DISPLAY"] = display.name
         run("dbus-update-activation-environment", "WAYLAND_DISPLAY", "XDG_CURRENT_DESKTOP")
-        if args.app in ("packages", "music", "archive-manager", "disk-usage", "disks", "clocks", "characters") or (args.at_spi and args.app in (
+        if args.app in ("packages", "music", "archive-manager", "disk-usage", "disks", "clocks", "characters", "fonts") or (args.at_spi and args.app in (
                 "terminal", "image-viewer", "calculator", "document-viewer", "video") and not args.cost):
             launch(stack, "wtype", "-k", "Shift_L", "-s", "300000", log="seat.log")
         if args.at_spi:
@@ -480,6 +480,26 @@ seat seat0 fallback true
                 return "ack_configure" in (OUTPUT / log).read_text(errors="replace")
             return app_id in command("-t", "get_tree")
         until(mapped, f"mapped {suite_app}")
+        if suite_app == "fonts":
+            key("Shift_L")
+            if labwc:
+                run("wlrctl", "toplevel", "waitfor", app_id, "state:active")
+            until(lambda: "DejaVu Sans · Book — Fonts" in (OUTPUT / log).read_text(), "first installed face")
+            key("Right")
+            until(lambda: "DejaVu Sans · Bold — Fonts" in (OUTPUT / log).read_text(), "selected bold face")
+            key("e", "ctrl")
+            type_text("Coast · Αθήνα · שלום")
+            key("Return")
+            if args.profile == "contrast":
+                key("equal", "ctrl")
+            name = f"fonts-{args.compositor}-{args.profile}.png"
+            compare_screenshot(name, scale)
+            if args.at_spi:
+                inspect_accessibility(stack, app_id, app.pid)
+            key("w", "ctrl")
+            assert app.wait(timeout=8) == 0
+            print(f"Passed {name}, face selection and multiscript preview")
+            return
         if suite_app == "characters":
             key("Shift_L")
             if labwc:

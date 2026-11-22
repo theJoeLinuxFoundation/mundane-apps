@@ -205,6 +205,7 @@ expected = {"Terminal": ["Find in Terminal", "Find match", "Find text"],
             "Packages": ["Review package changes", "Install chartroom", "Cancel", "Apply changes"],
             "ArchiveManager": ["Archive entries", "Extract selected…", "Extract all…", "2 marked"],
             "DiskUsage": ["Folder contents", "Private records", "Show allocated space", "Rescan"],
+            "Fonts": ["Font families", "Edit sample", "Next face", "Previous face", "Preview in DejaVu Sans · Bold", "All sample characters covered."],
             "Characters": ["Copy character", "Name or code point", "Matching characters", "BLACK STAR", "Copied U+2605"],
             "Clocks": ["Saved cities", "UTC", "New York", "Add city", "Timer"],
             "Disks": ["Drives and volumes", "Survey", "Unmount", "Refresh"],
@@ -240,6 +241,17 @@ if suite == "DiskUsage":
     assert "permission denied" in row.get_description()
     assert "512.0 KiB" in named(root, "Charts").get_description()
     assert any("Incomplete scan" in n.get_name() for n in walk(root))
+if suite == "Fonts":
+    row = named(named(root, "Font families"), "DejaVu Sans")
+    assert row.get_state_set().contains(Atspi.StateType.SELECTED)
+    assert named(root, "Preview in DejaVu Sans · Bold").get_description() == "Coast · Αθήνα · שלום"
+    sample = next(n for n in walk(root) if n.get_name() == "Sample text" and n.get_role() == Atspi.Role.ENTRY)
+    assert Atspi.Text.get_text(sample, 0, -1) == "Coast · Αθήνα · שלום"
+    subprocess.run(["wtype", "-M", "ctrl", "-k", "e", "-m", "ctrl", "-s", "100", "字", "-k", "Return"], check=True)
+    wait(lambda: named(root, "Missing glyphs · U+5B57"), "missing CJK glyph in DejaVu")
+    subprocess.run(["wtype", "-M", "ctrl", "-k", "f", "-m", "ctrl", "-s", "100", "Noto Sans CJK SC", "-k", "Return"], check=True)
+    wait(lambda: named(root, "Preview in Noto Sans CJK SC · Regular"), "CJK collection face preview")
+    assert named(root, "All sample characters covered.")
 if suite == "Characters":
     row = named(named(root, "Matching characters"), "BLACK STAR")
     assert row.get_state_set().contains(Atspi.StateType.SELECTED)

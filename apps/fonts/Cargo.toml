@@ -1,0 +1,19 @@
+[package]
+name = "mundane-fonts"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+async-channel.workspace = true
+image = { version = "0.25", default-features = false }
+gpui.workspace = true
+mundane-ui = { path = "../../crates/mundane-ui" }
+
+[build-dependencies]
+cc = "1"
+pkg-config = "0.3"
+
+[dev-dependencies]
+gpui = { workspace = true, features = ["test-support"] }
