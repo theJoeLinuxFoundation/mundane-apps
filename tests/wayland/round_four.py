@@ -56,3 +56,46 @@ def video(side, app, root, log, key, until, compare, record, check_tone):
         print("Passed AAC playback through the system gst-libav plugin")
     elif after:
         print("Skipped AAC playback: system gst-libav plugin absent")
+
+
+def speech_track(folder):
+    import array
+    import math
+    import wave
+    path = folder / "Voice notes.wav"
+    samples = array.array("h")
+    for i in range(16000 * 12):
+        t = i / 16000
+        envelope = (0.09 + 0.8 * abs(math.sin(t * 1.3)) ** 2) if t % 3.3 < 2.8 else 0
+        samples.append(round(21000 * envelope * math.sin(t * 440 * math.tau)))
+    with wave.open(str(path), "wb") as wav:
+        wav.setparams((1, 2, 16000, 0, "NONE", ""))
+        wav.writeframes(samples.tobytes())
+    return path
+
+
+def music(side, root, log, key, until, compare, record, check_tone):
+    until(lambda: "Voice notes.wav — Music" in log.read_text(), "voice notes loaded")
+    key("Shift_L")
+    key("space")
+    key("Home")
+    key("Right")
+    key("bracketright")
+    key("bracketright")
+    compare("music-waveform.png", 1, root / "docs/parity/round-4" / side)
+    if side == "after":
+        capture = record("speech-speed")
+        key("space")
+        check_tone(capture, until)
+
+        for name, hz in [("Radio.mp3", 550), ("Interview.m4a", 660)]:
+            if name.endswith(".m4a") and not (Path(os.environ["GST_PLUGIN_PATH_1_0"]) / "libgstlibav.so").exists():
+                continue
+            (Path(os.environ["XDG_RUNTIME_DIR"]) / "OpenFile").unlink(missing_ok=True)
+            key("o", "ctrl")
+            until((Path(os.environ["XDG_RUNTIME_DIR"]) / "OpenFile").exists, "append " + name)
+            key("Escape")
+            capture = record(name)
+            key("n")
+            until(lambda: name + " — Music" in log.read_text(), name)
+            check_tone(capture, until, hz)

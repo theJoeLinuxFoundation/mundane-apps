@@ -6,7 +6,13 @@ use gpui::{prelude::*, *};
 use mundane_services::playback::{Command, Phase, Playback, Status, inspect_audio, seek_position};
 use mundane_ui::{PlaybackControls, Theme, TransportAction, WindowHeader};
 use queue::Queue;
-use std::path::PathBuf;
+use std::{
+    path::PathBuf,
+    sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+    },
+};
 
 struct Music {
     queue: Queue,
@@ -19,9 +25,17 @@ struct Music {
     transport: PlaybackControls,
     add_button: FocusHandle,
     buttons: [FocusHandle; 6],
+    speed_buttons: [FocusHandle; 2],
+    peaks: Option<Arc<[f32]>>,
+    cancel_waveform: Arc<AtomicBool>,
     title: String,
     choosing: bool,
     notice: Option<String>,
+}
+impl Drop for Music {
+    fn drop(&mut self) {
+        self.cancel_waveform.store(true, Ordering::Relaxed);
+    }
 }
 impl Music {
     fn new(player: Playback, w: &mut Window, cx: &mut Context<Self>) -> Self {
@@ -39,6 +53,9 @@ impl Music {
             transport: PlaybackControls::new(cx),
             add_button: cx.focus_handle().tab_stop(true),
             buttons: std::array::from_fn(|_| cx.focus_handle().tab_stop(true)),
+            speed_buttons: std::array::from_fn(|_| cx.focus_handle().tab_stop(true)),
+            peaks: None,
+            cancel_waveform: Default::default(),
             title: "Music".into(),
             choosing: false,
             notice: None,
@@ -100,6 +117,26 @@ impl Music {
         self.scroll.scroll_to_item(i, ScrollStrategy::Nearest);
         self.status = Status::default();
         self.notice = None;
+        self.cancel_waveform.store(true, Ordering::Relaxed);
+        self.cancel_waveform = Default::default();
+        let cancel = self.cancel_waveform.clone();
+        self.peaks = None;
+        let path = self.queue.tracks[i].path.clone();
+        let request = self.request;
+        let analysis = cx
+            .background_executor()
+            .spawn(async move { mundane_services::playback::waveform(&path, &cancel) });
+        cx.spawn(async move |view, cx| {
+            if let Ok(peaks) = analysis.await {
+                let _ = view.update(cx, |music, cx| {
+                    if music.request == request && music.queue.current == Some(id) {
+                        music.peaks = Some(peaks.into());
+                        cx.notify();
+                    }
+                });
+            }
+        })
+        .detach();
         self.player.send(Command::OpenAudio {
             path: self.queue.tracks[i].path.clone(),
             request: self.request,
@@ -182,6 +219,8 @@ impl Music {
             if let Some(next) = self.queue.selected {
                 self.play(next, cx)
             } else {
+                self.cancel_waveform.store(true, Ordering::Relaxed);
+                self.peaks = None;
                 self.queue.current = None;
                 self.player.send(Command::Stop);
                 self.status = Status::default();

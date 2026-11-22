@@ -5,7 +5,7 @@ use anyhow::Result;
 use async_channel::Receiver;
 use gstreamer as gst;
 use pipeline::Pipeline;
-pub use pipeline::{TrackInfo, inspect_audio};
+pub use pipeline::{TrackInfo, inspect_audio, waveform};
 use std::{
     path::PathBuf,
     sync::{Arc, Mutex, mpsc},
@@ -21,12 +21,28 @@ pub enum Phase {
     Ended,
     Failed,
 }
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub struct Speed(u16);
+impl Default for Speed {
+    fn default() -> Self {
+        Self(100)
+    }
+}
+impl Speed {
+    pub fn step(self, direction: i16) -> Self {
+        Self((self.0 as i16 + direction.signum() * 25).clamp(50, 200) as u16)
+    }
+    pub fn factor(self) -> f64 {
+        f64::from(self.0) / 100.0
+    }
+}
 #[derive(Clone, Default, PartialEq, Eq)]
 pub struct Status {
     pub phase: Phase,
     pub file: Option<PathBuf>,
     pub audio_request: Option<u64>,
     pub position: u64,
+    pub speed: Speed,
     pub duration: Option<u64>,
     pub error: Option<String>,
 }
@@ -40,6 +56,7 @@ pub enum Command {
     OpenAudio { path: PathBuf, request: u64 },
     Stop,
     Toggle,
+    ChangeSpeed(i16),
     Seek(u64),
     Step(i64),
 }
@@ -158,12 +175,16 @@ impl Player {
         if let Command::OpenAudio { path, request } = cmd {
             self.media = None;
             self.status = Status {
+                speed: self.status.speed,
                 file: Some(path.clone()),
                 audio_request: Some(request),
                 phase: Phase::Failed,
                 ..Default::default()
             };
             let (media, _) = Pipeline::audio(&path, audio_sink)?;
+            if self.status.speed != Speed::default() {
+                media.seek(0, self.status.speed)?;
+            }
             media.play(true)?;
             self.status.duration = media.duration();
             self.status.phase = Phase::Playing;
@@ -177,10 +198,17 @@ impl Player {
             Command::Toggle => {
                 let play = self.status.phase != Phase::Playing;
                 if self.status.phase == Phase::Ended {
-                    media.seek(0)?;
+                    media.seek(0, self.status.speed)?;
                 }
                 media.play(play)?;
                 self.status.phase = if play { Phase::Playing } else { Phase::Paused };
+            }
+            Command::ChangeSpeed(direction) => {
+                let speed = self.status.speed.step(direction);
+                if speed != self.status.speed {
+                    media.seek(media.position().unwrap_or(self.status.position), speed)?;
+                    self.status.speed = speed;
+                }
             }
             Command::Seek(ms) => self.seek(ms)?,
             Command::Step(delta) => {
@@ -200,7 +228,7 @@ impl Player {
                 media.play(false)?;
                 self.status.phase = Phase::Paused;
             }
-            media.seek(ms.min(duration))?;
+            media.seek(ms.min(duration), self.status.speed)?;
         }
         Ok(())
     }

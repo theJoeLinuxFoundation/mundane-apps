@@ -2,7 +2,7 @@
 use super::{ControlRole, Theme, button, button_base, focus_ring, unavailable};
 use accesskit::{Action, ActionData, Role};
 use gpui::{prelude::*, *};
-use std::{cell::Cell, rc::Rc};
+use std::{cell::Cell, rc::Rc, sync::Arc};
 
 #[derive(Clone, Copy)]
 pub enum TransportAction {
@@ -49,7 +49,13 @@ impl PlaybackControls {
             drag: Default::default(),
         }
     }
-    fn slider(&self, state: TransportState, theme: Theme, activate: Activate) -> impl IntoElement {
+    fn slider(
+        &self,
+        state: TransportState,
+        theme: Theme,
+        waveform: Option<Arc<[f32]>>,
+        activate: Activate,
+    ) -> impl IntoElement {
         let bounds = self.bounds.clone();
         let fraction_at = move |p: Point<Pixels>| {
             let b = bounds.get();
@@ -151,14 +157,31 @@ impl PlaybackControls {
                 move |b, (), w, _| {
                     let y = b.center().y;
                     let x = b.left() + b.size.width * fraction as f32;
-                    w.paint_quad(fill(
-                        Bounds::new(point(b.left(), y - px(2.)), size(b.size.width, px(4.))),
-                        rgb(theme.border),
-                    ));
-                    w.paint_quad(fill(
-                        Bounds::new(point(b.left(), y - px(2.)), size(x - b.left(), px(4.))),
-                        rgb(theme.focus),
-                    ));
+                    if let Some(peaks) = waveform.as_ref().filter(|p| !p.is_empty()) {
+                        let step = b.size.width / peaks.len() as f32;
+                        for (i, peak) in peaks.iter().enumerate() {
+                            let left = b.left() + step * i as f32;
+                            let height =
+                                px(1.).max(b.size.height * peak.clamp(0., 1.).sqrt() * 0.9);
+                            w.paint_quad(fill(
+                                Bounds::new(point(left, y - height / 2.), size(step, height)),
+                                rgb(if left < x {
+                                    theme.focus
+                                } else {
+                                    theme.secondary
+                                }),
+                            ));
+                        }
+                    } else {
+                        w.paint_quad(fill(
+                            Bounds::new(point(b.left(), y - px(2.)), size(b.size.width, px(4.))),
+                            rgb(theme.border),
+                        ));
+                        w.paint_quad(fill(
+                            Bounds::new(point(b.left(), y - px(2.)), size(x - b.left(), px(4.))),
+                            rgb(theme.focus),
+                        ));
+                    }
                     let thumb = Bounds::new(point(x - px(4.), y - px(7.)), size(px(8.), px(14.)));
                     w.paint_quad(quad(
                         thumb,
@@ -178,6 +201,16 @@ impl PlaybackControls {
         &self,
         state: TransportState,
         theme: Theme,
+        activate: impl Fn(TransportAction, &mut Window, &mut App) + 'static,
+    ) -> impl IntoElement {
+        self.render_with_waveform(state, theme, None, activate)
+    }
+
+    pub fn render_with_waveform(
+        &self,
+        state: TransportState,
+        theme: Theme,
+        waveform: Option<Arc<[f32]>>,
         activate: impl Fn(TransportAction, &mut Window, &mut App) + 'static,
     ) -> impl IntoElement {
         let activate: Activate = Rc::new(activate);
@@ -218,7 +251,7 @@ impl PlaybackControls {
                     .gap_2()
                     .text_sm()
                     .child(playback_time(state.position))
-                    .child(self.slider(state, theme, activate.clone()))
+                    .child(self.slider(state, theme, waveform, activate.clone()))
                     .child(
                         state
                             .duration

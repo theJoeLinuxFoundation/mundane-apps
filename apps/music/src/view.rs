@@ -73,6 +73,29 @@ impl Music {
         )
         .when(!enabled, |el| el.text_color(rgb(theme.secondary)))
     }
+    fn speed_button(&self, index: usize, cx: &Context<Self>) -> Stateful<Div> {
+        let direction = if index == 0 { -1 } else { 1 };
+        let speed = self.status.speed;
+        let enabled = matches!(
+            self.status.phase,
+            Phase::Playing | Phase::Paused | Phase::Ended
+        ) && speed != speed.step(direction);
+        let view = cx.weak_entity();
+        unavailable(
+            button(
+                if index == 0 { "Slower" } else { "Faster" },
+                &self.speed_buttons[index],
+                Theme::current(cx),
+                move |_, cx| {
+                    if enabled {
+                        let _ =
+                            view.update(cx, |m, _| m.player.send(Command::ChangeSpeed(direction)));
+                    }
+                },
+            ),
+            !enabled,
+        )
+    }
     fn keys(&mut self, e: &KeyDownEvent, w: &mut Window, cx: &mut Context<Self>) {
         let k = &e.keystroke;
         match (k.key.as_str(), k.modifiers.control) {
@@ -89,6 +112,8 @@ impl Music {
                 w.set_rem_size(size.clamp(px(12.), px(24.)));
                 cx.notify()
             }
+            ("[" | "bracketleft", false) => self.player.send(Command::ChangeSpeed(-1)),
+            ("]" | "bracketright", false) => self.player.send(Command::ChangeSpeed(1)),
             ("n", false) => self.skip(1, cx),
             ("p", false) => self.skip(-1, cx),
             ("space", false) if self.list.is_focused(w) => self.transport(TransportAction::Toggle),
@@ -349,9 +374,33 @@ impl Render for Music {
                 .overflow_hidden()
                 .child(list),
             )
-            .child(self.transport.render(state, theme, move |cmd, _, cx| {
-                let _ = view.update(cx, |this, _| this.transport(cmd));
-            }))
+            .when(state.available, |el| {
+                el.child(
+                    div()
+                        .flex()
+                        .items_center()
+                        .justify_center()
+                        .gap_2()
+                        .bg(rgb(theme.panel))
+                        .child(self.speed_button(0, cx))
+                        .child(
+                            text_label(
+                                "speed",
+                                format!("Playback speed {}×", self.status.speed.factor()),
+                            )
+                            .child(format!("{}×", self.status.speed.factor())),
+                        )
+                        .child(self.speed_button(1, cx)),
+                )
+            })
+            .child(self.transport.render_with_waveform(
+                state,
+                theme,
+                self.peaks.clone(),
+                move |cmd, _, cx| {
+                    let _ = view.update(cx, |this, _| this.transport(cmd));
+                },
+            ))
             .when_some(
                 self.notice.clone().or_else(|| self.status.error.clone()),
                 |el, msg| {

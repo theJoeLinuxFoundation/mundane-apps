@@ -111,6 +111,8 @@ The comparisons below use the same fixtures and a private headless Sway output. 
 
 ## Round four
 
-**Video.** F11 or double-click enters fullscreen. F6 or a click reveals the controls there, and Escape returns to windowed playback. MP4 supports H.264 video with AAC or Opus audio, or a silent track. The system GStreamer registry supplies the AAC decoder. The other round-four apps remain pending. [Fullscreen before](parity/round-4/before/video-fullscreen.png) · [After](parity/round-4/after/video-fullscreen.png) · [MP4 before](parity/round-4/before/video-mp4.png) · [After](parity/round-4/after/video-mp4.png)
+**Video.** F11 or double-click enters fullscreen. F6 or a click reveals the controls there, and Escape returns to windowed playback. MP4 supports H.264 video with AAC or Opus audio, or a silent track. The system GStreamer registry supplies the AAC decoder. [Fullscreen before](parity/round-4/before/video-fullscreen.png) · [After](parity/round-4/after/video-fullscreen.png) · [MP4 before](parity/round-4/before/video-mp4.png) · [After](parity/round-4/after/video-mp4.png)
 
 Run `tests/wayland/run --app video --round-four after` on private Sway. The before comparison uses the binary from `5a5cc9a`. The test verifies the compositor’s fullscreen state, keyboard exit, MP4 seek and recorded audio. [Plugin list and test setup](video-tests.md)
+
+**Music.** The seek slider shows the current track’s amplitude over time. Slower and Faster adjust speed in quarter steps from 0.5× to 2× and preserve speech pitch. MP3 and M4A join the earlier formats. The private PipeWire test records pitched tones at 1.5×, then opens tagged MP3 and AAC fixtures. [Before](parity/round-4/before/music-waveform.png) · [After](parity/round-4/after/music-waveform.png)

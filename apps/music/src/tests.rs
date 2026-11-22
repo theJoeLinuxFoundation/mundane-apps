@@ -72,6 +72,19 @@ fn reorder_skip_pause_and_follow_eos(cx: &mut TestAppContext) {
         assert_eq!(m.queue.selected, m.queue.current);
         assert_eq!(m.queue.tracks[1].id, 3)
     });
+    until(&v, cx, |m| {
+        m.peaks
+            .as_ref()
+            .is_some_and(|p| p.iter().any(|x| *x > 0.01))
+    });
+    cx.simulate_keystrokes("]");
+    until(&v, cx, |m| {
+        m.status.speed.factor() == 1.25 && m.status.phase == Phase::Paused
+    });
+    cx.simulate_keystrokes("right");
+    until(&v, cx, |m| {
+        m.status.position >= 5000 && m.status.speed.factor() == 1.25
+    });
     cx.simulate_keystrokes("end space");
     until(&v, cx, |m| {
         m.queue.current == Some(2) && m.status.phase == Phase::Playing

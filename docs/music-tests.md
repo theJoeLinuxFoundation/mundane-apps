@@ -6,7 +6,7 @@ Title, artist, album and duration come from a GStreamer preroll on a worker thre
 
 ## What joe must ship
 
-Music shares Video’s GStreamer 1.22+ runtime and its dynamically linked core, app and video libraries. Install PipeWire with a session manager, the desktop FileChooser portal, and these ten GStreamer plugin modules with their runtime dependencies. The application selects the parsers, decoders and sink explicitly.
+Music shares Video’s GStreamer 1.22+ runtime and its dynamically linked core, app and video libraries. Install PipeWire with a session manager, the desktop FileChooser portal, and these GStreamer plugin modules with their runtime dependencies. The application selects the parsers, decoders and sink explicitly.
 
 | Supplier | Modules | Purpose |
 | --- | --- | --- |
@@ -14,9 +14,11 @@ Music shares Video’s GStreamer 1.22+ runtime and its dynamically linked core, 
 | Base | `ogg`, `opus`, `vorbis` | Ogg demuxer, libopus and libvorbis decoders |
 | Base | `audioconvert`, `audioresample` | Negotiate the output format and sample rate |
 | Good | `audioparsers`, `flac`, `wavparse` | FLAC parser and libFLAC decoder, PCM WAV parser |
+| Base and Good | `app`, `audiofx` | Decode 8 kHz mono samples into 192 peak bins in a separate pipeline. Preserve pitch with `scaletempo` during playback. |
+| Good and system gst-libav | `mpg123`, `isomp4`, `libav` | Decode MP3 including ID3-tagged files and AAC in M4A. |
 | PipeWire | `pipewire` | Output to the session’s default audio sink |
 
-In the tested 1.28.8 registry, the nine GStreamer modules report LGPL and the PipeWire module reports MIT/X11. The pipeline requires no Ugly, libav or x264 plugin. The Cargo licence gate covers 483 packages across the suite. [Shared media dependencies](video-tests.md)
+The waveform reader never opens an audio device. Changing tracks or closing the window cancels analysis. Speed changes seek from the current media position, retain the paused state and carry over to the next track. The slider accepts the same pointer, keyboard and accessibility actions while the waveform is loading. [Shared media dependencies](video-tests.md)
 
 ## Acceptance tests
 

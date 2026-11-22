@@ -18,7 +18,7 @@ use std::{
 use super::Frame;
 
 mod audio;
-pub use audio::{TrackInfo, inspect_audio};
+pub use audio::{TrackInfo, inspect_audio, waveform};
 
 fn local_file(path: &Path) -> Result<File> {
     let file = File::options()
@@ -221,10 +221,14 @@ impl Pipeline {
             .query_duration::<gst::ClockTime>()
             .map(|t| t.mseconds())
     }
-    pub fn seek(&self, ms: u64) -> Result<()> {
-        self.pipeline.seek_simple(
+    pub fn seek(&self, ms: u64, speed: super::Speed) -> Result<()> {
+        self.pipeline.seek(
+            speed.factor(),
             gst::SeekFlags::FLUSH | gst::SeekFlags::ACCURATE,
+            gst::SeekType::Set,
             gst::ClockTime::from_mseconds(ms),
+            gst::SeekType::None,
+            gst::ClockTime::NONE,
         )?;
         Ok(())
     }

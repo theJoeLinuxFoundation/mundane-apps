@@ -9,7 +9,7 @@ PLUGINS = ("coreelements", "matroska", "vpx", "opus", "vorbis", "videoconvertsca
 
 MP4_PLUGINS = ("isomp4", "videoparsersbad", "openh264")
 
-MUSIC_PLUGINS = ("coreelements", "ogg", "opus", "vorbis", "audioparsers", "flac",
+MUSIC_PLUGINS = ("audiofx", "app", "coreelements", "ogg", "opus", "vorbis", "audioparsers", "flac",
                  "wavparse", "audioconvert", "audioresample", "pipewire")
 
 def configure(directory, extra=(), omit=(), plugins=PLUGINS, optional=()):

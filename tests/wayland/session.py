@@ -485,12 +485,18 @@ seat seat0 fallback true
         if suite_app == "music":
             from video_audio import start, record, check_tone
             from video_plugins import MUSIC_PLUGINS, configure, loaded_plugins
-            configure(RUNTIME / "gst-plugins", plugins=MUSIC_PLUGINS)
+            configure(RUNTIME / "gst-plugins", plugins=MUSIC_PLUGINS,
+                      extra=("mpg123", "isomp4") if args.round_four else (),
+                      optional=("libav",) if args.round_four else ())
             start(stack, RUNTIME, launch, until)
             recording = record(stack, RUNTIME, launch, "flac")
             tracks = ROOT / "tests/fixtures/music"
-            argv.extend(str(tracks / name) for name in ("01.flac", "03.ogg", "02.opus"))
-            launch(stack, "python3", str(HERE / "chooser_portal.py"), str(tracks / "Field recording.wav"),
+            if args.round_four:
+                from round_four import speech_track
+                argv.append(str(speech_track(Path.home())))
+            else:
+                argv.extend(str(tracks / name) for name in ("01.flac", "03.ogg", "02.opus"))
+            launch(stack, "python3", str(HERE / "chooser_portal.py"), *(str(tracks / n) for n in (("Radio.mp3", "Interview.m4a") if args.round_four else ("Field recording.wav",))),
                    log="music-portal.log")
             until((RUNTIME / "chooser-ready").exists, "private FileChooser")
         if suite_app == "packages":
@@ -581,11 +587,17 @@ seat seat0 fallback true
             return app_id in command("-t", "get_tree")
         until(mapped, f"mapped {suite_app}")
         if args.round_four:
-            from round_four import video
-            if suite_app != "video" or labwc:
-                raise ValueError("The round-four Video comparison uses Sway.")
-            video(args.round_four, app, ROOT, OUTPUT / log, key, until, compare_screenshot,
-                  lambda tag: record(stack, RUNTIME, launch, tag), check_tone)
+            from round_four import video, music
+            if labwc:
+                raise ValueError("Round-four comparisons use headless Sway.")
+            if suite_app == "video":
+                video(args.round_four, app, ROOT, OUTPUT / log, key, until, compare_screenshot,
+                      lambda tag: record(stack, RUNTIME, launch, tag), check_tone)
+            elif suite_app == "music":
+                music(args.round_four, ROOT, OUTPUT / log, key, until, compare_screenshot,
+                      lambda tag: record(stack, RUNTIME, launch, tag), check_tone)
+            else:
+                raise ValueError(f"No round-four scenario for {suite_app}")
             return
         if args.round_three:
             from round_three import exercise

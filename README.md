@@ -146,7 +146,7 @@ Video plays local WebM (VP8 or VP9) and MP4 (H.264). Soundtracks can use AAC, Op
 
 ## Music
 
-Music plays local FLAC, PCM WAV, Ogg Opus and Ogg Vorbis through PipeWire. **Add tracks…** appends files to the queue. A single click selects an entry for reordering or removal. Double-click or choose **Play selected** to start it. The current track shows its title, artist and album when tagged. [Music packaging and tests](docs/music-tests.md)
+Music plays local MP3, M4A/AAC, FLAC, PCM WAV, Ogg Opus and Ogg Vorbis through PipeWire. Seek on the waveform or use Slower and Faster ([ and ]) to play speech at 0.5× through 2×. **Add tracks…** appends files to the queue. A single click selects an entry for reordering or removal. Double-click or choose **Play selected** to start it. The current track shows its title, artist and album when tagged. [Music packaging and tests](docs/music-tests.md)
 
 | Action | Shortcut |
 | --- | --- |
