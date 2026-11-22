@@ -14,11 +14,20 @@ pub(super) struct Profile {
     pub size: u16,
     pub history: usize,
     pub palette: String,
+    #[serde(default)]
+    pub command: String,
+    #[serde(default)]
+    pub login: bool,
+    #[serde(default)]
+    pub shortcuts: String,
 }
 impl Default for Profile {
     fn default() -> Self {
         Self {
             name: "Default".into(),
+            command: String::new(),
+            login: false,
+            shortcuts: String::new(),
             family: "DejaVu Sans Mono".into(),
             size: 16,
             history: 10000,
@@ -27,6 +36,23 @@ impl Default for Profile {
     }
 }
 impl Profile {
+    pub fn configure(&self, opts: &mut Options) {
+        if self.command.is_empty() && !self.login {
+            return;
+        }
+        let shell = std::env::var("SHELL")
+            .ok()
+            .filter(|s| !s.is_empty())
+            .unwrap_or_else(|| "/bin/sh".into());
+        let mut args = vec![];
+        if self.login {
+            args.push("-l".into());
+        }
+        if !self.command.is_empty() {
+            args.extend(["-c".into(), self.command.clone()]);
+        }
+        opts.shell = Some(alacritty_terminal::tty::Shell::new(shell, args));
+    }
     fn validate(&self) -> Result<(), String> {
         if self.name.trim().is_empty()
             || self.name.len() > 80
@@ -41,6 +67,10 @@ impl Profile {
         if !matches!(self.palette.as_str(), "Desktop" | "Dark" | "Light") {
             return Err("Choose Desktop, Dark or Light.".into());
         }
+        bindings(&self.shortcuts)?;
+        if self.command.contains('\0') {
+            return Err("A startup command cannot contain NUL.".into());
+        }
         Ok(())
     }
     pub fn theme(&self, desktop: Theme) -> Theme {
@@ -54,7 +84,7 @@ impl Profile {
         }
     }
 }
-#[derive(Deserialize, Serialize)]
+#[derive(Clone, Deserialize, Serialize)]
 pub(super) struct Profiles {
     default: String,
     items: BTreeMap<String, Profile>,
@@ -129,20 +159,24 @@ impl Profiles {
     }
 }
 pub(super) struct Form {
-    fields: [Entity<TextField>; 4],
+    fields: [Entity<TextField>; 6],
     palette: String,
+    login: bool,
+    login_focus: FocusHandle,
     names: Vec<(String, FocusHandle)>,
     buttons: [FocusHandle; 4],
     error: Option<String>,
 }
 impl Form {
-    fn fields(p: &Profile, cx: &mut Context<Terminal>) -> [Entity<TextField>; 4] {
+    fn fields(p: &Profile, cx: &mut Context<Terminal>) -> [Entity<TextField>; 6] {
         let t = Theme::current(cx);
         [
             ("Profile name", p.name.clone()),
             ("Font family", p.family.clone()),
             ("Font size", p.size.to_string()),
             ("Scrollback lines", p.history.to_string()),
+            ("Startup command", p.command.clone()),
+            ("Window shortcuts", p.shortcuts.clone()),
         ]
         .map(|(label, text)| cx.new(|cx| TextField::new(label, t, cx).select_value(text)))
     }
@@ -159,6 +193,8 @@ impl Terminal {
         fields[0].read(cx).focus_handle(cx).focus(w, cx);
         self.form = Some(Form {
             fields,
+            login: p.login,
+            login_focus: cx.focus_handle().tab_stop(true),
             palette: p.palette.clone(),
             names: self
                 .profiles
@@ -207,6 +243,9 @@ impl Terminal {
                         anyhow::anyhow!("Enter a whole number of scrollback lines.")
                     })?,
                     palette: f.palette.clone(),
+                    command: value(4),
+                    login: f.login,
+                    shortcuts: value(5),
                 }
             };
             Profiles::update(&Profiles::path()?, p, index == 2)
@@ -262,6 +301,7 @@ impl Terminal {
                         if let Some(f) = &mut s.form {
                             f.fields = Form::fields(p, cx);
                             f.palette = p.palette.clone();
+                            f.login = p.login;
                             f.error = None;
                             f.fields[0].read(cx).focus_handle(cx).focus(w, cx);
                         }
@@ -282,14 +322,14 @@ impl Terminal {
             .justify_center()
             .child(
                 div()
-                    .w(px(430.))
+                    .w(rems(34.))
                     .max_w_full()
                     .max_h_full()
                     .id("profile-settings")
                     .overflow_y_scroll()
                     .flex()
                     .flex_col()
-                    .gap_2()
+                    .gap_1()
                     .p_3()
                     .rounded_lg()
                     .bg(rgb(t.panel))
@@ -300,7 +340,7 @@ impl Terminal {
                             "Profile name",
                             "Font family",
                             "Font size",
-                            "Scrollback lines",
+                            "Scrollback lines", "Startup command","Window shortcuts",
                         ]
                         .into_iter()
                         .zip(&f.fields)
@@ -319,7 +359,18 @@ impl Terminal {
                             .child(div().w(px(145.)).child("Colors"))
                             .child(palette),
                     )
-                    .child("Save and use applies to this tab and new shells.")
+                    .child(mundane_ui::toggle("Login shell", &f.login_focus,f.login,true,t,{
+                        let view = cx.weak_entity();
+                        move |login, _, cx| {
+                            let _ = view.update(cx, |terminal,cx| {
+                                if let Some(form) = &mut terminal.form {
+                                    form.login = login;
+                                    cx.notify();
+                                }
+                            });
+                        }
+                    }))
+                    .child("New shells use the startup command. Override tab, window, detach, close or profiles with entries like window=ctrl-alt-n.")
                     .when_some(f.error.clone(), |el, e| {
                         el.child(
                             mundane_ui::Role::Status
@@ -340,6 +391,7 @@ impl Terminal {
                     .iter()
                     .map(|(_, h)| h.clone())
                     .chain(f.fields.iter().map(|field| field.read(cx).focus_handle(cx)))
+                    .chain(std::iter::once(f.login_focus.clone()))
                     .chain(f.buttons.iter().cloned())
                     .collect();
                 let i = handles.iter().position(|h| h.is_focused(w)).unwrap_or(0);
@@ -365,9 +417,80 @@ impl Terminal {
     }
 }
 
+const SHORTCUTS: [(&str, &str); 5] = [
+    ("tab", "ctrl-shift-t"),
+    ("window", "ctrl-shift-n"),
+    ("detach", "ctrl-shift-d"),
+    ("close", "ctrl-shift-w"),
+    ("profiles", "ctrl-shift-p"),
+];
+pub(super) fn bindings(value: &str) -> Result<BTreeMap<&'static str, String>, String> {
+    let mut map: BTreeMap<_, _> = SHORTCUTS
+        .into_iter()
+        .map(|(a, k)| (a, k.to_owned()))
+        .collect();
+    for part in value.split(',').map(str::trim).filter(|s| !s.is_empty()) {
+        let (action, stroke) = part
+            .split_once('=')
+            .ok_or("Use action=shortcut, separated by commas.")?;
+        let slot = map
+            .get_mut(action.trim())
+            .ok_or("Unknown window shortcut action.")?;
+        let k = Keystroke::parse_with_os(stroke.trim(), OperatingSystem::Linux)
+            .map_err(|_| "Invalid shortcut.")?;
+        if !k.modifiers.control && !k.modifiers.alt {
+            return Err("A window shortcut needs Control or Alt.".into());
+        }
+        *slot = k.unparse(OperatingSystem::Linux);
+    }
+    if map
+        .values()
+        .collect::<std::collections::BTreeSet<_>>()
+        .len()
+        != map.len()
+    {
+        return Err("Choose a different shortcut for each action.".into());
+    }
+    Ok(map)
+}
+
 #[cfg(test)]
 mod tests {
     use super::{Profile, Profiles, Theme};
+    #[test]
+    fn old_profiles_and_launch_shortcuts() {
+        let mut p: Profile = serde_json::from_str(
+            r#"{"name":"Work","family":"Mono","size":14,"palette":"Desktop","history":42}"#,
+        )
+        .unwrap();
+        let mut opts = super::Options::default();
+        p.configure(&mut opts);
+        assert!(opts.shell.is_none());
+        p.command = "printf '%s' 'two words'".into();
+        p.login = true;
+        p.configure(&mut opts);
+        let shell = std::env::var("SHELL")
+            .ok()
+            .filter(|s| !s.is_empty())
+            .unwrap_or_else(|| "/bin/sh".into());
+        assert_eq!(
+            opts.shell.unwrap(),
+            alacritty_terminal::tty::Shell::new(
+                shell,
+                vec!["-l".into(), "-c".into(), p.command.clone()]
+            )
+        );
+        p.shortcuts = "window=ctrl-alt-n, tab=ctrl-alt-t".into();
+        assert!(p.validate().is_ok());
+        assert_eq!(
+            super::bindings(&p.shortcuts).unwrap()["window"],
+            "ctrl-alt-n"
+        );
+        for bad in ["window=ctrl-shift-t", "window=n", "unknown=ctrl-n"] {
+            p.shortcuts = bad.into();
+            assert!(p.validate().is_err());
+        }
+    }
     #[test]
     fn distinct_profiles_survive_updates_and_invalid_entries_keep_previous_file() {
         let dir = tempfile::tempdir().unwrap();

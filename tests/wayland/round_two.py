@@ -6,7 +6,10 @@ import os
 def exercise(app, side, key, type_text, until, compare, root, log, restart):
     after = side == "after"
     def shot(name):
-        compare(app + "-" + name + ".png", 1, root / "docs/parity/round-2" / side)
+        filename = app + "-" + name + ".png"
+        current = root / "tests/wayland/parity/round-2"
+        refs = current if after and (current / filename).exists() else root / "docs/parity/round-2" / side
+        compare(filename, 1, refs)
     key("Shift_L")
     if app == "text-editor":
         until(lambda: "survey.py — Text Editor" in log.read_text(), "opened Python file")

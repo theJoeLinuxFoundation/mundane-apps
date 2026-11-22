@@ -6,6 +6,7 @@ mod grid;
 mod keys;
 mod links;
 mod tabs;
+mod windows;
 
 use alacritty_terminal::{
     event::Event,
@@ -42,6 +43,8 @@ struct Terminal {
     options: Options,
     tab_scroll: ScrollHandle,
     new_focus: FocusHandle,
+    window_focus: FocusHandle,
+    detach_focus: FocusHandle,
     close_focus: FocusHandle,
     notice: Option<String>,
     grid_focus: FocusHandle,
@@ -68,8 +71,20 @@ impl Terminal {
             font_size: BODY_FONT,
         };
         layout.font_size = profiles.selected().size.into();
-        let mut first = Self::shell(1, options.clone(), layout, window, cx)?;
-        first.apply_profile(profiles.selected().clone());
+        let first = Self::start(1, &profiles, options.clone(), layout, window, cx)?;
+        Ok(Self::with_tab(
+            options, profiles, notice, layout, first, window, cx,
+        ))
+    }
+    fn with_tab(
+        options: Options,
+        profiles: profiles::Profiles,
+        notice: Option<String>,
+        layout: Layout,
+        first: tabs::ShellTab,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> Self {
         let v = cx.weak_entity();
         window.on_window_should_close(cx, move |w, cx| {
             v.update(cx, |s, cx| s.allow_close(Target::Window, w, cx))
@@ -82,10 +97,12 @@ impl Terminal {
 
         let grid_focus = cx.focus_handle().tab_stop(true);
         grid_focus.focus(window, cx);
-        Ok(Self {
+        Self {
+            next_id: first.id + 1,
             tabs: vec![first],
             active: 0,
-            next_id: 2,
+            window_focus: cx.focus_handle().tab_stop(true),
+            detach_focus: cx.focus_handle().tab_stop(true),
             options,
             tab_scroll: ScrollHandle::new(),
             new_focus: cx.focus_handle().tab_stop(true),
@@ -103,7 +120,7 @@ impl Terminal {
             layout,
             wheel_remainder: 0.,
             composing: String::new(),
-        })
+        }
     }
 
     fn input(&mut self, bytes: Vec<u8>) {
@@ -429,6 +446,7 @@ impl Render for Terminal {
         });
         let v = cx.weak_entity();
         let profiles_view = cx.weak_entity();
+        let window_view = cx.weak_entity();
         let tools = div()
             .flex()
             .gap_1()
@@ -443,7 +461,24 @@ impl Render for Terminal {
             .child(button("New tab", &self.new_focus, theme, move |w, cx| {
                 let _ = v.update(cx, |t, cx| t.add_tab(w, cx));
             }))
+            .child(button(
+                "New window",
+                &self.window_focus,
+                theme,
+                move |w, cx| {
+                    let _ = window_view.update(cx, |s, cx| s.separate(false, w, cx));
+                },
+            ))
             .child(find);
+        let compact = f32::from(window.viewport_size().width) < 32. * f32::from(window.rem_size());
+        let (header_tools, second_row) = if compact {
+            (
+                div(),
+                Some(tools.flex_wrap().px_2().py_1().bg(rgb(theme.panel))),
+            )
+        } else {
+            (tools, None)
+        };
         let body = self
             .content
             .render(self.find.is_some() || self.form.is_some() || self.warning.is_some())
@@ -455,8 +490,9 @@ impl Render for Terminal {
             .text_color(rgb(theme.text))
             .child(
                 self.header
-                    .render("Terminal", tools, &self.grid_focus, theme, window),
+                    .render("Terminal", header_tools, &self.grid_focus, theme, window),
             )
+            .children(second_row)
             .when(self.tabs.len() > 1, |el| el.child(self.strip(cx)))
             .child(self.terminal_grid(window, cx))
             .children(self.notice.clone())
@@ -577,24 +613,15 @@ fn main() {
             }
         })
         .detach();
-        let bounds = Bounds::centered(None, size(px(820.), px(520.)), cx);
-        let result = cx.open_window(
-            WindowOptions {
-                app_id: Some(APP_ID.into()),
-                window_bounds: Some(WindowBounds::Windowed(bounds)),
-                window_decorations: Some(WindowDecorations::Client),
-                ..Default::default()
-            },
-            |window, cx| {
-                window.set_window_title("Terminal");
-                cx.new(|cx| {
-                    Terminal::new(Default::default(), window, cx).unwrap_or_else(|err| {
-                        eprintln!("Could not open a shell: {err}");
-                        std::process::exit(1);
-                    })
+        let result = cx.open_window(windows::options(cx), |window, cx| {
+            window.set_window_title("Terminal");
+            cx.new(|cx| {
+                Terminal::new(Default::default(), window, cx).unwrap_or_else(|err| {
+                    eprintln!("Could not open a shell: {err}");
+                    std::process::exit(1);
                 })
-            },
-        );
+            })
+        });
         if let Err(err) = result {
             eprintln!("Could not open Terminal: {err}");
             std::process::exit(1);

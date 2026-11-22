@@ -47,3 +47,5 @@ tests/wayland/run --compositor labwc --profile contrast
 ```
 
 The labwc references show the three controls. The test checks keyboard minimize, maximize, restore and close, and sends a double-click and drag through a virtual pointer on the private socket.
+
+Round four detaches a live PTY and checks both the shell PID and an unexported variable in the new window. New window starts a distinct PID. Profile tests cover migration, login flags, quoted startup commands and conflicting shortcuts. The nested mundaneDE Orca check still reads the typed “z”. The known plain Sway keyboard-monitor limitation remains in the accessibility report.

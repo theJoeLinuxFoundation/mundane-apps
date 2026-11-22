@@ -624,6 +624,9 @@ seat seat0 fallback true
             elif suite_app == "maps":
                 from round_four import maps
                 maps(args.round_four, ROOT, OUTPUT / log, key, type_text, until, compare_screenshot)
+            elif suite_app == "terminal":
+                from round_four import terminal
+                terminal(args.round_four, ROOT, key, type_text, until, compare_screenshot, command)
             elif suite_app == "archive-manager":
                 from round_four import archive
                 archive(args.round_four, ROOT, OUTPUT / log, key, until, compare_screenshot)

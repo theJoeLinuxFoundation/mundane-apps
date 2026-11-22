@@ -169,3 +169,12 @@ Ctrl+N creates an archive from selected files. The destination extension selects
 | --- | --- | --- |
 | Create and extend an archive | [Opened ZIP](parity/round-4/before/archive-manager-create.png) | [New tar.xz with two files](parity/round-4/after/archive-manager-create.png) |
 | Remove an entry | [Entry list](parity/round-4/before/archive-manager-remove.png) | [Review removal](parity/round-4/after/archive-manager-remove.png) |
+
+### Terminal
+
+Ctrl+Shift+N opens a separate terminal in the active shell’s working directory. Ctrl+Shift+D detaches the selected tab when there are multiple tabs, preserving its shell, jobs, scrollback and profile. Profiles can start a login shell, run a custom command in the user’s shell and override the shortcuts for tab, window, detach, close and profiles. Other terminal shortcuts retain their standard bindings.
+
+| Task | Before | After |
+| --- | --- | --- |
+| Detach a running shell | [Tabbed shells](parity/round-4/before/terminal-detach.png) | [Independent windows, same PTY](parity/round-4/after/terminal-detach.png) |
+| Configure new shells | [Original profiles](parity/round-4/before/terminal-startup.png) | [Startup, login and shortcuts](parity/round-4/after/terminal-startup.png) |

@@ -4,10 +4,12 @@ pub(super) struct ShellTab {
     pub id: u64,
     pub session: Session,
     pub profile: profiles::Profile,
+    shortcuts: std::collections::BTreeMap<&'static str, String>,
     pub(super) zoom: f32,
     pub label: String,
     pub focus: FocusHandle,
-    _events: Task<()>,
+    events: async_channel::Receiver<Event>,
+    watcher: Option<Task<()>>,
 }
 impl ShellTab {
     pub fn apply_profile(&mut self, profile: profiles::Profile) {
@@ -19,19 +21,44 @@ impl ShellTab {
                 ..Default::default()
             });
         self.zoom = profile.size.into();
+        self.shortcuts = profiles::bindings(&profile.shortcuts).expect("validated profile");
         self.profile = profile;
     }
 }
 impl Terminal {
-    pub(super) fn shell(
+    pub(super) fn start(
         id: u64,
-        options: Options,
+        profiles: &profiles::Profiles,
+        mut options: Options,
         layout: Layout,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> anyhow::Result<ShellTab> {
+        let profile = profiles.selected();
+        profile.configure(&mut options);
         let (session, events) = Session::open(options, layout.size())?;
-        let task = cx.spawn_in(window, async move |view, cx| {
+        let mut tab = ShellTab {
+            id,
+            shortcuts: Default::default(),
+            profile: profile.clone(),
+            zoom: layout.font_size,
+            session,
+            label: format!("Shell {id}"),
+            focus: cx.focus_handle().tab_stop(true),
+            events,
+            watcher: None,
+        };
+        tab.apply_profile(profile.clone());
+        tab.watch(window, cx);
+        Ok(tab)
+    }
+}
+impl ShellTab {
+    pub(super) fn watch(&mut self, window: &mut Window, cx: &mut Context<Terminal>) {
+        self.watcher.take();
+        let events = self.events.clone();
+        let id = self.id;
+        self.watcher = Some(cx.spawn_in(window, async move |view, cx| {
             while let Ok(first) = events.recv().await {
                 let result = view.update_in(cx, |terminal, window, cx| {
                     let Some(i) = terminal.tabs.iter().position(|tab| tab.id == id) else {
@@ -80,18 +107,11 @@ impl Terminal {
                     break;
                 }
             }
-        });
-        Ok(ShellTab {
-            id,
-            profile: Default::default(),
-            zoom: BODY_FONT,
-            session,
-            label: format!("Shell {id}"),
-            focus: cx.focus_handle().tab_stop(true),
-            _events: task,
-        })
+        }));
     }
-    fn select_tab(&mut self, i: usize, w: &mut Window, cx: &mut Context<Self>) {
+}
+impl Terminal {
+    pub(super) fn select_tab(&mut self, i: usize, w: &mut Window, cx: &mut Context<Self>) {
         self.active = i;
         self.layout.font_size = self.tabs[i].zoom;
         self.composing.clear();
@@ -107,9 +127,8 @@ impl Terminal {
         if let Some(dir) = self.tabs[self.active].session.working_directory() {
             opts.working_directory = Some(dir);
         }
-        match Self::shell(self.next_id, opts, self.layout, w, cx) {
-            Ok(mut tab) => {
-                tab.apply_profile(self.profiles.selected().clone());
+        match Self::start(self.next_id, &self.profiles, opts, self.layout, w, cx) {
+            Ok(tab) => {
                 self.next_id += 1;
                 self.tabs.push(tab);
                 self.select_tab(self.tabs.len() - 1, w, cx);
@@ -165,16 +184,26 @@ impl Terminal {
             return;
         }
         let k = &e.keystroke;
-        match (k.key.as_str(), k.modifiers.control, k.modifiers.shift) {
-            ("t", true, true) => self.add_tab(w, cx),
-            ("w", true, true) => self.request_close(Target::Tab(self.tabs[self.active].id), w, cx),
-            ("p", true, true) => self.edit_profiles(w, cx),
-            ("pageup" | "pagedown", true, false) => {
-                let n = self.tabs.len();
-                let delta = if k.key == "pageup" { n - 1 } else { 1 };
-                self.select_tab((self.active + delta) % n, w, cx)
-            }
-            _ => return,
+        let key = k.unparse(OperatingSystem::Linux);
+        let action = self.tabs[self.active]
+            .shortcuts
+            .iter()
+            .find(|(_, s)| **s == key)
+            .map(|(a, _)| *a);
+        match action {
+            Some("tab") => self.add_tab(w, cx),
+            Some("window") => self.separate(false, w, cx),
+            Some("detach") => self.separate(true, w, cx),
+            Some("close") => self.request_close(Target::Tab(self.tabs[self.active].id), w, cx),
+            Some("profiles") => self.edit_profiles(w, cx),
+            _ => match (k.key.as_str(), k.modifiers.control, k.modifiers.shift) {
+                ("pageup" | "pagedown", true, false) => {
+                    let n = self.tabs.len();
+                    let delta = if k.key == "pageup" { n - 1 } else { 1 };
+                    self.select_tab((self.active + delta) % n, w, cx)
+                }
+                _ => return,
+            },
         }
         w.prevent_default();
         cx.stop_propagation();
@@ -192,11 +221,21 @@ impl Terminal {
             move |i, w, cx| {
                 let _ = view.update(cx, |v, cx| v.select_tab(i, w, cx));
             },
-            button("Close tab", &self.close_focus, t, move |w, cx| {
-                let _ = close.update(cx, |v, cx| {
-                    v.request_close(Target::Tab(v.tabs[v.active].id), w, cx)
-                });
-            }),
+            div()
+                .id("tab-actions")
+                .flex()
+                .gap_1()
+                .child(button("Detach", &self.detach_focus, t, {
+                    let v = cx.weak_entity();
+                    move |w, cx| {
+                        let _ = v.update(cx, |s, cx| s.separate(true, w, cx));
+                    }
+                }))
+                .child(button("Close tab", &self.close_focus, t, move |w, cx| {
+                    let _ = close.update(cx, |v, cx| {
+                        v.request_close(Target::Tab(v.tabs[v.active].id), w, cx)
+                    });
+                })),
             t,
         )
     }

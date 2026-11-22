@@ -310,3 +310,31 @@ def archive(side, root, log, key, until, compare):
         key("Tab")
         key("Return")
         until(lambda: members() == ["Field notes.md"], "removed the reviewed entry")
+
+
+def terminal(side, root, key, type_text, until, compare, command):
+    home = Path.home()
+    until((home / ".prompt-ready").exists, "original shell")
+    key("Shift_L")
+    key("t", "ctrl", "shift")
+    type_text("survey=quay; echo $$ > first-pid; clear")
+    key("Return")
+    until((home / "first-pid").exists, "tab shell running")
+    if side == "after":
+        key("d", "ctrl", "shift")
+        until(lambda: command("-t", "get_tree").replace(' ', '').count('"app_id":"org.joelinux.mundane.Terminal"') == 2, "detached terminal mapped")
+        type_text('echo "$survey $$" > detached; clear')
+        key("Return")
+        until((home / "detached").exists, "detached shell received input")
+        assert (home / "detached").read_text().strip() == "quay " + (home / "first-pid").read_text().strip()
+    compare("terminal-detach.png", 1, root / "docs/parity/round-4" / side)
+    if side == "after":
+        key("w", "ctrl", "shift")
+        key("n", "ctrl", "shift")
+        type_text("echo $$ > new-pid; clear")
+        key("Return")
+        until((home / "new-pid").exists, "independent new window")
+        assert (home / "first-pid").read_text() != (home / "new-pid").read_text()
+        key("w", "ctrl", "shift")
+    key("p", "ctrl", "shift")
+    compare("terminal-startup.png", 1, root / "docs/parity/round-4" / side)
