@@ -1,6 +1,8 @@
 use mundane_ui::ControlRole as _;
 mod grid;
 mod keys;
+mod links;
+mod tabs;
 
 use alacritty_terminal::{
     event::Event,
@@ -27,7 +29,14 @@ struct Find {
 }
 
 struct Terminal {
-    session: Session,
+    tabs: Vec<tabs::ShellTab>,
+    active: usize,
+    next_id: u64,
+    options: Options,
+    tab_scroll: ScrollHandle,
+    new_focus: FocusHandle,
+    close_focus: FocusHandle,
+    notice: Option<String>,
     grid_focus: FocusHandle,
     find_button: FocusHandle,
     header: WindowHeader,
@@ -36,7 +45,6 @@ struct Terminal {
     layout: Layout,
     wheel_remainder: f32,
     composing: String,
-    _events: Task<()>,
 }
 
 impl Terminal {
@@ -45,46 +53,18 @@ impl Terminal {
             bounds: Bounds::new(Point::default(), window.viewport_size()),
             font_size: BODY_FONT,
         };
-        let (session, events) = Session::open(options, layout.size())?;
+        let first = Self::shell(1, options.clone(), layout, window, cx)?;
         let grid_focus = cx.focus_handle().tab_stop(true);
         grid_focus.focus(window, cx);
-        let task = cx.spawn_in(window, async move |view, cx| {
-            while let Ok(event) = events.recv().await {
-                let result = view.update_in(cx, |terminal, window, cx| {
-                    for event in std::iter::once(event)
-                        .chain(std::iter::from_fn(|| events.try_recv().ok()).take(255))
-                    {
-                        match event {
-                            Event::Exit => {
-                                window.remove_window();
-                                return;
-                            }
-                            Event::PtyWrite(s) => terminal.session.write(s.into_bytes()),
-                            Event::ColorRequest(index, reply) => {
-                                let screen = terminal.session.screen.lock();
-                                let color =
-                                    grid::palette_color(index, Theme::current(cx), screen.colors());
-                                let [_, r, g, b] = color.to_be_bytes();
-                                terminal.session.write(
-                                    reply(alacritty_terminal::vte::ansi::Rgb { r, g, b })
-                                        .into_bytes(),
-                                );
-                            }
-                            Event::TextAreaSizeRequest(reply) => terminal
-                                .session
-                                .write(reply(terminal.session.size()).into_bytes()),
-                            _ => {}
-                        }
-                    }
-                    cx.notify();
-                });
-                if result.is_err() {
-                    break;
-                }
-            }
-        });
         Ok(Self {
-            session,
+            tabs: vec![first],
+            active: 0,
+            next_id: 2,
+            options,
+            tab_scroll: ScrollHandle::new(),
+            new_focus: cx.focus_handle().tab_stop(true),
+            close_focus: cx.focus_handle().tab_stop(true),
+            notice: None,
             grid_focus,
             find_button: cx.focus_handle().tab_stop(true),
             content: Default::default(),
@@ -93,20 +73,19 @@ impl Terminal {
             layout,
             wheel_remainder: 0.,
             composing: String::new(),
-            _events: task,
         })
     }
 
     fn input(&mut self, bytes: Vec<u8>) {
-        let mut screen = self.session.screen.lock();
+        let mut screen = self.tabs[self.active].session.screen.lock();
         screen.scroll_display(Scroll::Bottom);
         screen.selection = None;
         drop(screen);
-        self.session.write(bytes);
+        self.tabs[self.active].session.write(bytes);
     }
 
     fn paste(&mut self, text: String) {
-        let bracketed = self
+        let bracketed = self.tabs[self.active]
             .session
             .screen
             .lock()
@@ -155,7 +134,7 @@ impl Terminal {
         let Ok(mut query) = RegexSearch::new(&regex::escape(needle)) else {
             return;
         };
-        let mut screen = self.session.screen.lock();
+        let mut screen = self.tabs[self.active].session.screen.lock();
         let origin = screen
             .selection
             .as_ref()
@@ -186,9 +165,30 @@ impl Terminal {
     fn grid_key(&mut self, event: &KeyDownEvent, window: &mut Window, cx: &mut Context<Self>) {
         let key = &event.keystroke;
         let mods = key.modifiers;
+        if key.key == "enter"
+            && mods.control
+            && !mods.shift
+            && let Some(url) = self.tabs[self.active]
+                .session
+                .screen
+                .lock()
+                .selection_to_string()
+                .as_deref()
+                .and_then(links::web_url)
+        {
+            cx.open_url(&url);
+            window.prevent_default();
+            cx.stop_propagation();
+            return;
+        }
         match (key.key.as_str(), mods.control, mods.shift) {
             ("c", true, true) => {
-                if let Some(text) = self.session.screen.lock().selection_to_string() {
+                if let Some(text) = self.tabs[self.active]
+                    .session
+                    .screen
+                    .lock()
+                    .selection_to_string()
+                {
                     cx.write_to_clipboard(ClipboardItem::new_string(text));
                 }
             }
@@ -198,16 +198,22 @@ impl Terminal {
                 }
             }
             ("f", true, true) => self.open_find(window, cx),
-            ("pageup", false, true) => self.session.screen.lock().scroll_display(Scroll::PageUp),
-            ("pagedown", false, true) => {
-                self.session.screen.lock().scroll_display(Scroll::PageDown)
-            }
+            ("pageup", false, true) => self.tabs[self.active]
+                .session
+                .screen
+                .lock()
+                .scroll_display(Scroll::PageUp),
+            ("pagedown", false, true) => self.tabs[self.active]
+                .session
+                .screen
+                .lock()
+                .scroll_display(Scroll::PageDown),
             ("+" | "=", true, _) => self.layout.font_size = (self.layout.font_size + 2.).min(40.),
             ("-", true, _) => self.layout.font_size = (self.layout.font_size - 2.).max(10.),
             ("0", true, _) => self.layout.font_size = BODY_FONT,
             ("f6", false, _) => self.find_button.focus(window, cx),
             _ => {
-                let app_cursor = self
+                let app_cursor = self.tabs[self.active]
                     .session
                     .screen
                     .lock()
@@ -231,9 +237,9 @@ impl Terminal {
             move |bounds, window, cx| {
                 view.update(cx, |this, cx| {
                     this.layout.bounds = bounds;
-                    this.session.resize(this.layout.size());
+                    this.tabs[this.active].session.resize(this.layout.size());
                     Frame::read(
-                        &this.session.screen.lock(),
+                        &this.tabs[this.active].session.screen.lock(),
                         this.layout,
                         Theme::current(cx),
                         this.grid_focus.is_focused(window),
@@ -257,7 +263,7 @@ impl Terminal {
             Theme::current(cx),
         )
         .when(window.is_a11y_active(), |grid| {
-            let screen = self.session.screen.clone();
+            let screen = self.tabs[self.active].session.screen.clone();
             let layout = self.layout;
             let scale = window.scale_factor();
             grid.a11y_synthetic_children(move |tree| {
@@ -274,8 +280,14 @@ impl Terminal {
             MouseButton::Left,
             cx.listener(|this, ev: &MouseDownEvent, window, cx| {
                 this.grid_focus.focus(window, cx);
-                let mut screen = this.session.screen.lock();
+                let mut screen = this.tabs[this.active].session.screen.lock();
                 let (point, side) = this.layout.hit(ev.position, &screen);
+                if ev.modifiers.control
+                    && let Some(url) = links::at(&screen, point)
+                {
+                    cx.open_url(&url);
+                    return;
+                }
                 let kind = match ev.click_count {
                     2 => SelectionType::Semantic,
                     3 => SelectionType::Lines,
@@ -287,7 +299,7 @@ impl Terminal {
         )
         .on_mouse_move(cx.listener(|this, ev: &MouseMoveEvent, _, cx| {
             if ev.pressed_button == Some(MouseButton::Left) {
-                let mut screen = this.session.screen.lock();
+                let mut screen = this.tabs[this.active].session.screen.lock();
                 let (point, side) = this.layout.hit(ev.position, &screen);
                 if let Some(selection) = &mut screen.selection {
                     selection.update(point, side);
@@ -303,7 +315,8 @@ impl Terminal {
             this.wheel_remainder += delta;
             let rows = this.wheel_remainder.trunc() as i32;
             this.wheel_remainder -= rows as f32;
-            this.session
+            this.tabs[this.active]
+                .session
                 .screen
                 .lock()
                 .scroll_display(Scroll::Delta(rows));
@@ -380,6 +393,14 @@ impl Render for Terminal {
         let find = button("Find", &self.find_button, theme, move |window, cx| {
             let _ = view.update(cx, |this, cx| this.open_find(window, cx));
         });
+        let v = cx.weak_entity();
+        let tools = div()
+            .flex()
+            .gap_1()
+            .child(button("New tab", &self.new_focus, theme, move |w, cx| {
+                let _ = v.update(cx, |t, cx| t.add_tab(w, cx));
+            }))
+            .child(find);
         let body = self
             .content
             .render(self.find.is_some())
@@ -391,14 +412,17 @@ impl Render for Terminal {
             .text_color(rgb(theme.text))
             .child(
                 self.header
-                    .render("Terminal", find, &self.grid_focus, theme, window),
+                    .render("Terminal", tools, &self.grid_focus, theme, window),
             )
+            .when(self.tabs.len() > 1, |el| el.child(self.strip(cx)))
             .child(self.terminal_grid(window, cx))
+            .children(self.notice.clone())
             .when(!self.composing.is_empty(), |el| {
                 el.child(self.composing.clone())
             });
         div()
             .relative()
+            .capture_key_down(cx.listener(Self::tab_key))
             .size_full()
             .font_family("DejaVu Sans")
             .text_color(rgb(theme.text))
@@ -469,9 +493,9 @@ impl EntityInputHandler for Terminal {
         _: &mut Window,
         _: &mut Context<Self>,
     ) -> Option<Bounds<Pixels>> {
-        let screen = self.session.screen.lock();
+        let screen = self.tabs[self.active].session.screen.lock();
         let cursor = screen.grid().cursor.point;
-        let cell = self.session.size();
+        let cell = self.tabs[self.active].session.size();
         Some(Bounds::new(
             bounds.origin
                 + point(

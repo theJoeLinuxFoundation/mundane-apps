@@ -36,6 +36,8 @@ impl EventListener for Events {
         if matches!(
             event,
             Event::Wakeup
+                | Event::Title(_)
+                | Event::ResetTitle
                 | Event::Exit
                 | Event::PtyWrite(_)
                 | Event::ColorRequest(..)
@@ -50,6 +52,7 @@ pub struct Session {
     pub screen: Arc<FairMutex<Term<Events>>>,
     channel: EventLoopSender,
     size: WindowSize,
+    pid: u32,
 }
 
 impl Session {
@@ -68,6 +71,7 @@ impl Session {
             events.clone(),
         )));
         let pty = tty::new(&options, size, 0)?;
+        let pid = pty.child().id();
         let io = EventLoop::new(screen.clone(), events, pty, true, false)?;
         let channel = io.channel();
         io.spawn();
@@ -75,10 +79,17 @@ impl Session {
             Self {
                 screen,
                 channel,
+                pid,
                 size,
             },
             rx,
         ))
+    }
+
+    pub fn working_directory(&self) -> Option<std::path::PathBuf> {
+        std::fs::read_link(format!("/proc/{}/cwd", self.pid))
+            .ok()
+            .filter(|p| p.is_dir())
     }
 
     pub fn size(&self) -> WindowSize {

@@ -35,3 +35,13 @@ Files has a places sidebar with Home, configured XDG user folders, local GTK boo
 | Find notes in a subfolder | [Original listing](parity/before/files-search.png) | [Filename results](parity/after/files-search.png) |
 
 The next Files gaps are multi-folder tabs, multiselection, drag and drop, alternate views, Open With, Properties, and unmounted media.
+
+## Terminal delivery
+
+Each tab runs its own PTY and keeps its scrollback. New tab starts in the active shell’s directory when Linux exposes it. Ctrl+Shift+T opens a tab, Ctrl+Page Up/Down switches, and Ctrl+Shift+W closes the current tab. An exiting shell closes its own tab. Ctrl+click opens a printed HTTP(S) URL or an OSC 8 web link in the default browser. Find or select a URL and press Ctrl+Enter to open it from the keyboard.
+
+| Workflow | Before | After |
+| --- | --- | --- |
+| Start a second shell in the working directory | [Single shell](parity/before/terminal-shells.png) | [Two shell tabs](parity/after/terminal-shells.png) |
+
+Persistent profiles, new-window controls, configurable shortcuts, and warnings before closing a running job remain open.

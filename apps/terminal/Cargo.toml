@@ -9,6 +9,7 @@ publish.workspace = true
 gpui.workspace = true
 anyhow.workspace = true
 regex = "1"
+url = "2"
 alacritty_terminal.workspace = true
 mundane-ui = { path = "../../crates/mundane-ui" }
 mundane-services = { path = "../../crates/mundane-services", features = ["terminal"] }

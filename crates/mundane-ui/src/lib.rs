@@ -179,3 +179,6 @@ pub fn external_link(
         .child(label)
         .on_click(move |_, _, cx| cx.open_url(url))
 }
+
+mod tabs;
+pub use tabs::tab_strip;

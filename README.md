@@ -12,6 +12,9 @@ Terminal runs the user's shell in a PTY. It supports scrollback, text selection,
 
 | Action | Shortcut |
 | --- | --- |
+| Open / close a shell tab | Ctrl+Shift+T / Ctrl+Shift+W |
+| Previous / next tab | Ctrl+Page Up / Ctrl+Page Down |
+| Open a web link | Ctrl+click or Ctrl+Enter on a selected URL |
 | Find text in the screen or scrollback | Ctrl+Shift+F, then Enter |
 | Copy selection / paste | Ctrl+Shift+C / Ctrl+Shift+V |
 | Scroll one page | Shift+Page Up / Shift+Page Down |
