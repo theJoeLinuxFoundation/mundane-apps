@@ -22,6 +22,9 @@ def check(group, stack, launch, until, key, compare, root, runtime, output):
                    env=dict(os.environ, WAYLAND_DEBUG="client", SHEET_TEXT_SCALE=scale))
         until(lambda: "ack_configure" in (output / ("design-" + group + ".log")).read_text(), "mapped reference window")
         return p
+    if group != "core":
+        from design_contract import enable, verify
+        enable(stack,launch,until,runtime)
     app = start("1")
     key("Shift_L")
     variants = [("dark",1,0,False,0),("light",2,0,False,0),
@@ -39,6 +42,8 @@ def check(group, stack, launch, until, key, compare, root, runtime, output):
         title = f"Design sheet · {mode} · {motion} · {focus}"
         until(lambda: title in subprocess.check_output(["wlrctl", "toplevel", "list"], text=True), title)
         compare(f"{group}-{name}.png", 1, refs)
+    if group != "core":
+        verify(group,app.pid,key)
     if group == "core":
         app.terminate()
         app.wait(timeout=4)

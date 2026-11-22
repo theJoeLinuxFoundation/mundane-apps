@@ -341,7 +341,22 @@ impl Render for Sheet {
             })
     }
 }
+#[path = "design_sheet/showcase.rs"]
+mod showcase;
 fn main() {
+    if let Some(group) = std::env::args().nth(1)
+        && group != "core"
+    {
+        ui::browser_window(
+            "Design sheet",
+            "org.joelinux.mundane.DesignSheet",
+            move |w, cx| {
+                ui::bind_text_keys(cx);
+                showcase::Showcase::new(group, w, cx)
+            },
+        );
+        return;
+    }
     ui::browser_window(
         "Design sheet",
         "org.joelinux.mundane.DesignSheet",

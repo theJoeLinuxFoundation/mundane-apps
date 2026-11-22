@@ -291,7 +291,7 @@ def main():
     parser.add_argument("--compositor", choices=["sway", "labwc"], default="sway")
     parser.add_argument("--mundanede-echo", type=Path, metavar="CHECKOUT", help="test physical typing echo in a scratch build of mundaneDE")
     parser.add_argument("--round-two", choices=["before","after"], help="daily-use round two workflow")
-    parser.add_argument("--design-sheet",choices=["core"],help="capture the shared components on private labwc")
+    parser.add_argument("--design-sheet",choices=["core","panel"],help="capture the shared components on private labwc")
     args = parser.parse_args()
     if args.design_sheet:
         args.compositor="labwc"

@@ -45,3 +45,13 @@ The screenshots use the production renderers, private labwc, software rendering 
 | Core components and roles | [Dark](design/core-dark.png) | [Light](design/core-light.png) | [Contrast](design/core-high-contrast.png) | [Contrast](design/core-light-high-contrast.png) | [Accent](design/core-accent.png) | [Reduced](design/core-reduced-motion.png) |
 
 [Core components at 125% text scale](design/core-text-125.png)
+
+## Panel controls
+
+`panel_button` accepts any icon element and a separate name. A selected fill marks active, a dot marks running, and a diamond marks occupied. Its accessible description names the states. Disabled buttons suppress activation from both the pointer and keyboard. `toggle` publishes its pressed state and On/Off value. It requests a new value from its owner. A named `badge` exposes status or a count without adding a tab stop. `with_tooltip` provides a hover hint and a description for keyboard and AT users. The `tooltip` renderer can also be shown by an explicitly activated help control.
+
+| Reference sheet | Dark | Light | Dark high contrast | Light high contrast | Custom accent | Reduced motion |
+| --- | --- | --- | --- | --- | --- | --- |
+| Buttons, toggle, badges and tooltip | [Dark](design/panel-dark.png) | [Light](design/panel-light.png) | [Contrast](design/panel-high-contrast.png) | [Contrast](design/panel-light-high-contrast.png) | [Accent](design/panel-accent.png) | [Reduced](design/panel-reduced-motion.png) |
+
+Run `tests/wayland/run --design-sheet panel` for the images and the private-bus keyboard and AT-SPI checks.

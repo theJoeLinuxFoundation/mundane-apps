@@ -183,3 +183,6 @@ pub fn external_link(
 
 mod tabs;
 pub use tabs::tab_strip;
+
+mod panel;
+pub use panel::{PanelState, badge, panel_button, toggle, tooltip, with_tooltip};
