@@ -7,3 +7,5 @@ Ship the matching ICU common library and data (Unicode licence). Building needs 
 The unit test resolves U+1D11E and MUSICAL SYMBOL G CLEF and rejects surrogate and out-of-range values. The GPUI test copies the supplementary-plane character. The release binary copies both 𝄞 and ★ to a private Wayland clipboard. Six pixel references show BLACK STAR selected on Sway and labwc at standard, fractional and high-contrast scales. The private AT-SPI probe checks the selected option, code point, Copy action and clipboard status.
 
 Run `cargo test -p mundane-characters`, then `cargo build -p mundane-characters` and `tests/wayland/run --app characters`. The harness accepts `--compositor labwc`, `--profile fractional|contrast` and, on Sway, `--at-spi`.
+
+The round-four Wayland checks browse Emoji, find “woman technologist”, copy the complete sequence and revisit it in Recently copied. ICU supplies general categories. The Rust emojis database supplies names, shortcodes, skin tones and multi-scalar sequences under (MIT OR Apache-2.0) AND Unicode-3.0. Characters remembers the last 32 distinct copies in `$XDG_DATA_HOME/mundane-characters/recent.json`.

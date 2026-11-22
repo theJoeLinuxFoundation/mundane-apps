@@ -6,6 +6,9 @@ license.workspace = true
 publish.workspace = true
 
 [dependencies]
+emojis = "0.9.1"
+serde_json = "1"
+tempfile = "3"
 gpui.workspace = true
 mundane-ui = { path = "../../crates/mundane-ui" }
 

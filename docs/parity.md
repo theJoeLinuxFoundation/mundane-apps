@@ -124,3 +124,12 @@ Run `tests/wayland/run --app video --round-four after` on private Sway. The befo
 **Weather.** Daily shows minimum and maximum forecast temperatures by local day. Locations puts saved places first. Current location requests a single city-level fix through the desktop permission dialog. [Daily before](parity/round-4/before/weather-daily.png) · [After](parity/round-4/after/weather-daily.png) · [Places before](parity/round-4/before/weather-places.png) · [After](parity/round-4/after/weather-places.png)
 
 **Maps.** Places (Ctrl+B) recalls favourites, Ctrl+D saves the marked place and Ctrl+G requests the current location. Directions remain deferred by the provider decision. [Favourites before](parity/round-4/before/maps-favourites.png) · [After](parity/round-4/after/maps-favourites.png) · [Location before](parity/round-4/before/maps-location.png) · [After](parity/round-4/after/maps-location.png)
+
+### Characters
+
+Ctrl+B browses emoji and Unicode categories. Searching matches names and emoji shortcodes. Ctrl+C copies the whole selected sequence, including joiners and skin tones. Ctrl+R reopens recently copied characters across sessions. Related Unicode characters remain a specialist gap.
+
+| Task | Before | After |
+| --- | --- | --- |
+| Browse emoji | [Character search](parity/round-4/before/characters-category.png) | [Emoji category](parity/round-4/after/characters-category.png) |
+| Reuse a copied sequence | [Search](parity/round-4/before/characters-recent.png) | [Recently copied](parity/round-4/after/characters-recent.png) |

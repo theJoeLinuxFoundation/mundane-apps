@@ -1,12 +1,18 @@
 use std::ffi::{c_char, c_void};
 #[derive(Clone)]
 pub struct Entry {
-    pub glyph: char,
+    pub glyph: String,
+    group: usize,
+    emoji: Option<&'static emojis::Emoji>,
     pub name: String,
 }
 impl Entry {
     pub fn code(&self) -> String {
-        format!("U+{:04X}", self.glyph as u32)
+        self.glyph
+            .chars()
+            .map(|c| format!("U+{:04X}", c as u32))
+            .collect::<Vec<_>>()
+            .join(" ")
     }
 }
 unsafe extern "C" {
@@ -14,6 +20,7 @@ unsafe extern "C" {
         data: *mut c_void,
         add: extern "C" fn(*mut c_void, i32, *const c_char, i32),
     ) -> i32;
+    fn mundane_character_group(code: i32) -> i32;
     fn mundane_extended_name(code: i32, name: *mut c_char, capacity: i32) -> i32;
 }
 extern "C" fn collect(context: *mut c_void, code: i32, name: *const c_char, len: i32) {
@@ -22,21 +29,59 @@ extern "C" fn collect(context: *mut c_void, code: i32, name: *const c_char, len:
         let bytes = unsafe { std::slice::from_raw_parts(name.cast(), len as usize) };
         let entries = unsafe { &mut *context.cast::<Vec<Entry>>() };
         entries.push(Entry {
-            glyph,
+            group: unsafe { mundane_character_group(code) } as usize,
+            emoji: None,
+            glyph: glyph.to_string(),
             name: String::from_utf8_lossy(bytes).into_owned(),
         })
     }
 }
-pub struct Catalog(Vec<Entry>);
+pub const GROUPS: [&str; 10] = [
+    "All characters",
+    "Letters",
+    "Numbers",
+    "Punctuation",
+    "Symbols",
+    "Marks",
+    "Separators",
+    "Other",
+    "Emoji",
+    "Recently copied",
+];
+pub struct Catalog(Vec<Entry>, usize);
 impl Catalog {
     pub fn load() -> Result<Self, String> {
         let mut entries = Vec::<Entry>::new();
         if unsafe { mundane_names((&mut entries as *mut Vec<Entry>).cast(), collect) } == 0 {
             return Err("Could not read character names from ICU.".into());
         }
-        Ok(Self(entries))
+        let singles = entries.len();
+        let mut sequences = std::collections::HashSet::new();
+        for base in emojis::iter() {
+            for emoji in base
+                .skin_tones()
+                .into_iter()
+                .flatten()
+                .chain(std::iter::once(base))
+            {
+                let glyph = emoji.as_str();
+                if let Ok(i) = entries[..singles].binary_search_by(|e| e.glyph.as_str().cmp(glyph))
+                {
+                    entries[i].emoji = Some(emoji);
+                } else if sequences.insert(glyph) {
+                    entries.push(Entry {
+                        glyph: glyph.into(),
+                        name: emoji.name().to_uppercase(),
+                        group: 4,
+                        emoji: Some(emoji),
+                    });
+                }
+            }
+        }
+        entries[singles..].sort_by(|a, b| a.glyph.cmp(&b.glyph));
+        Ok(Self(entries, singles))
     }
-    pub fn find(&self, query: &str) -> Vec<usize> {
+    pub fn find(&self, query: &str, group: usize) -> Vec<usize> {
         let words: Vec<_> = query
             .split_ascii_whitespace()
             .map(str::to_ascii_uppercase)
@@ -44,7 +89,16 @@ impl Catalog {
         self.0
             .iter()
             .enumerate()
-            .filter(|(_, e)| words.iter().all(|w| e.name.contains(w)))
+            .filter(|(_, e)| {
+                (group == 0 || group == 8 && e.emoji.is_some() || group == e.group)
+                    && words.iter().all(|w| {
+                        e.name.contains(w)
+                            || e.emoji.is_some_and(|emoji| {
+                                emoji.name().to_uppercase().contains(w)
+                                    || emoji.shortcodes().any(|s| s.to_uppercase().contains(w))
+                            })
+                    })
+            })
             .map(|(i, _)| i)
             .collect()
     }
@@ -74,11 +128,14 @@ impl Catalog {
             let mut chars = s.chars();
             let c = chars.next()?;
             if chars.next().is_some() {
-                return None;
+                return self.0[self.1..]
+                    .binary_search_by(|e| e.glyph.as_str().cmp(s))
+                    .ok()
+                    .map(|i| Ok(self.0[self.1 + i].clone()));
             }
             c
         };
-        if let Ok(i) = self.0.binary_search_by_key(&glyph, |e| e.glyph) {
+        if let Ok(i) = self.0[..self.1].binary_search_by(|e| e.glyph.cmp(&glyph.to_string())) {
             return Some(Ok(self.0[i].clone()));
         }
         let mut buf = [0u8; 128];
@@ -90,7 +147,12 @@ impl Catalog {
         } else {
             "Unnamed character".into()
         };
-        Some(Ok(Entry { glyph, name }))
+        Some(Ok(Entry {
+            glyph: glyph.to_string(),
+            name,
+            group: unsafe { mundane_character_group(glyph as i32) } as usize,
+            emoji: None,
+        }))
     }
 }
 #[cfg(test)]
@@ -99,8 +161,8 @@ mod tests {
     #[test]
     fn names_and_scalars() {
         let c = Catalog::load().unwrap();
-        let hits = c.find("musical G CLEF");
-        assert!(hits.iter().any(|&i| c.get(i).glyph == '𝄞'));
+        let hits = c.find("musical G CLEF", 0);
+        assert!(hits.iter().any(|&i| c.get(i).glyph == "𝄞"));
         for query in ["u+1d11e", "1D11E", "𝄞"] {
             let e = c.exact(query).unwrap().unwrap();
             assert_eq!(e.name, "MUSICAL SYMBOL G CLEF");
@@ -109,6 +171,22 @@ mod tests {
         for invalid in ["U+D800", "U+110000", "U+QQ", "U+"] {
             assert!(c.exact(invalid).unwrap().is_err())
         }
+        let woman = "👩‍💻";
+        assert!(
+            c.find("technologist", 8)
+                .iter()
+                .any(|&i| c.get(i).glyph == woman)
+        );
+        assert_eq!(
+            c.exact(woman).unwrap().unwrap().code(),
+            "U+1F469 U+200D U+1F4BB"
+        );
+        assert!(
+            c.find("LATIN CAPITAL LETTER A", 1)
+                .iter()
+                .any(|&i| c.get(i).glyph == "A")
+        );
+        assert!(c.find("LATIN CAPITAL LETTER A", 2).is_empty());
         assert!(c.exact("face").is_none());
         assert!(c.exact("U+E000").unwrap().is_ok());
     }

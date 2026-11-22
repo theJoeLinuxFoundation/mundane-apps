@@ -211,3 +211,21 @@ def maps(side,root,log,key,type_text,until,compare):
         key("Return")
         until(lambda:log.read_text().count("Harbour Point · Zoom")>=2,"reopened favourite")
         assert sum("/search?" in line for line in (runtime/"requests").read_text().splitlines())==1
+
+
+def characters(side,root,key,type_text,until,compare,clipboard):
+    key("Shift_L")
+    if side=="after":
+        key("b","ctrl")
+        key("End")
+        key("Up")
+        key("Return")
+    compare("characters-category.png",1,root/"docs/parity/round-4"/side)
+    key("f","ctrl")
+    type_text("woman technologist")
+    key("Down")
+    key("c","ctrl")
+    if side=="after":
+        until(lambda:clipboard()=="👩‍💻","copied complete emoji sequence")
+        key("r","ctrl")
+    compare("characters-recent.png",1,root/"docs/parity/round-4"/side)

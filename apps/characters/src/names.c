@@ -24,3 +24,14 @@ int mundane_extended_name(int32_t code, char *name, int32_t capacity) {
     int32_t length = u_charName(code, U_EXTENDED_CHAR_NAME, name, capacity, &error);
     return U_SUCCESS(error) ? length : 0;
 }
+
+int mundane_character_group(int32_t code) {
+    uint32_t mask = U_GET_GC_MASK(code);
+    if (mask & U_GC_L_MASK) return 1;
+    if (mask & U_GC_N_MASK) return 2;
+    if (mask & U_GC_P_MASK) return 3;
+    if (mask & U_GC_S_MASK) return 4;
+    if (mask & U_GC_M_MASK) return 5;
+    if (mask & U_GC_Z_MASK) return 6;
+    return 7;
+}

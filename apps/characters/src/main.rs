@@ -1,4 +1,5 @@
 mod catalog;
+mod recent;
 use catalog::{Catalog, Entry};
 use gpui::{prelude::*, *};
 use mundane_ui::{
@@ -13,6 +14,9 @@ struct Characters {
     query: Entity<TextField>,
     list: BrowserList,
     copy: FocusHandle,
+    categories: Entity<mundane_ui::ChoiceMenu>,
+    group: usize,
+    recent: Vec<Entry>,
     prev: FocusHandle,
     next: FocusHandle,
     catalog: Option<Arc<Catalog>>,
@@ -45,7 +49,30 @@ impl Characters {
             });
         })
         .detach();
+        let choices = catalog::GROUPS
+            .iter()
+            .enumerate()
+            .map(|(i, n)| mundane_ui::MenuChoice::new(i.to_string(), *n))
+            .collect();
+        let categories =
+            cx.new(|cx| mundane_ui::ChoiceMenu::new("Character categories", choices, false, cx));
+        cx.observe(&categories, |_, _, cx| cx.notify()).detach();
+        cx.subscribe_in(
+            &categories,
+            w,
+            |v: &mut Self, _, event: &mundane_ui::MenuEvent, w, cx| {
+                if let mundane_ui::MenuEvent::Selected(key) = event
+                    && let Ok(group) = key.parse()
+                {
+                    v.category(group, w, cx);
+                }
+            },
+        )
+        .detach();
         Self {
+            categories,
+            group: 0,
+            recent: vec![],
             header: WindowHeader::new(cx),
             query,
             list: BrowserList::new(cx),
@@ -61,10 +88,23 @@ impl Characters {
             generation: 0,
         }
     }
+    fn category(&mut self, group: usize, w: &mut Window, cx: &mut Context<Self>) {
+        self.group = group;
+        self.last_query = None;
+        self.query.update(cx, |f, cx| {
+            f.select_match(0..f.text().len(), cx);
+            f.replace_text_in_range(None, "", w, cx);
+        });
+        self.search(cx);
+        self.list.focus.focus(w, cx);
+    }
     fn count(&self) -> usize {
-        self.matches.len() + usize::from(self.exact.is_some())
+        self.matches.len() + self.recent.len() + usize::from(self.exact.is_some())
     }
     fn entry(&self, index: usize) -> Option<&Entry> {
+        if self.group == 9 {
+            return self.recent.get(index);
+        }
         if self.exact.is_some() {
             self.exact.as_ref().filter(|_| index == 0)
         } else {
@@ -106,6 +146,24 @@ impl Characters {
         self.matches.clear();
         self.exact = None;
         self.notice.clear();
+        self.recent.clear();
+        let group = self.group;
+        if group == 9 {
+            match recent::load() {
+                Ok(items) => {
+                    self.recent = items
+                        .iter()
+                        .filter_map(|s| catalog.exact(s).and_then(Result::ok))
+                        .filter(|e| {
+                            e.name.contains(&query.to_uppercase()) || e.glyph.contains(&query)
+                        })
+                        .collect()
+                }
+                Err(e) => self.notice = format!("Could not read recent characters · {e}"),
+            }
+            self.rows(cx);
+            return;
+        }
         if let Some(result) = catalog.exact(&query) {
             match result {
                 Ok(e) => self.exact = Some(e),
@@ -118,7 +176,7 @@ impl Characters {
         self.rows(cx);
         let job = cx
             .background_executor()
-            .spawn(async move { catalog.find(&query) });
+            .spawn(async move { catalog.find(&query, group) });
         cx.spawn(async move |v, cx| {
             let rows = job.await;
             let _ = v.update(cx, |this, cx| {
@@ -149,15 +207,26 @@ impl Characters {
     fn copy(&mut self, cx: &mut Context<Self>) {
         if let Some(entry) = self.selected() {
             cx.write_to_clipboard(ClipboardItem::new_string(entry.glyph.to_string()));
-            self.notice = format!("Copied {}", entry.code());
+            self.notice = match recent::remember(&entry.glyph) {
+                Ok(()) => format!("Copied {}", entry.code()),
+                Err(e) => format!(
+                    "Copied {} · Could not save recent character: {e}",
+                    entry.code()
+                ),
+            };
             cx.notify()
         }
     }
     fn keys(&mut self, e: &KeyDownEvent, w: &mut Window, cx: &mut Context<Self>) {
         let k = &e.keystroke;
         match (k.key.as_str(), k.modifiers.control) {
+            ("b", true) => self.categories.update(cx, |m, cx| m.toggle(w, cx)),
+            ("r", true) => self.category(9, w, cx),
             ("f6", false) => self.copy.focus(w, cx),
             ("f", true) => {
+                self.group = 0;
+                self.last_query = None;
+                self.search(cx);
                 self.query.focus_handle(cx).focus(w, cx);
                 self.query
                     .update(cx, |f, cx| f.select_match(0..f.text().len(), cx))
@@ -275,10 +344,34 @@ impl Render for Characters {
             .flex_col()
             .on_key_down(cx.listener(Self::keys))
             .child(
-                self.header
-                    .render("Characters", copy, &self.query.focus_handle(cx), t, w),
+                self.header.render(
+                    "Characters",
+                    div()
+                        .flex()
+                        .gap_2()
+                        .child(mundane_ui::menu_trigger(
+                            "Categories",
+                            &self.categories,
+                            t,
+                            cx,
+                        ))
+                        .child(copy),
+                    &self.query.focus_handle(cx),
+                    t,
+                    w,
+                ),
             )
-            .child(div().p_3().child(self.query.clone()))
+            .when(self.categories.read(cx).is_open(), |el| {
+                el.child(self.categories.clone())
+            })
+            .child(
+                div()
+                    .p_3()
+                    .when(self.group != 0, |el| {
+                        el.child(mundane_ui::heading("category", catalog::GROUPS[self.group]))
+                    })
+                    .child(self.query.clone()),
+            )
             .child(div().flex_1().min_h_0().flex().child(list).child(preview))
             .child(
                 div()
@@ -310,7 +403,7 @@ mod tests {
         ui.run_until_parked();
         ui.simulate_keystrokes("1 d 1 1 e enter ctrl-c");
         ui.update(|_, cx| {
-            assert_eq!(v.read(cx).selected().unwrap().glyph, '𝄞');
+            assert_eq!(v.read(cx).selected().unwrap().glyph, "𝄞");
             assert_eq!(
                 cx.read_from_clipboard().unwrap().text().as_deref(),
                 Some("𝄞")
