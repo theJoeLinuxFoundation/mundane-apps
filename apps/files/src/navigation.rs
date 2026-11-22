@@ -95,6 +95,15 @@ impl Files {
         .detach();
     }
     pub(super) fn search(&mut self, query: String, cx: &mut Context<Self>) {
+        self.search_with_selection(query, None, cx)
+    }
+    pub(super) fn search_with_selection(
+        &mut self,
+        query: String,
+        prefer: Option<PathBuf>,
+        cx: &mut Context<Self>,
+    ) {
+        self.requested = None;
         if query.trim().is_empty() {
             self.message = Some("Enter a file name to search.".into());
             return;
@@ -125,7 +134,13 @@ impl Files {
                 match result {
                     Ok(r) => {
                         v.entries = r.entries;
-                        v.selected = (!v.entries.is_empty()).then_some(0);
+                        v.selected = prefer
+                            .as_ref()
+                            .and_then(|p| v.entries.iter().position(|e| &e.path == p))
+                            .or_else(|| (!v.entries.is_empty()).then_some(0));
+                        if let Some(i) = v.selected {
+                            v.scroll.scroll_to_item(i, ScrollStrategy::Nearest);
+                        }
                         let n = v.entries.len();
                         let mut status = if r.limited {
                             "Showing the first 1,000 results".into()

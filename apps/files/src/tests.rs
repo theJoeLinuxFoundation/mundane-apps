@@ -66,3 +66,39 @@ fn search_nested_results_and_return_to_folder(cx: &mut TestAppContext) {
         assert_eq!(v.selected().unwrap().path, sub)
     });
 }
+
+#[gpui::test]
+fn tabs_keep_search_selection_and_see_sibling_changes(cx: &mut TestAppContext) {
+    let dir = tempfile::tempdir().unwrap();
+    let folder = dir.path().join("Archive");
+    fs::create_dir(&folder).unwrap();
+    let note = folder.join("Notes");
+    fs::write(&note, "draft").unwrap();
+    cx.update(mundane_ui::bind_text_keys);
+    let (view, ui) = cx.add_window_view(|w, cx| Files::new(dir.path().into(), w, cx));
+    ui.simulate_keystrokes("ctrl-f n o t e enter");
+    ui.run_until_parked();
+    ui.simulate_keystrokes("ctrl-t");
+    ui.run_until_parked();
+    ui.simulate_keystrokes("enter");
+    ui.run_until_parked();
+    view.read_with(ui, |v, _| {
+        assert_eq!((v.tabs.len(), v.active), (2, 1));
+        assert_eq!(v.path, folder);
+        assert!(v.nav.query.is_none());
+    });
+    fs::write(folder.join("Notes copy"), "another").unwrap();
+    ui.simulate_keystrokes("ctrl-pageup");
+    ui.run_until_parked();
+    view.read_with(ui, |v, _| {
+        assert_eq!(v.nav.query.as_deref(), Some("note"));
+        assert_eq!(v.entries.len(), 2);
+        assert_eq!(v.selected().unwrap().path, note);
+    });
+    ui.simulate_keystrokes("ctrl-w");
+    ui.run_until_parked();
+    view.read_with(ui, |v, _| {
+        assert_eq!(v.tabs.len(), 1);
+        assert_eq!(v.path, folder);
+    });
+}

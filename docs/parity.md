@@ -86,3 +86,11 @@ Closing a tab checks its PTY foreground process group and the shell’s live chi
 | --- | --- | --- |
 | Configure a shell | [Original terminal](parity/round-2/before/terminal-profiles.png) | [Profile settings](parity/round-2/after/terminal-profiles.png) |
 | Close a tab running sleep | [Running job](parity/round-2/before/terminal-running-job.png) | [Cancel or close](parity/round-2/after/terminal-running-job.png) |
+
+## Round two · Files
+
+New tab (Ctrl+T) opens the current folder. Ctrl+Page Up/Down switches tabs and Ctrl+W closes the active tab. Each tab remembers its folder, hidden-file setting, search and selected path. Returning to a tab rereads the folder or reruns the search, so changes made in a sibling tab are visible. Multiselection and drag and drop are the next regular-use gaps, followed by alternate views, Open With and Properties.
+
+| Workflow | Before | After |
+| --- | --- | --- |
+| Open a subfolder alongside its parent | [Single folder](parity/round-2/before/files-tabs.png) | [Folder tabs](parity/round-2/after/files-tabs.png) |

@@ -2,6 +2,7 @@ use mundane_ui::ControlRole as _;
 mod dialogs;
 mod listing;
 mod navigation;
+mod tabs;
 #[cfg(test)]
 mod tests;
 
@@ -105,6 +106,12 @@ impl Command {
 }
 
 struct Files {
+    tabs: Vec<tabs::FolderTab>,
+    active: usize,
+    requested: Option<PathBuf>,
+    tab_scroll: ScrollHandle,
+    new_focus: FocusHandle,
+    close_focus: FocusHandle,
     nav: navigation::Navigation,
     search_focus: FocusHandle,
     path: PathBuf,
@@ -130,6 +137,12 @@ impl Files {
         let list_focus = cx.focus_handle().tab_stop(true);
         list_focus.focus(window, cx);
         let mut this = Self {
+            tabs: vec![tabs::FolderTab::new(path.clone(), cx)],
+            active: 0,
+            requested: None,
+            tab_scroll: ScrollHandle::new(),
+            new_focus: cx.focus_handle().tab_stop(true),
+            close_focus: cx.focus_handle().tab_stop(true),
             nav: navigation::Navigation::new(cx),
             search_focus: cx.focus_handle().tab_stop(true),
             path: path.clone(),
@@ -159,6 +172,7 @@ impl Files {
         self.generation += 1;
         let generation = self.generation;
         let hidden = self.show_hidden;
+        self.requested = Some(path.clone());
         let requested = path.clone();
         self.previews = Previews::default();
         self.loading = true;
@@ -178,6 +192,7 @@ impl Files {
                     return;
                 }
                 this.loading = false;
+                this.requested = None;
                 match result {
                     Ok(entries) => {
                         this.selected = prefer
@@ -466,6 +481,7 @@ impl Render for Files {
             .render("Places", theme, window, move |i, _, w, cx| {
                 let _ = view.update(cx, |v, cx| v.open_place(i, w, cx));
             });
+        let new = cx.weak_entity();
         let body = self
             .content
             .render(self.dialog.is_some())
@@ -477,10 +493,7 @@ impl Render for Files {
             .text_color(rgb(theme.text))
             .on_key_down(cx.listener(Self::navigation_key))
             .on_key_down(|event, window, cx| {
-                if event.keystroke.key == "w" && event.keystroke.modifiers.control {
-                    window.remove_window();
-                    cx.stop_propagation();
-                } else if event.keystroke.key == "tab" {
+                if event.keystroke.key == "tab" {
                     if event.keystroke.modifiers.shift {
                         window.focus_prev(cx)
                     } else {
@@ -495,6 +508,9 @@ impl Render for Files {
                     div()
                         .flex()
                         .gap_1()
+                        .child(button("New tab", &self.new_focus, theme, move |w, cx| {
+                            let _ = new.update(cx, |s, cx| s.new_tab(w, cx));
+                        }))
                         .child(button(
                             if self.nav.query.is_some() {
                                 "End search"
@@ -526,6 +542,7 @@ impl Render for Files {
                     window,
                 ),
             )
+            .when(self.tabs.len() > 1, |el| el.child(self.tab_strip(cx)))
             .child(
                 div()
                     .px_3()
@@ -612,6 +629,7 @@ impl Render for Files {
             .size_full()
             .font_family("DejaVu Sans")
             .text_color(rgb(theme.text))
+            .capture_key_down(cx.listener(Self::tab_keys))
             .child(body)
             .children(self.dialog.as_ref().map(|d| self.dialog_view(d, cx)))
     }

@@ -50,5 +50,14 @@ def exercise(app, side, key, type_text, until, compare, root, log, restart):
             type_text("touch survived")
             key("Return")
             until(lambda: (Path.home()/"survived").exists(), "job warning cancelled")
+    elif app == "files":
+        until(lambda: list((Path(os.environ["XDG_CACHE_HOME"])/"thumbnails/normal").glob("*.png")), "folder ready")
+        if after:
+            key("t","ctrl")
+            key("Return")
+        shot("tabs")
+        if after:
+            key("Page_Up","ctrl")
+            key("w","ctrl")
     else:
         raise ValueError(app)
