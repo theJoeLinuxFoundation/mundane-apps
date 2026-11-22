@@ -21,4 +21,4 @@ env -u DISPLAY -u WAYLAND_DISPLAY -u WAYLAND_SOCKET -u SWAYSOCK -u I3SOCK \
     XDG_SESSION_TYPE=wayland XDG_CURRENT_DESKTOP=sway GSETTINGS_BACKEND=memory \
     WLR_BACKENDS=headless WLR_HEADLESS_OUTPUTS=1 WLR_RENDERER=pixman \
     LIBGL_ALWAYS_SOFTWARE=1 WGPU_BACKEND=vulkan \
-    LC_ALL=C.UTF-8 TZ=UTC dbus-run-session --config-file="$work/session.conf" -- python3 "$root/tests/wayland/session.py" "$@"
+    PYTHONDONTWRITEBYTECODE=1 LC_ALL=C.UTF-8 TZ=UTC dbus-run-session --config-file="$work/session.conf" -- python3 "$root/tests/wayland/session.py" "$@"

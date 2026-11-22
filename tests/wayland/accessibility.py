@@ -1,4 +1,4 @@
-"""Inspect AT-SPI application roots while Terminal's Find dialog is focused."""
+"""Inspect AT-SPI application roots while the application's dialog is focused."""
 import sys
 import time
 import gi
@@ -25,8 +25,8 @@ else:
             break
         time.sleep(0.1)
     assert "mundane-probe-control" in names, names
-    terminal_pid = int(sys.argv[1])
-    assert all(app.get_process_id() != terminal_pid for app in roots), names
+    app_pid = int(sys.argv[1])
+    assert all(app.get_process_id() != app_pid for app in roots), names
     def tree(node):
         yield node.get_role_name(), node.get_name()
         for i in range(node.get_child_count()):

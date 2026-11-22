@@ -25,7 +25,7 @@ Pin GPUI and its Linux platform crates together at Zed revision `deb48ceb4712522
 
 ## Acceptance tests
 
-Terminal is implemented. Its PTY, GPUI headless and software-rendered Wayland checks are covered in the [Terminal test report](terminal-tests.md). The target-image smoke test is pending until joe Linux packages mundaneDE and Terminal together, when it will run in joe’s VM tests. Files is next.
+Terminal and Files have passed their service, GPUI headless and software-rendered Wayland acceptance tests. The shared header has also been exercised with client and server decorations. Text Editor is next. The target-image smoke tests are pending until joe Linux packages mundaneDE and the suite together, when they will run in joe’s VM tests. [Terminal report](terminal-tests.md) · [Files report](files-tests.md)
 
 Each numbered row is a milestone in delivery order. For every row, run its model or service tests, drive its user interaction in a GPUI headless test context, then capture the specified state from the actual Wayland client under a nested or headless compositor. The headless interaction test asserts state and focus. The compositor test checks the rendered result against a reviewed reference image.
 

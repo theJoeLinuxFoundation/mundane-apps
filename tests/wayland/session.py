@@ -1,5 +1,6 @@
 """Run inside the private session created by tests/wayland/run."""
 import argparse
+from files_fixture import create as create_files_fixture
 from contextlib import ExitStack
 import os
 from pathlib import Path
@@ -93,18 +94,18 @@ def find_and_copy(text):
     until(lambda: clipboard() == text, f"selected text {text!r} on the private clipboard")
 
 
-def inspect_accessibility(stack, terminal_pid):
+def inspect_accessibility(stack, app_id, app_pid):
     # An accessible GTK control on the same bus distinguishes a missing bridge from a broken probe.
     control = launch(stack, "python3", str(HERE / "accessibility.py"), "--control", log="gtk.log")
     until(lambda: control.poll() is None and "AT-SPI control" in output("swaymsg", "-r", "-t", "get_tree"),
           "GTK control window")
-    run("swaymsg", "-q", f'[app_id="{APP_ID}"] focus')
+    run("swaymsg", "-q", f'[app_id="{app_id}"] focus')
     key("Tab")
     key("Tab", "shift")
-    run("python3", str(HERE / "accessibility.py"), str(terminal_pid))
+    run("python3", str(HERE / "accessibility.py"), str(app_pid))
     listing = output("orca", "--list-apps")
-    (OUTPUT / "orca.txt").write_text(listing + "\n")
-    assert "mundane-probe-control" in listing and str(terminal_pid) not in listing, listing
+    (OUTPUT / f"orca-{app_id}.txt").write_text(listing + "\n")
+    assert "mundane-probe-control" in listing and str(app_pid) not in listing, listing
     control.terminate()
     control.wait(timeout=4)
 
@@ -159,13 +160,67 @@ def check_window_actions(log):
     key("Return")
 
 
+def exercise_files(folder, scale, profile, labwc):
+    cache = Path(os.environ["XDG_CACHE_HOME"]) / "thumbnails/normal"
+    until(lambda: list(cache.glob("*.png")), "visible palette thumbnail")
+    key("Home")
+    key("Down")  # draft.txt
+    key("F2")
+    type_text("notes.txt")
+    key("Return")
+    notes = folder / "notes.txt"
+    until(notes.is_file, "rename")
+    key("c", "ctrl")
+    key("v", "ctrl")
+    name = f"files-{'labwc' if labwc else 'sway'}-{profile}.png"
+    compare_screenshot(name, scale)
+    key("Escape")
+    assert sorted(p.name for p in folder.iterdir()) == ["Archive", "notes.txt", "palette.png"]
+    key("v", "ctrl")
+    key("Tab")
+    key("Return")
+    copied = folder / "notes (copy).txt"
+    until(copied.is_file, "keep both")
+    assert copied.read_bytes() == notes.read_bytes()
+    key("x", "ctrl")  # The completed copy is selected.
+    key("Home")
+    key("Return")  # Archive
+    key("v", "ctrl")
+    moved = folder / "Archive" / copied.name
+    until(moved.is_file, "move between folders")
+    assert not copied.exists()
+    assert "fixture-text.desktop" in output("gio", "mime", "text/plain").splitlines()[0]
+    if labwc:
+        (RUNTIME / "cancel-open").touch()
+        key("Return")
+        until((RUNTIME / "cancelled").exists, "portal cancellation")
+        assert not (Path.home() / "opened").exists()
+        (RUNTIME / "cancel-open").unlink()
+    key("Return")  # Open in the private default handler.
+    until(lambda: (Path.home() / "opened").exists(), "preferred text handler")
+    assert (Path.home() / "opened").read_text() == str(moved)
+    if labwc:
+        until((RUNTIME / "accepted").exists, "accepted portal response")
+    key("Delete")
+    key("Tab")
+    key("Return")
+    trash = Path(os.environ["XDG_DATA_HOME"]) / "Trash"
+    until(lambda: (trash / "files" / copied.name).is_file(), "trashed item")
+    assert not moved.exists() and notes.is_file()
+    assert (trash / "info" / (copied.name + ".trashinfo")).is_file()
+    print(f"Passed {name}, rename, collision, copy, move, preferred handler and Trash", flush=True)
+
+
 def main():
     parser = argparse.ArgumentParser()
+    parser.add_argument("--app", choices=["terminal", "files"], default="terminal")
     parser.add_argument("--at-spi", action="store_true")
     parser.add_argument("--profile", choices=["standard", "fractional", "contrast"], default="standard")
     parser.add_argument("--compositor", choices=["sway", "labwc"], default="sway")
     args = parser.parse_args()
     labwc = args.compositor == "labwc"
+    if args.at_spi and labwc:
+        parser.error("The AT-SPI control window requires the Sway test configuration.")
     # Requiring lavapipe prevents an accidental pass using the host GPU.
     icd = os.environ.get("VK_DRIVER_FILES") or next(iter(Path("/usr/share/vulkan/icd.d").glob("lvp_icd*.json")), None)
     if not icd or not Path(icd).is_file() or "lvp" not in Path(icd).read_text():
@@ -221,16 +276,41 @@ seat seat0 fallback true
 
         if labwc:
             resize(800, 500)
-        log = f"terminal-{args.compositor}.log"
-        app = launch(stack, str(Path(os.environ.get("MUNDANE_TERMINAL_BIN", ROOT / "target/debug/mundane-terminal")).resolve()),
+        suite_app = args.app
+        app_id = f"org.joelinux.mundane.{suite_app.title()}"
+        argv = [str(Path(os.environ.get(f"MUNDANE_{suite_app.upper()}_BIN", ROOT / f"target/debug/mundane-{suite_app}")).resolve())]
+        if suite_app == "files":
+            os.environ["GSETTINGS_BACKEND"] = "keyfile"
+            run("gsettings", "set", "org.gnome.desktop.interface", "icon-theme", "Papirus")
+            folder = create_files_fixture()
+            if labwc:
+                launch(stack, "python3", str(HERE / "open_portal.py"), log=f"portal-{args.profile}.log")
+                until((RUNTIME / "portal-ready").exists, "private OpenURI portal")
+            argv.append(str(folder))
+        log = f"{suite_app}-{args.compositor}-{args.profile}.log"
+        app = launch(stack, *argv,
                      log=log, env={**os.environ, "WAYLAND_DEBUG": "client"})
         def mapped():
             if app.poll() is not None or compositor.poll() is not None:
-                raise RuntimeError(f"Terminal or compositor exited. See {OUTPUT}.")
+                raise RuntimeError(f"{suite_app} or compositor exited. See {OUTPUT}.")
             if labwc:
                 return "ack_configure" in (OUTPUT / log).read_text(errors="replace")
-            return APP_ID in command("-t", "get_tree")
-        until(mapped, "mapped Terminal")
+            return app_id in command("-t", "get_tree")
+        until(mapped, f"mapped {suite_app}")
+        if suite_app == "files":
+            resize(720, 440)
+            exercise_files(folder, scale, args.profile, labwc)
+            if args.at_spi:
+                key("l", "ctrl")  # Inspect with the location field and dialog focused.
+                inspect_accessibility(stack, app_id, app.pid)
+                command(f'[app_id="{app_id}"] focus')
+                key("Escape")
+            if labwc:
+                run("wlrctl", "toplevel", "close", app_id)
+            else:
+                command(f'[app_id="{app_id}"] kill')
+            assert app.wait(timeout=8) == 0
+            return
         until(lambda: (Path.home() / ".prompt-ready").exists(), "interactive shell prompt")
         resize(640, 360)
         key("Shift_L")
@@ -258,8 +338,8 @@ seat seat0 fallback true
         if args.at_spi:
             key("f", "ctrl", "shift")
             type_text("Tokyo")
-            inspect_accessibility(stack, app.pid)
-            command(f'[app_id="{APP_ID}"] focus')
+            inspect_accessibility(stack, app_id, app.pid)
+            command(f'[app_id="{app_id}"] focus')
             key("Escape")
         if labwc:
             check_window_actions(OUTPUT / log)
