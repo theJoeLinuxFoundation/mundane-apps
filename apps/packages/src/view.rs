@@ -2,7 +2,7 @@ use super::*;
 use mundane_ui::{ControlRole, Role, button, button_base, unavailable};
 
 const REVIEW_PAGE: usize = 5;
-fn label(id: impl Into<ElementId>, text: impl Into<String>) -> Stateful<Div> {
+pub(super) fn label(id: impl Into<ElementId>, text: impl Into<String>) -> Stateful<Div> {
     let text = text.into();
     mundane_ui::text_label(id, text.clone()).child(text)
 }
@@ -20,7 +20,7 @@ fn section(id: &'static str, name: &'static str) -> Stateful<Div> {
         .text_lg()
 }
 impl Packages {
-    fn control(
+    pub(super) fn control(
         &self,
         name: &'static str,
         focus: &FocusHandle,
@@ -83,6 +83,10 @@ impl Packages {
         } else {
             match k.key.as_str() {
                 "w" if k.modifiers.control => w.remove_window(),
+                "d" if k.modifiers.control => self.explore(w, cx),
+                "escape" if matches!(self.page, Page::Discover(_)) && !self.busy => {
+                    self.catalog_back(w, cx)
+                }
                 "u" if k.modifiers.control => self.start(Job::Status, w, cx),
                 "f" if k.modifiers.control => self.field.focus_handle(cx).focus(w, cx),
                 "f5" => self.refresh(w, cx),
@@ -114,6 +118,7 @@ impl Packages {
     fn page(&self, cx: &Context<Self>) -> Div {
         let body = div().flex().flex_col().gap_2().p_3();
         match &self.page {
+            Page::Discover(apps) => self.catalog_page(apps, body, cx),
             Page::Installed(list) => self.list_page(
                 body.child(section("installed-heading", "Installed packages")),
                 list.len(),
@@ -317,6 +322,9 @@ impl Packages {
             .child(div().text_color(rgb(theme.secondary)).child(detail));
             body = body.child(unavailable(row, self.busy))
         }
+        self.pagination(body, count, cx)
+    }
+    pub(super) fn pagination(&self, mut body: Div, count: usize, cx: &Context<Self>) -> Div {
         if count > PAGE_SIZE {
             let mut nav = div().flex().gap_2().items_center();
             if self.offset > 0 {
@@ -535,6 +543,7 @@ impl Render for Packages {
             .child(self.control("Installed", &self.installed, cx, |v, w, cx| {
                 v.start(Job::Installed, w, cx)
             }))
+            .child(self.control("Discover", &self.discover, cx, Self::explore))
             .child(self.control("Updates", &self.updates, cx, |v, w, cx| {
                 v.start(Job::Status, w, cx)
             }));

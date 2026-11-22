@@ -33,3 +33,5 @@ for compositor in sway labwc; do
 done
 tests/wayland/run --app packages --at-spi
 ```
+
+Discover reads AppStream desktop components from the XDG data directories (`metainfo`, `appdata`, `swcatalog/xml` and `app-info/xmls`) and the system catalog locations under `/var/cache` and `/var/lib`. It also reads visible launchers from GIO. joe can distribute a collection as XML or XML.gz with `pkgname`, desktop launchable, categories, description and screenshots. A screenshot can be local or HTTPS, and is read only on request. Launch uses GIO’s installed desktop ID. The local Wayland fixture exercises category navigation, a recorded launch and a screenshot without contacting a provider.

@@ -491,6 +491,9 @@ seat seat0 fallback true
                    log="music-portal.log")
             until((RUNTIME / "chooser-ready").exists, "private FileChooser")
         if suite_app == "packages":
+            if args.round_three:
+                from catalog_fixture import create
+                create()
             pkg_dir = RUNTIME / "packages"
             pkg_dir.mkdir()
             for cmd in ("dave", "pkexec"):

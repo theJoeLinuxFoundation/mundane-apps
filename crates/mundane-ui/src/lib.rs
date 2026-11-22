@@ -96,11 +96,12 @@ pub fn text_label(id: impl Into<ElementId>, text: impl Into<SharedString>) -> St
 }
 
 /// Orca browses the heading by level and reads its static label via AT-SPI Text.
-pub fn heading(id: &'static str, text: &'static str) -> Stateful<Div> {
+pub fn heading(id: impl Into<ElementId>, text: impl Into<SharedString>) -> Stateful<Div> {
+    let text = text.into();
     Role::Heading
-        .control(id, text)
+        .control(id, text.clone())
         .aria_level(1)
-        .child(text_label("label", text).child(text))
+        .child(text_label("label", text.clone()).child(text))
 }
 
 /// Keep the modal's covered controls painted while excluding them from AT navigation.

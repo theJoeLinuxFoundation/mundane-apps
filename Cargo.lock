@@ -1830,6 +1830,23 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1033caf0b349c518623b5396bfb2cf0bddf44f0306d543a250e5743297aafd10"
 
 [[package]]
+name = "gio"
+version = "0.22.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "536990682bab3b8bf68a78d298ccae69702a114290b096edf2bec6eb2e4013b3"
+dependencies = [
+ "futures-channel",
+ "futures-core",
+ "futures-io",
+ "futures-util",
+ "gio-sys",
+ "glib",
+ "libc",
+ "pin-project-lite",
+ "smallvec",
+]
+
+[[package]]
 name = "gio-sys"
 version = "0.22.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1840,6 +1857,31 @@ dependencies = [
  "libc",
  "system-deps",
  "windows-sys 0.61.2",
+]
+
+[[package]]
+name = "gio-unix"
+version = "0.22.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8e099bbdf44c366ee73046d564b7ffdc8b370b69e2c082a89e49df1b5c85251b"
+dependencies = [
+ "gio",
+ "gio-unix-sys",
+ "glib",
+ "libc",
+]
+
+[[package]]
+name = "gio-unix-sys"
+version = "0.22.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d7ef12a1e976cf8bdb26263fcfd5776bfd820d6dc21ce788127733cda1f50c31"
+dependencies = [
+ "gio-sys",
+ "glib-sys",
+ "gobject-sys",
+ "libc",
+ "system-deps",
 ]
 
 [[package]]
@@ -3273,10 +3315,16 @@ name = "mundane-packages"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "flate2",
+ "gio",
+ "gio-unix",
  "gpui",
+ "image",
  "mundane-services",
  "mundane-ui",
+ "roxmltree 0.21.2",
  "tempfile",
+ "url",
 ]
 
 [[package]]

@@ -33,5 +33,22 @@ def exercise(app, side, key, type_text, until, compare, root, log):
             subprocess.run([root / "target/debug/examples/header-pointer", socket, "gesture", "340,194", "press", "355,187", "350,149", "release"], check=True)
             until(lambda: all((folder / "Archive" / n).exists() and not (folder/n).exists()
                               for n in ("draft.txt", "palette.png")), "dragged selection moved to folder")
+    elif app == "packages":
+        calls = Path(os.environ["XDG_RUNTIME_DIR"]) / "packages/calls.jsonl"
+        until(calls.exists, "dave listing")
+        if after:
+            key("d", "ctrl")
+        shot("discover")
+        if after:
+            key("Tab")  # Office, Science
+            key("Return")
+            key("Return")  # Chartroom
+            key("Tab")
+            key("Return")  # Launch via desktop registry
+            until((Path.home() / "chartroom-launched").exists, "launched installed application")
+            key("Tab")
+            key("Tab")
+            key("Return")  # Show the supplied screenshot
+        shot("application")
     else:
         raise ValueError(app)

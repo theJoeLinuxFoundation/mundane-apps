@@ -8,8 +8,14 @@ publish.workspace = true
 [dependencies]
 gpui.workspace = true
 mundane-ui = { path = "../../crates/mundane-ui" }
-mundane-services = { path = "../../crates/mundane-services", features = ["packages"] }
+mundane-services = { path = "../../crates/mundane-services", features = ["packages", "provider"] }
 anyhow.workspace = true
+flate2 = "1"
+gio = "0.22"
+gio-unix = "0.22"
+roxmltree = "0.21"
+url = "2"
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "webp"] }
 
 [dev-dependencies]
 gpui = { workspace = true, features = ["test-support"] }

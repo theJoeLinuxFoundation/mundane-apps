@@ -1,3 +1,5 @@
+mod catalog;
+mod discover;
 #[cfg(test)]
 mod tests;
 mod view;
@@ -12,12 +14,16 @@ use std::time::Duration;
 const PAGE_SIZE: usize = 6;
 
 enum Page {
+    Discover(Vec<catalog::Application>),
     Installed(Vec<Listed>),
     Results(String, mundane_services::packages::Search),
     Details(Info),
     Status(Status),
 }
 enum Job {
+    Discover,
+    Launch(String),
+    Screenshot(url::Url),
     Installed,
     Search(String),
     Info(String),
@@ -26,6 +32,7 @@ enum Job {
     Apply(Review),
 }
 enum Answer {
+    Image(Vec<u8>),
     Page(Page),
     Review(Review, String),
     Notice(String),
@@ -35,6 +42,12 @@ enum Answer {
 impl Job {
     fn execute(self, dave: &Dave) -> anyhow::Result<Answer> {
         Ok(match self {
+            Self::Discover => Answer::Page(Page::Discover(catalog::discover())),
+            Self::Launch(id) => {
+                catalog::launch(&id)?;
+                Answer::Notice("Application launched.".into())
+            }
+            Self::Screenshot(url) => Answer::Image(catalog::screenshot(&url)?),
             Self::Installed => Answer::Page(Page::Installed(dave.list()?)),
             Self::Search(term) => Answer::Page(Page::Results(term.clone(), dave.search(&term)?)),
             Self::Info(name) => Answer::Page(Page::Details(dave.info(&name)?)),
@@ -101,6 +114,14 @@ struct Packages {
     dave: Dave,
     page: Page,
     previous_search: Option<String>,
+    catalog_return: Option<Vec<catalog::Application>>,
+    category: Option<String>,
+    app_index: Option<usize>,
+    preview_image: Option<std::sync::Arc<Image>>,
+    discover: FocusHandle,
+    launch: FocusHandle,
+    picture: FocusHandle,
+
     offset: usize,
     review: Option<Review>,
     review_offset: usize,
@@ -134,6 +155,13 @@ impl Packages {
             dave,
             page: Page::Installed(vec![]),
             previous_search: None,
+            catalog_return: None,
+            category: None,
+            app_index: None,
+            preview_image: None,
+            discover: focus(),
+            launch: focus(),
+            picture: focus(),
             offset: 0,
             review: None,
             review_offset: 0,
@@ -183,6 +211,12 @@ impl Packages {
                 this.notice.clear();
                 match result {
                     Err(error) => this.notice = format!("{error:#}"),
+                    Ok(Answer::Image(png)) => {
+                        this.preview_image = Some(std::sync::Arc::new(Image::from_bytes(
+                            ImageFormat::Png,
+                            png,
+                        )))
+                    }
                     Ok(Answer::Notice(text)) => this.notice = text,
                     Ok(Answer::Review(review, message)) => {
                         this.review_offset = 0;
@@ -209,7 +243,19 @@ impl Packages {
     fn show(&mut self, page: Page, w: &mut Window, cx: &mut Context<Self>) {
         self.offset = 0;
         self.scroll.set_offset(point(px(0.), px(0.)));
+        if !matches!(&page, Page::Details(_)) {
+            self.catalog_return = None;
+        } else if let Page::Discover(apps) = &self.page {
+            self.catalog_return = Some(apps.clone());
+        }
         match &page {
+            Page::Discover(apps) => {
+                if apps.is_empty() {
+                    self.discover.focus(w, cx)
+                } else {
+                    self.rows[0].focus(w, cx)
+                }
+            }
             Page::Results(term, results) => {
                 self.previous_search = Some(term.clone());
                 if !results.packages.is_empty() {
@@ -241,6 +287,12 @@ impl Packages {
         )
     }
     fn back(&mut self, w: &mut Window, cx: &mut Context<Self>) {
+        if let Some(apps) = self.catalog_return.take() {
+            self.page = Page::Discover(apps);
+            self.action.focus(w, cx);
+            cx.notify();
+            return;
+        }
         self.start(
             self.previous_search
                 .clone()
@@ -282,6 +334,10 @@ impl Packages {
     }
     fn refresh(&mut self, w: &mut Window, cx: &mut Context<Self>) {
         let job = match &self.page {
+            Page::Discover(_) => {
+                self.explore(w, cx);
+                return;
+            }
             Page::Installed(_) => Job::Installed,
             Page::Results(t, _) => Job::Search(t.clone()),
             Page::Details(i) => Job::Info(i.name.clone()),

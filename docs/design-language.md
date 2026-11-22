@@ -36,7 +36,7 @@ Icon slots are 14, 16 and 24. Titlebar symbols are stroked geometry, with 14 log
 | Tabs | A named tab list contains selectable tabs and a separate close button. The selected tab uses the selection fill. Activation and close are caller commands. The suite binds Ctrl+Page Up/Down to switch. |
 | Lists | Each option has a stable model key, name, selection and position. Supporting text, a value and an optional fraction can accompany the label. Up/Down and Home/End move selection. The owner decides what activation does. Lists accept application-defined keys. |
 | Media transport | Play, Pause or Replay reflects playback state. The seek slider exposes position and duration, accepts pointer dragging and steps by five seconds. Unavailable seeking and transport actions are guarded. |
-| Labels, headings and covered content | Labels expose static text runs and headings expose their level. `ApplicationContent` hides the covered accessible subtree during a modal and republishes it when dismissed. The caller owns initial focus and restores it on dismissal. |
+| Labels, headings and covered content | Labels expose static text runs and headings expose their level. Pass a stable control ID and the current heading text when a title comes from a document, application or catalog. `ApplicationContent` hides the covered accessible subtree during a modal and republishes it when dismissed. The caller owns initial focus and restores it on dismissal. |
 
 The screenshots use the production renderers, private labwc, software rendering and a fake Settings portal. At 125% text size the output scale stays at 1. Build with `cargo build -p mundane-ui --example design_sheet` and replay with `tests/wayland/run --design-sheet core`.
 
