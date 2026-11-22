@@ -170,3 +170,22 @@ pub fn unavailable(control: Stateful<Div>, disabled: bool) -> Stateful<Div> {
         })
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::option;
+    use gpui::{Element, ElementId};
+    use std::{ffi::OsStr, os::unix::ffi::OsStrExt, path::Path, sync::Arc};
+
+    #[test]
+    fn option_identity_survives_reorder_and_lossy_display_names() {
+        let path = |bytes: &[u8]| ElementId::Path(Arc::from(Path::new(OsStr::from_bytes(bytes))));
+        let first = path(b"/dir/\xff");
+        let second = path(b"/dir/\xfe");
+        let before = Element::id(&option(first.clone(), "�", 0, false, false));
+        let after = Element::id(&option(first, "renamed label", 1, true, true));
+        let other = Element::id(&option(second, "�", 0, false, false));
+        assert_eq!(before, after);
+        assert_ne!(before, other);
+    }
+}
