@@ -35,7 +35,7 @@ def video(side, app, root, log, key, until, compare, record, check_tone):
         until(fullscreen, "second fullscreen request")
     key("Escape")
     until(lambda: not fullscreen(), "windowed playback")
-    capture = record() if after else None
+    capture = record("h264-opus") if after else None
     key("o", "ctrl")
     until((Path(os.environ["XDG_RUNTIME_DIR"]) / "OpenFile").exists, "MP4 chosen")
     if after:
@@ -46,3 +46,13 @@ def video(side, app, root, log, key, until, compare, record, check_tone):
         key("Right")
         assert loaded_plugins(app.pid) == set(PLUGINS + MP4_PLUGINS) - {"vorbis"}
     compare("video-mp4.png", 1, references)
+
+    if after and (Path(os.environ["GST_PLUGIN_PATH_1_0"]) / "libgstlibav.so").exists():
+        capture = record("h264-aac")
+        key("o", "ctrl")
+        until(lambda: "Passage with AAC.mp4 — Video" in log.read_text(), "H.264/AAC playback")
+        check_tone(capture, until, frequency=660)
+        assert "libav" in loaded_plugins(app.pid)
+        print("Passed AAC playback through the system gst-libav plugin")
+    elif after:
+        print("Skipped AAC playback: system gst-libav plugin absent")

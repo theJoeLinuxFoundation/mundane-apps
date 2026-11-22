@@ -132,7 +132,7 @@ Open a local PDF from Files, the command line, or the **Open** button. Jump to a
 
 ## Video
 
-Video plays local WebM (VP8 or VP9) and MP4 (H.264). Soundtracks can use Opus or Vorbis. AAC is pending a distribution packaging decision. Sound goes directly to PipeWire. Click or drag the seek slider, use the five-second step buttons, or operate the player by keyboard. At the end of a clip, **Replay** starts it again. [GStreamer packaging list and Video tests](docs/video-tests.md)
+Video plays local WebM (VP8 or VP9) and MP4 (H.264). Soundtracks can use AAC, Opus or Vorbis. AAC uses a decoder from the system GStreamer installation. Sound goes directly to PipeWire. Click or drag the seek slider, use the five-second step buttons, or operate the player by keyboard. At the end of a clip, **Replay** starts it again. [GStreamer packaging list and Video tests](docs/video-tests.md)
 
 | Action | Shortcut |
 | --- | --- |

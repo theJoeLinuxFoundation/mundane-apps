@@ -111,6 +111,6 @@ The comparisons below use the same fixtures and a private headless Sway output. 
 
 ## Round four
 
-**Video.** F11 or double-click enters fullscreen. F6 or a click reveals the controls there, and Escape returns to windowed playback. MP4 supports H.264 video with Opus audio or a silent track. The common AAC soundtrack remains pending on joe’s decoder packaging decision. The other round-four apps remain pending. [Fullscreen before](parity/round-4/before/video-fullscreen.png) · [After](parity/round-4/after/video-fullscreen.png) · [MP4 before](parity/round-4/before/video-mp4.png) · [After](parity/round-4/after/video-mp4.png)
+**Video.** F11 or double-click enters fullscreen. F6 or a click reveals the controls there, and Escape returns to windowed playback. MP4 supports H.264 video with AAC or Opus audio, or a silent track. The system GStreamer registry supplies the AAC decoder. The other round-four apps remain pending. [Fullscreen before](parity/round-4/before/video-fullscreen.png) · [After](parity/round-4/after/video-fullscreen.png) · [MP4 before](parity/round-4/before/video-mp4.png) · [After](parity/round-4/after/video-mp4.png)
 
 Run `tests/wayland/run --app video --round-four after` on private Sway. The before comparison uses the binary from `5a5cc9a`. The test verifies the compositor’s fullscreen state, keyboard exit, MP4 seek and recorded audio. [Plugin list and test setup](video-tests.md)

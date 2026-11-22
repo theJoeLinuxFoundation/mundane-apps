@@ -12,15 +12,17 @@ MP4_PLUGINS = ("isomp4", "videoparsersbad", "openh264")
 MUSIC_PLUGINS = ("coreelements", "ogg", "opus", "vorbis", "audioparsers", "flac",
                  "wavparse", "audioconvert", "audioresample", "pipewire")
 
-def configure(directory, extra=(), omit=(), plugins=PLUGINS):
+def configure(directory, extra=(), omit=(), plugins=PLUGINS, optional=()):
     directory.mkdir(parents=True, exist_ok=True)
     system = subprocess.check_output(["pkg-config", "--variable=pluginsdir", "gstreamer-1.0"], text=True).strip()
     roots = [Path(p) for p in os.environ.get("MUNDANE_TEST_GST_PLUGIN_DIRS", system).split(os.pathsep)]
-    for name in (*plugins, *extra):
+    for name in (*plugins, *extra, *optional):
         if name in omit:
             continue
         target = f"libgst{name}.so"
         source = next((root / target for root in roots if (root / target).is_file()), None)
+        if source is None and name in optional:
+            continue
         if source is None:
             raise RuntimeError(f"Missing GStreamer plugin {target} in {roots}")
         link = directory / target

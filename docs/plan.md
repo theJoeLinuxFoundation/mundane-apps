@@ -74,6 +74,8 @@ In the first Terminal milestone, probe the pinned GPUI Linux platform for a rout
 
 Choose permissive engines for the suite. GPL and AGPL libraries are excluded from static and dynamic linking. LGPL system libraries may be linked dynamically. The approved compiler-runtime exception covers `libgcc_s` under the GCC Runtime Library Exception. Running a GPL application helper as a separate process requires the project owner’s prior approval. If a feature needs a GPL component, bring that decision to the owner before implementing it.
 
+System-installed codec plugins that GStreamer loads at runtime are outside the suite’s linking and shipping licence policy. joe supplies gst-libav for AAC. Neither FFmpeg nor its decoder plugin is linked into or distributed with a suite binary or the source archive. Record these system runtime dependencies in each player’s packaging notes.
+
 The workspace test runs Cargo metadata for x86-64 Linux and checks normal dependencies reachable from each binary, including optional features. It evaluates SPDX choices and conjunctions, rejects missing or unreviewed terms and checks declared native link names. For example, `self_cell` offers Apache-2.0 as an alternative to GPL, and the existing `option-ext` dependency uses MPL-2.0. Review native build scripts, bundled components and runtime-loaded libraries separately. Record the chosen licence and distribution notices for each new engine. [Metadata test](../tests/dependency_licences.py) · [PDFium packaging and notices](document-tests.md) · [ICU packaging](characters-tests.md) · [Font rendering libraries](fonts-tests.md) · [Forecast transport](weather-tests.md) · [Vector tile renderer](maps-tests.md)
 
 ## joe Linux packaging handoff

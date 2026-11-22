@@ -520,13 +520,13 @@ seat seat0 fallback true
             from video_audio import start, record, check_tone
             from video_plugins import PLUGINS, MP4_PLUGINS, configure, loaded_plugins
             configure(RUNTIME / "gst-plugins", extra=MP4_PLUGINS if args.round_four else (),
-                      omit=("vpx",) if args.missing_video_decoder else ())
+                      omit=("vpx",) if args.missing_video_decoder else (), optional=("libav",) if args.round_four else ())
             start(stack, RUNTIME, launch, until)
             if not args.missing_video_decoder:
                 recording = record(stack, RUNTIME, launch, "vp8-opus")
             argv.append(str(ROOT / "tests/fixtures/Coastal passage.webm"))
             second = ROOT / "tests/fixtures" / ("Passage.mp4" if args.round_four else "Harbour.webm")
-            launch(stack, "python3", str(HERE / "chooser_portal.py"), str(second), log="video-portal.log")
+            launch(stack, "python3", str(HERE / "chooser_portal.py"), str(second), str(ROOT / "tests/fixtures/Passage with AAC.mp4") if args.round_four else str(second), log="video-portal.log")
             until((RUNTIME / "chooser-ready").exists, "private FileChooser")
         if suite_app == "document-viewer":
             document = ROOT / "tests/fixtures/Coastal survey.pdf"
@@ -585,7 +585,7 @@ seat seat0 fallback true
             if suite_app != "video" or labwc:
                 raise ValueError("The round-four Video comparison uses Sway.")
             video(args.round_four, app, ROOT, OUTPUT / log, key, until, compare_screenshot,
-                  lambda: record(stack, RUNTIME, launch, "h264-opus"), check_tone)
+                  lambda tag: record(stack, RUNTIME, launch, tag), check_tone)
             return
         if args.round_three:
             from round_three import exercise

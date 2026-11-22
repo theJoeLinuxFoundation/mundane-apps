@@ -14,13 +14,16 @@ node = Gio.DBusNodeInfo.new_for_xml(f'<node><interface name="org.freedesktop.por
                                     f'{methods}<property name="version" type="u" access="read"/></interface></node>')
 
 
+open_choices = iter(sys.argv[1:])
+
+
 def choose(bus, sender, path, iface, method, args, call):
     _, _, options = args.unpack()
     handle = f"{desktop}/request/{sender[1:].replace('.', '_')}/{options['handle_token']}"
     call.return_value(GLib.Variant("(o)", (handle,)))
     dest = Path.home() / ("Saved copy.txt" if method == "SaveFile" else "Second.txt")
     if method == "OpenFile" and len(sys.argv) > 1:
-        dest = Path(sys.argv[1])
+        dest = Path(next(open_choices, sys.argv[-1]))
     cancel = (runtime / "cancel-choice").exists()
     # Portal requests reply with a handle before the user's subsequent choice.
     def respond():

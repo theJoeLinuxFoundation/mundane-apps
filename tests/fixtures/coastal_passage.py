@@ -74,6 +74,16 @@ def encode_mp4():
         "mp4mux", "name=m", "!", "filesink", f"location={HERE/'Passage.mp4'}"
     ], check=True)
 
+    # Reuse the H.264 stream and add a distinct 660 Hz AAC track for the decoder test.
+    subprocess.run([
+        "gst-launch-1.0", "-q", "filesrc", f"location={HERE/'Passage.mp4'}",
+        "!", "qtdemux", "name=d", "d.video_0", "!", "queue", "!", "m.video_0",
+        "audiotestsrc", "freq=660", "volume=0.15", "num-buffers=360", "samplesperbuffer=1600",
+        "!", "audio/x-raw,rate=48000,channels=1", "!", "audioconvert", "!", "avenc_aac",
+        "!", "queue", "!", "m.audio_0", "mp4mux", "name=m", "!", "filesink",
+        f"location={HERE/'Passage with AAC.mp4'}",
+    ], check=True)
+
 
 if __name__=="__main__":
     encode(HERE/"Coastal passage.webm",120,"vp8enc","opusenc")

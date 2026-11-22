@@ -35,21 +35,29 @@ fn factory(name: &str) -> Result<gst::Element> {
         .with_context(|| format!("GStreamer element {name} is unavailable"))
 }
 
-fn decoder(stream: &gst::StructureRef) -> Result<&'static str> {
-    let caps = stream.name().as_str();
-    match caps {
-        "video/x-h264" => Ok("openh264dec"),
-        "video/x-vp8" => Ok("vp8dec"),
-        "video/x-vp9" => Ok("vp9dec"),
-        "audio/x-opus" => Ok("opusdec"),
-        "audio/x-vorbis" => Ok("vorbisdec"),
+fn decoder(caps: &gst::CapsRef) -> Result<gst::Element> {
+    let stream = caps.structure(0).context("Empty stream caps")?;
+    let kind = stream.name().as_str();
+    let name = match kind {
+        "video/x-h264" => "openh264dec",
+        "video/x-vp8" => "vp8dec",
+        "video/x-vp9" => "vp9dec",
+        "audio/x-opus" => "opusdec",
+        "audio/x-vorbis" => "vorbisdec",
         "audio/mpeg" if matches!(stream.get::<i32>("mpegversion"), Ok(2 | 4)) => {
-            bail!("This video has an AAC soundtrack. This build supports Opus and Vorbis audio.")
+            let audio_decoder =
+                gst::ElementFactoryType::DECODER | gst::ElementFactoryType::MEDIA_AUDIO;
+            return gst::ElementFactory::factories_with_type(audio_decoder, gst::Rank::MARGINAL)
+                .iter()
+                .filter(|f| f.can_sink_all_caps(caps))
+                .find_map(|f| f.create().build().ok())
+                .context(
+                    "No system GStreamer decoder for this AAC soundtrack. Install gst-libav.",
+                );
         }
-        _ => bail!(
-            "Unsupported codec {caps}. Video supports H.264, VP8 and VP9 with optional Opus or Vorbis audio."
-        ),
-    }
+        _ => bail!("Unsupported codec {kind}."),
+    };
+    factory(name).with_context(|| format!("Missing decoder {name} for {kind}"))
 }
 
 fn attach(
@@ -141,9 +149,7 @@ impl Pipeline {
                 } else if !kind.starts_with("audio/") || audio.swap(true, Ordering::Relaxed) {
                     return Ok(());
                 }
-                let name = decoder(stream)?;
-                let codec =
-                    factory(name).with_context(|| format!("Missing decoder {name} for {kind}"))?;
+                let codec = decoder(&caps)?;
                 let mut chain = vec![factory("queue")?];
                 if kind == "video/x-h264" {
                     chain.push(factory("h264parse")?);
@@ -272,21 +278,12 @@ mod tests {
     #[test]
     fn unsupported_codec_names_the_stream() {
         gst::init().unwrap();
-        let av1 = gst::Structure::new_empty("video/x-av1");
+        let av1 = gst::Caps::builder("video/x-av1").build();
         assert!(
             decoder(&av1)
                 .unwrap_err()
                 .to_string()
                 .contains("video/x-av1")
-        );
-        let aac = gst::Structure::builder("audio/mpeg")
-            .field("mpegversion", 4i32)
-            .build();
-        assert!(
-            decoder(&aac)
-                .unwrap_err()
-                .to_string()
-                .contains("AAC soundtrack")
         );
         assert!(
             factory("mundane-nonexistent-decoder")
