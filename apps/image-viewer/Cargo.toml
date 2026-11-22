@@ -1,0 +1,17 @@
+[package]
+name = "mundane-image-viewer"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+gpui.workspace = true
+gpui_linux.workspace = true
+image = { version = "0.25", default-features = false, features = ["png", "jpeg"] }
+rustix = { version = "1", features = ["fs"] }
+mundane-ui = { path = "../../crates/mundane-ui" }
+
+[dev-dependencies]
+gpui = { workspace = true, features = ["test-support"] }

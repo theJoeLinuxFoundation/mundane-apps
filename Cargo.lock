@@ -2807,6 +2807,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "mundane-image-viewer"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "gpui",
+ "gpui_linux",
+ "image",
+ "mundane-ui",
+ "rustix",
+]
+
+[[package]]
 name = "mundane-services"
 version = "0.1.0"
 dependencies = [
