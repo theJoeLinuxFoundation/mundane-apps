@@ -213,36 +213,6 @@ impl Frame {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use alacritty_terminal::{event::VoidListener, vte::ansi::Processor};
-    use mundane_services::terminal::GridSize;
-
-    #[test]
-    fn split_utf8_sgr_and_cursor_motion_preserve_cell_positions() {
-        let mut term = Term::new(
-            Default::default(),
-            &GridSize { cols: 12, rows: 2 },
-            VoidListener,
-        );
-        let mut parser = Processor::<alacritty_terminal::vte::ansi::StdSyncHandler>::new();
-        for &byte in "ab\x1b[31m界\x1b[0m!\rZ".as_bytes() {
-            parser.advance(&mut term, &[byte]);
-        }
-        let row = &term.grid()[Line(0)];
-        assert_eq!(row[Column(0)].c, 'Z');
-        assert_eq!(row[Column(2)].c, '界');
-        assert_eq!(row[Column(2)].fg, Color::Named(NamedColor::Red));
-        assert!(row[Column(3)].flags.contains(Flags::WIDE_CHAR_SPACER));
-        assert_eq!(row[Column(4)].c, '!');
-        parser.advance(&mut term, b"\r\nsecond\r\nthird");
-        term.scroll_display(alacritty_terminal::grid::Scroll::Top);
-        assert_eq!(term.grid().display_offset(), 1);
-        assert_eq!(term.grid()[Line(-1)][Column(2)].c, '界');
-    }
-}
-
 /// Publish the same visible cells and scroll origin used by the grid painter.
 pub fn accessible<T: EventListener>(
     tree: &mut gpui::A11ySubtreeBuilder,
@@ -323,5 +293,35 @@ pub fn accessible<T: EventListener>(
                 focus: pos,
             });
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use alacritty_terminal::{event::VoidListener, vte::ansi::Processor};
+    use mundane_services::terminal::GridSize;
+
+    #[test]
+    fn split_utf8_sgr_and_cursor_motion_preserve_cell_positions() {
+        let mut term = Term::new(
+            Default::default(),
+            &GridSize { cols: 12, rows: 2 },
+            VoidListener,
+        );
+        let mut parser = Processor::<alacritty_terminal::vte::ansi::StdSyncHandler>::new();
+        for &byte in "ab\x1b[31m界\x1b[0m!\rZ".as_bytes() {
+            parser.advance(&mut term, &[byte]);
+        }
+        let row = &term.grid()[Line(0)];
+        assert_eq!(row[Column(0)].c, 'Z');
+        assert_eq!(row[Column(2)].c, '界');
+        assert_eq!(row[Column(2)].fg, Color::Named(NamedColor::Red));
+        assert!(row[Column(3)].flags.contains(Flags::WIDE_CHAR_SPACER));
+        assert_eq!(row[Column(4)].c, '!');
+        parser.advance(&mut term, b"\r\nsecond\r\nthird");
+        term.scroll_display(alacritty_terminal::grid::Scroll::Top);
+        assert_eq!(term.grid().display_offset(), 1);
+        assert_eq!(term.grid()[Line(-1)][Column(2)].c, '界');
     }
 }
