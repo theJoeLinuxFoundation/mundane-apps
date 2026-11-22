@@ -37,5 +37,18 @@ def exercise(app, before, folder, key, type_text, until, compare, root, log):
             type_text("exit"); key("Return")
             type_text("echo original > parent"); key("Return")
             until(lambda: (Path.home()/"Documents/parent").exists(), "original shell")
+    elif app == "text-editor":
+        until(lambda: "Field notes.txt — Text Editor" in log.read_text(), "first document")
+        if not before:
+            key("o", "ctrl")
+            until(lambda: "Second.txt — Text Editor" in log.read_text(), "second document")
+            key("Page_Up", "ctrl")
+            key("i", "ctrl")
+            type_text("4")
+            shot("go-to-line")
+            key("Return")
+        if before:
+            shot("go-to-line")
+        shot("documents")
     else:
         raise ValueError(app)

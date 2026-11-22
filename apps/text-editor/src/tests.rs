@@ -18,13 +18,13 @@ fn edit_find_dismiss_close_and_save(cx: &mut TestAppContext) {
     cx.simulate_keystrokes("ctrl-end h e l l o enter w o r l d");
     cx.update(|_, cx| {
         let editor = view.read(cx);
-        assert_eq!(editor.body.read(cx).text(), "東京\r\nhello\r\nworld");
+        assert_eq!(editor.page().body.read(cx).text(), "東京\r\nhello\r\nworld");
         assert!(editor.dirty(cx));
     });
     cx.simulate_keystrokes("ctrl-f w o r l d enter");
     cx.update(|w, cx| {
         let editor = view.read(cx);
-        let field = editor.body.read(cx);
+        let field = editor.page().body.read(cx);
         assert_eq!(&field.text()[field.selection()], "world");
         assert!(editor.query.read(cx).focus_handle(cx).is_focused(w));
     });
@@ -34,7 +34,16 @@ fn edit_find_dismiss_close_and_save(cx: &mut TestAppContext) {
         assert!(view.read(cx).confirmation.as_ref().unwrap().buttons[0].is_focused(w))
     });
     cx.simulate_keystrokes("shift-tab tab escape");
-    cx.update(|w, cx| assert!(view.read(cx).body.read(cx).focus_handle(cx).is_focused(w)));
+    cx.update(|w, cx| {
+        assert!(
+            view.read(cx)
+                .page()
+                .body
+                .read(cx)
+                .focus_handle(cx)
+                .is_focused(w)
+        )
+    });
     assert_eq!(fs::read(&path).unwrap(), "東京\r\n".as_bytes());
     cx.simulate_keystrokes("ctrl-s");
     assert_eq!(
@@ -85,8 +94,8 @@ fn failed_save_from_close_keeps_edits(cx: &mut TestAppContext) {
     cx.update(|w, cx| {
         let editor = view.read(cx);
         assert!(editor.error.as_deref().unwrap().contains("changed on disk"));
-        assert_eq!(editor.body.read(cx).text(), "first edit");
-        assert!(editor.body.read(cx).focus_handle(cx).is_focused(w));
+        assert_eq!(editor.page().body.read(cx).text(), "first edit");
+        assert!(editor.page().body.read(cx).focus_handle(cx).is_focused(w));
     });
     assert_eq!(fs::read(path).unwrap(), b"external");
     assert!(!cx.simulate_close());
@@ -97,7 +106,7 @@ fn composition_offsets_preserve_selection_and_cancel(cx: &mut TestAppContext) {
     use gpui::EntityInputHandler;
     let (editor, cx) = cx.add_window_view(Editor::new);
     cx.update(|window, cx| {
-        let field = editor.read(cx).body.clone();
+        let field = editor.read(cx).page().body.clone();
         field.update(cx, |field, cx| {
             field.set_document("a😀e\u{301}\r\nz".into(), cx);
             field.replace_and_mark_text_in_range(Some(1..3), "候😀", Some(1..3), window, cx);
@@ -114,4 +123,70 @@ fn composition_offsets_preserve_selection_and_cancel(cx: &mut TestAppContext) {
             assert_eq!(field.marked_text_range(window, cx), None);
         });
     });
+}
+
+#[gpui::test]
+fn drafts_keep_their_edits_and_undo_history_when_switching(cx: &mut TestAppContext) {
+    cx.update(mundane_ui::bind_text_keys);
+    let (view, cx) = cx.add_window_view(Editor::new);
+    cx.simulate_keystrokes("a b ctrl-n c ctrl-pageup ctrl-z");
+    cx.update(|_, cx| {
+        let e = view.read(cx);
+        assert_eq!((e.pages.len(), e.active), (2, 0));
+        assert_eq!(e.page().body.read(cx).text(), "a");
+        assert_eq!(e.pages[1].body.read(cx).text(), "c");
+    });
+    // Closing the window must review the background draft even with a clean tab active.
+    cx.simulate_keystrokes("ctrl-z");
+    assert!(!cx.simulate_close());
+    cx.update(|_, cx| {
+        let e = view.read(cx);
+        assert_eq!(e.active, 1);
+        assert!(e.confirmation.is_some());
+    });
+    cx.simulate_keystrokes("escape ctrl-w");
+    cx.update(|w, cx| view.update(cx, |e, cx| e.command(super::Command::Discard, w, cx)));
+    assert_eq!(view.read_with(cx, |e, _| e.pages.len()), 1);
+    assert!(cx.simulate_close());
+}
+
+#[gpui::test]
+fn open_keeps_a_dirty_draft_and_a_reopened_file_keeps_its_caret(cx: &mut TestAppContext) {
+    cx.update(mundane_ui::bind_text_keys);
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("example.txt");
+    fs::write(&path, "first\r\n東京\r\nlast\r\n").unwrap();
+    let (view, cx) = cx.add_window_view(Editor::new);
+    cx.simulate_keystrokes("a");
+    cx.update(|w, cx| view.update(cx, |e, cx| e.open(path.clone(), w, cx)));
+    cx.run_until_parked();
+    assert_eq!(view.read_with(cx, |e, _| (e.pages.len(), e.active)), (2, 1));
+    cx.simulate_keystrokes("ctrl-i 9 enter");
+    assert!(view.read_with(cx, |e, _| e.going
+        && e.error.as_deref() == Some("Enter a line from 1 to 4.")));
+    cx.simulate_keystrokes("ctrl-a 3 enter");
+    cx.update(|w, cx| {
+        let e = view.read(cx);
+        let f = e.page().body.read(cx);
+        assert_eq!(f.line_column(), (3, 1));
+        assert_eq!(f.selection().start, "first\r\n東京\r\n".len());
+        assert!(!e.going && f.focus_handle(cx).is_focused(w));
+    });
+    cx.simulate_keystrokes("ctrl-pageup");
+    cx.update(|w, cx| view.update(cx, |e, cx| e.open(path, w, cx)));
+    cx.run_until_parked();
+    assert_eq!(
+        view.read_with(cx, |e, cx| (
+            e.pages.len(),
+            e.active,
+            e.page().body.read(cx).line_column()
+        )),
+        (2, 1, (3, 1))
+    );
+    cx.simulate_keystrokes("ctrl-w");
+    assert_eq!(
+        view.read_with(cx, |e, cx| e.page().body.read(cx).text().to_owned()),
+        "a"
+    );
+    assert!(!cx.simulate_close());
 }

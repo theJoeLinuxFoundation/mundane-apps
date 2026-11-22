@@ -1078,13 +1078,15 @@ seat seat0 fallback true
             until(lambda: document.read_bytes() == saved, "saved CRLF document")
             key("s", "ctrl", "shift")
             copy = Path.home() / "Saved copy.txt"
-            until(lambda: copy.is_file() and copy.read_bytes() == saved, "portal Save As")
+            until(lambda: copy.is_file() and copy.read_bytes() == saved and
+                  "Saved copy.txt — Text Editor" in (OUTPUT / log).read_text(), "completed Save As")
             (RUNTIME / "cancel-choice").touch()
             key("o", "ctrl")
             until((RUNTIME / "OpenFile").exists, "cancelled Open")
             (RUNTIME / "cancel-choice").unlink()
             key("o", "ctrl")
             until(lambda: 'Second.txt — Text Editor' in (OUTPUT / log).read_text(errors="replace"), "portal Open")
+            key("w", "ctrl")
             key("w", "ctrl")
             assert app.wait(timeout=8) == 0
             print(f"Passed {name}, find, unsaved close, save and portal choices")

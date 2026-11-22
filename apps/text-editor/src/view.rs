@@ -3,7 +3,12 @@ use mundane_ui::ControlRole as _;
 use mundane_ui::{Role, button};
 
 impl Editor {
-    fn tool(&self, cmd: Command, focus: &FocusHandle, cx: &Context<Self>) -> Stateful<Div> {
+    pub(super) fn tool(
+        &self,
+        cmd: Command,
+        focus: &FocusHandle,
+        cx: &Context<Self>,
+    ) -> Stateful<Div> {
         let view = cx.weak_entity();
         button(cmd.label(), focus, Theme::current(cx), move |window, cx| {
             let _ = view.update(cx, |this, cx| this.command(cmd, window, cx));
@@ -31,11 +36,24 @@ impl Editor {
             }
         } else {
             match (key.key.as_str(), key.modifiers.control) {
+                ("n" | "t", true) => self.command(Command::New, window, cx),
+                ("i", true) => self.command(Command::Line, window, cx),
+                ("pageup" | "pagedown", true) => {
+                    let n = self.pages.len();
+                    let delta = if key.key == "pageup" { n - 1 } else { 1 };
+                    self.switch((self.active + delta) % n, window, cx);
+                }
+                ("enter", false)
+                    if self.going && self.line.read(cx).focus_handle(cx).is_focused(window) =>
+                {
+                    self.command(Command::Jump, window, cx)
+                }
+                ("escape", false) if self.going => self.command(Command::Done, window, cx),
                 ("o", true) => self.command(Command::Open, window, cx),
                 ("s", true) if key.modifiers.shift => self.command(Command::SaveAs, window, cx),
                 ("s", true) => self.command(Command::Save, window, cx),
                 ("f", true) => self.command(Command::Find, window, cx),
-                ("w", true) => self.request(Pending::Close, window, cx),
+                ("w", true) => self.request(Pending::CloseTab, window, cx),
                 ("f3", false) if self.searching => self.find_match(true, cx),
                 ("enter", false)
                     if self.searching
@@ -59,7 +77,7 @@ impl Editor {
         let total = if term.is_empty() {
             0
         } else {
-            self.body.read(cx).text().matches(term).count()
+            self.page().body.read(cx).text().matches(term).count()
         };
         div()
             .flex()
@@ -134,16 +152,20 @@ impl Render for Editor {
         if window.window_title() != title {
             window.set_window_title(&title);
         }
-        let body = self.body.read(cx);
+        let body = self.page().body.read(cx);
         let focus = body.focus_handle(cx);
         let (row, col) = body.line_column();
         let ending = body.line_ending();
-        let tools = div().flex().gap_1().children(
-            [Command::Open, Command::Find, Command::Save, Command::SaveAs]
-                .into_iter()
-                .zip(&self.tools)
-                .map(|(cmd, focus)| self.tool(cmd, focus, cx)),
-        );
+        let tools = div()
+            .flex()
+            .gap_1()
+            .child(self.tool(Command::New, &self.new_focus, cx))
+            .children(
+                [Command::Open, Command::Find, Command::Save, Command::SaveAs]
+                    .into_iter()
+                    .zip(&self.tools)
+                    .map(|(cmd, focus)| self.tool(cmd, focus, cx)),
+            );
         let body = self
             .content
             .render(self.confirmation.is_some() || self.busy.is_some())
@@ -157,39 +179,57 @@ impl Render for Editor {
                 self.header
                     .render("Text Editor", tools, &focus, theme, window),
             )
-            .child(
-                div()
-                    .flex()
-                    .items_center()
-                    .justify_between()
-                    .gap_2()
-                    .px_3()
-                    .py_2()
-                    .bg(rgb(theme.panel))
-                    .child(
-                        div()
-                            .flex_1()
-                            .truncate()
-                            .font_weight(FontWeight::SEMIBOLD)
-                            .child(name),
-                    )
-                    .when(dirty, |el| {
-                        el.child(
-                            Role::Status
-                                .control("dirty", "Unsaved changes")
-                                .text_sm()
-                                .text_color(rgb(theme.focus))
-                                .child("●  Unsaved changes"),
+            .when(self.pages.len() == 1, |el| {
+                el.child(
+                    div()
+                        .flex()
+                        .items_center()
+                        .justify_between()
+                        .gap_2()
+                        .px_3()
+                        .py_2()
+                        .bg(rgb(theme.panel))
+                        .child(
+                            div()
+                                .flex_1()
+                                .truncate()
+                                .font_weight(FontWeight::SEMIBOLD)
+                                .child(name),
                         )
-                    }),
-            )
+                        .when(dirty, |el| {
+                            el.child(
+                                Role::Status
+                                    .control("dirty", "Unsaved changes")
+                                    .text_sm()
+                                    .text_color(rgb(theme.focus))
+                                    .child("●  Unsaved changes"),
+                            )
+                        }),
+                )
+            })
+            .when(self.pages.len() > 1, |el| el.child(self.strip(cx)))
+            .when(self.going, |el| {
+                el.child(
+                    div()
+                        .flex()
+                        .items_center()
+                        .gap_2()
+                        .px_3()
+                        .py_2()
+                        .bg(rgb(theme.panel))
+                        .child("Go to line")
+                        .child(div().w(px(110.)).child(self.line.clone()))
+                        .child(self.tool(Command::Jump, &self.find_buttons[0], cx))
+                        .child(self.tool(Command::Done, &self.find_buttons[1], cx)),
+                )
+            })
             .when(self.searching, |el| el.child(self.find_bar(cx)))
             .child(
                 div()
                     .flex_1()
                     .min_h_0()
                     .overflow_hidden()
-                    .child(self.body.clone()),
+                    .child(self.page().body.clone()),
             )
             .when_some(self.error.clone(), |el, err| {
                 el.child(
@@ -212,12 +252,23 @@ impl Render for Editor {
                     .bg(rgb(theme.panel))
                     .text_color(rgb(theme.secondary))
                     .text_sm()
+                    .items_center()
                     .child(format!("Line {row}, Column {col}"))
+                    .when(!self.going, |el| {
+                        el.child(self.tool(Command::Line, &self.line_focus, cx))
+                    })
                     .child(format!("UTF-8   ·   {ending}")),
             );
         div()
             .relative()
             .size_full()
+            .capture_key_down(cx.listener(|this, event: &KeyDownEvent, w, cx| {
+                if event.keystroke.modifiers.control
+                    && matches!(event.keystroke.key.as_str(), "pageup" | "pagedown")
+                {
+                    this.keys(event, w, cx);
+                }
+            }))
             .on_key_down(cx.listener(Self::keys))
             .font_family("DejaVu Sans")
             .text_color(rgb(theme.text))

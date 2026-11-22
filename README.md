@@ -43,10 +43,12 @@ The suite uses a shared window header. With client-side decorations, F6 reaches 
 
 ## Text Editor
 
-Open a local UTF-8 file or start with an untitled document. Find highlights a match and wraps at the end of the document. The title shows unsaved changes. Close or open another file to choose Save, Discard or Cancel. If a file changes on disk, Save As lets you keep your edits in another file. [Text Editor tests](docs/editor-tests.md)
+Open a local UTF-8 file or start with an untitled document. Find highlights a match and wraps at the end of the document. The title shows unsaved changes. Open keeps existing drafts in tabs. Closing an edited tab offers Save, Discard or Cancel. Closing the window reviews every unsaved document. If a file changes on disk, Save As lets you keep your edits in another file. [Text Editor tests](docs/editor-tests.md)
 
 | Action | Shortcut |
 | --- | --- |
+| New tab / previous or next tab | Ctrl+N or Ctrl+T / Ctrl+Page Up or Ctrl+Page Down |
+| Go to a numbered line | Ctrl+I, enter the line number, then Enter |
 | Open / save / save as | Ctrl+O / Ctrl+S / Ctrl+Shift+S |
 | Find / next match / leave Find | Ctrl+F / Enter in Find or F3 / Escape |
 | Undo / redo | Ctrl+Z / Ctrl+Shift+Z |

@@ -11,6 +11,7 @@ struct Snapshot {
 #[derive(Default)]
 pub(super) struct Multiline {
     starts: Vec<usize>,
+    numbered: bool,
     pub(super) zoom: i32,
     top: usize,
     left: Pixels,
@@ -100,12 +101,36 @@ impl TextField {
         field
     }
 
+    /// Show one-based logical line numbers alongside a multiline document.
+    pub fn with_line_numbers(mut self) -> Self {
+        if let Some(layout) = &mut self.multi {
+            layout.numbered = true;
+        }
+        self
+    }
+
+    pub fn line_count(&self) -> usize {
+        self.multi.as_ref().map_or(1, |m| m.starts.len())
+    }
+
+    pub fn go_to_line(&mut self, line: usize, cx: &mut Context<Self>) -> bool {
+        let Some(&offset) = line
+            .checked_sub(1)
+            .and_then(|i| self.multi.as_ref()?.starts.get(i))
+        else {
+            return false;
+        };
+        self.move_to(offset, cx);
+        true
+    }
+
     pub fn set_document(&mut self, text: SharedString, cx: &mut Context<Self>) {
         if self.password {
             self.content = self.insertion(&text).into();
         } else {
             let mut layout = Multiline {
                 crlf: text.find('\n').is_some_and(|i| text[..i].ends_with('\r')),
+                numbered: self.multi.as_ref().is_some_and(|m| m.numbered),
                 zoom: self.multi.as_ref().map_or(0, |m| m.zoom),
                 ..Default::default()
             };
@@ -311,15 +336,30 @@ impl TextField {
                     ElementInputHandler::new(bounds, entity.clone()),
                     cx,
                 );
-                entity.update(cx, |input, cx| input.paint_document(bounds, window, cx));
+                entity.update(cx, |input, cx| {
+                    let m = input.multi.as_ref().unwrap();
+                    if m.numbered {
+                        input.paint_numbers(bounds, window, cx);
+                    }
+                    window.with_content_mask(
+                        Some(gpui::ContentMask { bounds: m.bounds }),
+                        |window| input.paint_document(m.bounds, window, cx),
+                    );
+                });
             },
         )
         .size_full()
     }
 
-    fn layout_document(&mut self, bounds: Bounds<Pixels>, window: &Window) {
+    fn layout_document(&mut self, mut bounds: Bounds<Pixels>, window: &Window) {
         let cursor = self.cursor_offset();
         let m = self.multi.as_mut().unwrap();
+        if m.numbered {
+            let digits = m.starts.len().ilog10() + 1;
+            let width = px(14. + digits as f32 * (m.row_height() * 0.55)).min(bounds.size.width);
+            bounds.origin.x += width;
+            bounds.size.width -= width;
+        }
         m.bounds = bounds;
         let caret_row = m.row(cursor);
         let page = m.page();
@@ -368,6 +408,36 @@ impl TextField {
                         Bounds::new(origin, size(line.width, px(m.row_height()))),
                     )
                 }));
+        }
+    }
+
+    fn paint_numbers(&self, bounds: Bounds<Pixels>, window: &mut Window, cx: &mut App) {
+        let m = self.multi.as_ref().unwrap();
+        let style = window.text_style();
+        let size = style.font_size.to_pixels(window.rem_size());
+        for i in 0..m.lines.len() {
+            let number: SharedString = (m.top + i + 1).to_string().into();
+            let run = TextRun {
+                len: number.len(),
+                font: style.font(),
+                color: rgb(self.theme.secondary).into(),
+                background_color: None,
+                underline: None,
+                strikethrough: None,
+            };
+            let line = window.text_system().shape_line(number, size, &[run], None);
+            let origin = point(
+                m.bounds.left() - px(10.) - line.width,
+                bounds.top() + px(i as f32 * m.row_height()),
+            );
+            let _ = line.paint(
+                origin,
+                px(m.row_height()),
+                TextAlign::Left,
+                None,
+                window,
+                cx,
+            );
         }
     }
 

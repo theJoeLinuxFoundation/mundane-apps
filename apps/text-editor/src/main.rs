@@ -1,4 +1,6 @@
 mod document;
+mod tabs;
+use tabs::Page;
 #[cfg(test)]
 mod tests;
 mod view;
@@ -12,12 +14,16 @@ const APP_ID: &str = "org.joelinux.mundane.TextEditor";
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Pending {
-    Close,
-    Open,
+    CloseTab,
+    CloseWindow,
 }
 
 #[derive(Clone, Copy)]
 enum Command {
+    New,
+    CloseTab,
+    Line,
+    Jump,
     Open,
     Find,
     Save,
@@ -31,6 +37,10 @@ enum Command {
 impl Command {
     fn label(self) -> &'static str {
         match self {
+            Self::New => "New tab",
+            Self::Line => "Go to line",
+            Self::Jump => "Go",
+            Self::CloseTab => "Close tab",
             Self::Open => "Open",
             Self::Find => "Find",
             Self::Save | Self::ConfirmSave => "Save",
@@ -50,8 +60,15 @@ struct Confirmation {
 }
 
 struct Editor {
-    document: Document,
-    body: Entity<TextField>,
+    pages: Vec<Page>,
+    active: usize,
+    next_id: usize,
+    scroll: ScrollHandle,
+    close_focus: FocusHandle,
+    new_focus: FocusHandle,
+    line_focus: FocusHandle,
+    going: bool,
+    line: Entity<TextField>,
     query: Entity<TextField>,
     searching: bool,
     last_query: SharedString,
@@ -68,9 +85,8 @@ struct Editor {
 impl Editor {
     fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
         let theme = Theme::current(cx);
-        let body = cx.new(|cx| TextField::multiline("Document text", theme, cx));
+        let page = Page::new(1, cx);
         let query = cx.new(|cx| TextField::new("Find in document", theme, cx));
-        cx.observe(&body, |_, _, cx| cx.notify()).detach();
         cx.observe(&query, |this, query, cx| {
             let term = query.read(cx).snapshot();
             if this.searching && term != this.last_query {
@@ -79,19 +95,30 @@ impl Editor {
             }
         })
         .detach();
-        body.read(cx).focus_handle(cx).focus(window, cx);
+        page.body.read(cx).focus_handle(cx).focus(window, cx);
         let view = cx.weak_entity();
         window.on_window_should_close(cx, move |window, cx| {
-            view.update(cx, |this, cx| this.can_leave(Pending::Close, window, cx))
-                .unwrap_or(true)
+            view.update(cx, |this, cx| {
+                this.can_leave(Pending::CloseWindow, window, cx)
+            })
+            .unwrap_or(true)
         });
         let view = cx.weak_entity();
         let header = WindowHeader::new(cx).on_close(move |window, cx| {
-            let _ = view.update(cx, |this, cx| this.request(Pending::Close, window, cx));
+            let _ = view.update(cx, |this, cx| {
+                this.request(Pending::CloseWindow, window, cx)
+            });
         });
         Self {
-            document: Document::default(),
-            body,
+            pages: vec![page],
+            active: 0,
+            next_id: 2,
+            scroll: ScrollHandle::new(),
+            close_focus: cx.focus_handle().tab_stop(true),
+            line_focus: cx.focus_handle().tab_stop(true),
+            new_focus: cx.focus_handle().tab_stop(true),
+            going: false,
+            line: cx.new(|cx| TextField::new("Line number", theme, cx)),
             query,
             searching: false,
             last_query: "".into(),
@@ -107,20 +134,15 @@ impl Editor {
     }
 
     fn dirty(&self, cx: &App) -> bool {
-        self.body.read(cx).text() != self.document.saved.as_str()
+        self.page().dirty(cx)
     }
 
     fn name(&self) -> String {
-        self.document
-            .path
-            .as_deref()
-            .and_then(Path::file_name)
-            .map(|n| n.to_string_lossy().into_owned())
-            .unwrap_or_else(|| "Untitled".into())
+        self.page().name()
     }
 
     fn focus_body(&self, window: &mut Window, cx: &mut App) {
-        self.body.read(cx).focus_handle(cx).focus(window, cx);
+        self.page().body.read(cx).focus_handle(cx).focus(window, cx);
     }
 
     fn can_leave(&mut self, pending: Pending, window: &mut Window, cx: &mut Context<Self>) -> bool {
@@ -128,13 +150,19 @@ impl Editor {
             return false;
         }
         if !self.dirty(cx) {
-            return true;
+            if pending == Pending::CloseWindow
+                && let Some(i) = self.pages.iter().position(|p| p.dirty(cx))
+            {
+                self.switch(i, window, cx);
+            } else {
+                return true;
+            }
         }
         let confirm = Confirmation {
             pending,
             return_focus: window
                 .focused(cx)
-                .unwrap_or_else(|| self.body.read(cx).focus_handle(cx)),
+                .unwrap_or_else(|| self.page().body.read(cx).focus_handle(cx)),
             buttons: std::array::from_fn(|_| cx.focus_handle()),
         };
         confirm.buttons[0].focus(window, cx);
@@ -150,9 +178,14 @@ impl Editor {
     }
 
     fn proceed(&mut self, pending: Pending, window: &mut Window, cx: &mut Context<Self>) {
-        match pending {
-            Pending::Close => window.remove_window(),
-            Pending::Open => self.choose(false, None, window, cx),
+        if self.pages.len() == 1 {
+            window.remove_window();
+            return;
+        }
+        self.pages.remove(self.active);
+        self.switch(self.active.min(self.pages.len() - 1), window, cx);
+        if pending == Pending::CloseWindow && self.can_leave(pending, window, cx) {
+            window.remove_window();
         }
     }
 
@@ -179,6 +212,7 @@ impl Editor {
         self.wait("Choosing a file…", window, cx);
         let choice = if save {
             let dir = self
+                .page()
                 .document
                 .path
                 .as_deref()
@@ -218,6 +252,14 @@ impl Editor {
     }
 
     fn open(&mut self, path: PathBuf, window: &mut Window, cx: &mut Context<Self>) {
+        if let Some(i) = self
+            .pages
+            .iter()
+            .position(|page| page.document.path.as_ref() == Some(&path))
+        {
+            self.switch(i, window, cx);
+            return;
+        }
         self.wait("Opening file…", window, cx);
         let task = cx
             .background_executor()
@@ -228,10 +270,15 @@ impl Editor {
                 this.ready(window, cx);
                 match result {
                     Ok(doc) => {
-                        this.body
+                        if this.page().document.path.is_some() || this.dirty(cx) {
+                            this.new_tab(window, cx);
+                        }
+                        this.page()
+                            .body
                             .update(cx, |field, cx| field.set_document(doc.saved.clone(), cx));
                         this.searching = false;
-                        this.document = doc;
+                        this.going = false;
+                        this.pages[this.active].document = doc;
                     }
                     Err(err) => this.error = Some(format!("Could not open file. {err}")),
                 }
@@ -241,7 +288,7 @@ impl Editor {
     }
 
     fn save(&mut self, after: Option<Pending>, window: &mut Window, cx: &mut Context<Self>) {
-        if let Some(path) = self.document.path.clone() {
+        if let Some(path) = self.page().document.path.clone() {
             self.write(path, after, window, cx);
         } else {
             self.choose(true, after, window, cx);
@@ -256,8 +303,8 @@ impl Editor {
         cx: &mut Context<Self>,
     ) {
         self.wait("Saving file…", window, cx);
-        let doc = self.document.clone();
-        let text = self.body.read(cx).snapshot();
+        let doc = self.page().document.clone();
+        let text = self.page().body.read(cx).snapshot();
         let work = cx
             .background_executor()
             .spawn(async move { doc.save(path, text) });
@@ -267,7 +314,7 @@ impl Editor {
                 this.ready(window, cx);
                 match result {
                     Ok(doc) => {
-                        this.document = doc;
+                        this.pages[this.active].document = doc;
                         if let Some(action) = after {
                             this.request(action, window, cx);
                         }
@@ -282,7 +329,7 @@ impl Editor {
     fn find_match(&mut self, advance: bool, cx: &mut Context<Self>) {
         let query = self.query.read(cx).snapshot();
         if !query.is_empty() {
-            let body = self.body.read(cx);
+            let body = self.page().body.read(cx);
             let range = body.selection();
             let start = if advance { range.end } else { range.start };
             let text = body.text();
@@ -291,11 +338,12 @@ impl Editor {
                 .map(|i| i + start)
                 .or_else(|| text.find(query.as_str()))
             {
-                self.body.update(cx, |field, cx| {
+                self.page().body.update(cx, |field, cx| {
                     field.select_match(offset..offset + query.len(), cx)
                 });
             } else {
-                self.body
+                self.page()
+                    .body
                     .update(cx, |field, cx| field.select_match(start..start, cx));
             }
         }
@@ -315,10 +363,37 @@ impl Editor {
             }
         } else {
             match command {
-                Command::Open => self.request(Pending::Open, window, cx),
+                Command::Open => self.choose(false, None, window, cx),
+                Command::New => self.new_tab(window, cx),
+                Command::CloseTab => self.request(Pending::CloseTab, window, cx),
+                Command::Line => {
+                    self.going = true;
+                    self.searching = false;
+                    self.error = None;
+                    let theme = Theme::current(cx);
+                    self.line = cx.new(|cx| TextField::new("Line number", theme, cx));
+                    self.line.read(cx).focus_handle(cx).focus(window, cx);
+                }
+                Command::Jump => {
+                    let number = self.line.read(cx).text().trim().parse::<usize>().ok();
+                    if number
+                        .is_some_and(|n| self.page().body.update(cx, |f, cx| f.go_to_line(n, cx)))
+                    {
+                        self.going = false;
+                        self.error = None;
+                        self.focus_body(window, cx);
+                    } else {
+                        self.error = Some(format!(
+                            "Enter a line from 1 to {}.",
+                            self.page().body.read(cx).line_count()
+                        ));
+                        self.line.read(cx).focus_handle(cx).focus(window, cx);
+                    }
+                }
                 Command::Save => self.save(None, window, cx),
                 Command::SaveAs => self.choose(true, None, window, cx),
                 Command::Find => {
+                    self.going = false;
                     self.searching = true;
                     self.query.update(cx, |field, cx| {
                         field.select_match(0..field.text().len(), cx)
@@ -328,6 +403,8 @@ impl Editor {
                 }
                 Command::Next => self.find_match(true, cx),
                 Command::Done => {
+                    self.going = false;
+                    self.error = None;
                     self.searching = false;
                     self.focus_body(window, cx);
                 }

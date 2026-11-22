@@ -2,7 +2,7 @@
 
 This inventory compares mundane-apps at `7854078` with the GNOME 51 desktop assembled by joe. Versions below come from joe’s package recipes at `5dc2ac8`. Several components have their own release series. joe packages GNOME Terminal 3.60.0, so that is the terminal baseline. Each version links to the upstream source archive selected by joe. The comparison uses those archives’ help, metainfo and UI sources. [joe package recipes](https://github.com/theJoeLinuxFoundation/joe-linux/tree/5dc2ac8f460e56b51a887cc752c101adc42daa30/packages) · [GNOME 51 release notes](https://release.gnome.org/51/)
 
-The rankings estimate how often a person encounters a task while using that app. They are editorial judgments, without usage telemetry. Read each row left to right and the numbered items in order. This round covers Files navigation and filename search, Terminal tabs and web links, and Text Editor tabs and line navigation. The remaining columns are a backlog, subject to joe’s dependency and provider decisions.
+The rankings estimate how often a person encounters a task while using that app. They are editorial judgments, without usage telemetry. Read each row left to right and the numbered items in order. This round covers Files navigation and filename search, Terminal tabs and web links, and Text Editor tabs and line navigation. The table records the starting point. The delivery notes below it mark what shipped and list the next gaps.
 
 | Suite app and reference | Already available | Most often missed | Regular use | Occasional or specialist use |
 | --- | --- | --- | --- | --- |
@@ -18,7 +18,7 @@ The rankings estimate how often a person encounters a task while using that app.
 | **Clocks** · [GNOME Clocks 51.0](https://download.gnome.org/sources/gnome-clocks/51/gnome-clocks-51.0.tar.xz) | Saved world clocks and a single countdown with an expiry notification. | Create named alarms with repeat days and snooze. | Run a stopwatch with laps and keep more than one timer. | Show sunrise and sunset for a world clock. |
 | **Weather** · [GNOME Weather 48.0](https://download.gnome.org/sources/gnome-weather/48/gnome-weather-48.0.tar.xz) | Choose a place or coordinates, inspect forecast periods and use a per-location cached forecast. | See a multi-day forecast summarized by day and switch quickly among saved locations. | Find more cities by name and use the current location with permission. | Desktop search integration for a place’s forecast. |
 | **Maps** · [GNOME Maps 51.2](https://download.gnome.org/sources/gnome-maps/51/gnome-maps-51.2.tar.xz) | Vector map, explicit place search, pan/zoom and one saved offline area. | Get directions between places, see the current location and keep favourite places. | Inspect place details and manage multiple offline regions. | Transit departures and delays where supported, or import a route/shape file. Routing and transit need appropriate providers. |
-| **Characters** · [GNOME Characters 51.0](https://download.gnome.org/sources/gnome-characters/51/gnome-characters-51.0.tar.xz) | Search by Unicode name or code point, inspect and copy a scalar. | Browse emoji and character categories, then return to recently used characters. | Find emoji by familiar keywords and select multi-code-point emoji. | Restrict results by script or available font where supported. |
+| **Characters** · [GNOME Characters 51.0](https://download.gnome.org/sources/gnome-characters/51/gnome-characters-51.0.tar.xz) | Search by Unicode name or code point, inspect and copy a scalar. | Browse emoji and character categories, then return to recently used characters. | Find emoji by familiar keywords and select multi-code-point emoji. | Follow “See Also” to related Unicode characters. |
 | **Fonts** · [GNOME Font Viewer 50.0](https://download.gnome.org/sources/gnome-font-viewer/50/gnome-font-viewer-50.0.tar.xz) | Browse installed families/faces and test glyph coverage with a custom sample. | Preview a downloaded font file and install it for the current user. | Compare several sizes and browse visual thumbnails of families. | Inspect font metadata including licence and designer. |
 | **Disks** · [GNOME Disks 46.1](https://download.gnome.org/sources/gnome-disk-utility/46/gnome-disk-utility-46.1.tar.xz) | List UDisks drives/partitions, mount or unmount, and track device changes. | Identify free space and filesystems visually, safely power off/eject a drive and unlock encrypted media. | Format a removable drive, create/delete partitions and edit mount options. | Inspect SMART health, benchmark a drive and create/restore disk images. |
 | **Disk Usage** · [Baobab 50.0](https://download.gnome.org/sources/baobab/50/baobab-50.0.tar.xz) | Scan a local tree, compare allocated/logical size and drill into folders. | Find large subtrees in a rings/treemap view and open the folder in Files. | Choose a volume from an overview and trash a selected space hog. | Scan remote folders and revisit previous scans. |
@@ -45,3 +45,18 @@ Each tab runs its own PTY and keeps its scrollback. New tab starts in the active
 | Start a second shell in the working directory | [Single shell](parity/before/terminal-shells.png) | [Two shell tabs](parity/after/terminal-shells.png) |
 
 Persistent profiles, new-window controls, configurable shortcuts, and warnings before closing a running job remain open.
+
+## Text Editor delivery
+
+Open a second file or use New tab for another draft. Each tab keeps its text, selection, scroll position and undo history. Opening a file already in a tab returns to that tab. Ctrl+W closes the active document. Window close asks about unsaved documents, including those in background tabs. The gutter numbers logical lines. Ctrl+I or **Go to line** moves the caret to a one-based line number. An out-of-range entry shows the document’s valid range.
+
+| Workflow | Before | After |
+| --- | --- | --- |
+| Keep two documents open and return to line four of the first | [Single document](parity/before/text-editor-documents.png) | [Tabs, gutter and caret](parity/after/text-editor-documents.png) |
+| Enter a line number | [Original editor](parity/before/text-editor-go-to-line.png) | [Go to line](parity/after/text-editor-go-to-line.png) |
+
+Recent files, syntax highlighting, indentation settings, search and replace, autosave and crash recovery remain open.
+
+## Reproduce the comparisons
+
+Build the three apps with `cargo build --locked -p mundane-files -p mundane-terminal -p mundane-text-editor`. Run `tests/wayland/run --app files --parity after` and repeat with `terminal` and `text-editor`. The runner uses a disposable home, private D-Bus and headless Sway with software rendering. The tests compare pixels and exercise the workflows. For the before images, use the same runner with `--parity before` and set the corresponding `MUNDANE_FILES_BIN`, `MUNDANE_TERMINAL_BIN` or `MUNDANE_TEXT_EDITOR_BIN` to a binary built from `7854078`. [Wayland test dependencies](terminal-tests.md#software-rendered-wayland-tests)
