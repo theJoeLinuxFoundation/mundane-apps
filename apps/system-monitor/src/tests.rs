@@ -70,6 +70,7 @@ fn sort_select_and_confirm_the_same_process(cx: &mut TestAppContext) {
     cx.update(|w, cx| assert!(view.read(cx).list_focus.is_focused(w)));
     assert!(fake.signals.lock().unwrap().is_empty());
     cx.simulate_keystrokes("delete shift-tab");
+    cx.simulate_keystrokes("enter");
     cx.simulate_event(KeyUpEvent {
         keystroke: Keystroke::parse("enter").unwrap(),
     });
@@ -84,6 +85,7 @@ fn sort_select_and_confirm_the_same_process(cx: &mut TestAppContext) {
         assert!(monitor.confirm.as_ref().unwrap().cancel.is_focused(w));
         assert_eq!(monitor.rows.last().unwrap().cpu_percent, None);
     });
+    cx.simulate_keystrokes("enter");
     cx.simulate_event(KeyUpEvent {
         keystroke: Keystroke::parse("enter").unwrap(),
     });

@@ -10,7 +10,7 @@ Use one Cargo workspace and lockfile. Each application in `apps/` builds as an i
 - **mundane-services** provides small interfaces for the desktop facilities below. Give each application only the features it uses. Run blocking work off the UI thread and deliver results to the requesting view. A dismissed view must be able to cancel a scan or ignore a late reply.
 - The settings panel stays in mundaneDE. Agree on theme roles and a sample settings row with its maintainers through the project coordinator. The panel can depend on `mundane-ui` at a pinned repository revision and supply its own settings model. Review the same sample in both projects when changing the theme API.
 
-Pin GPUI and its Linux platform crates together at Zed revision `deb48ceb47125223df73902d1c3b72f2f442222b`. The settings panel uses this revision, so it can share widgets and GPUI types without a framework migration. Enable the Wayland backend and its wgpu renderer. Disable default platform features in release dependencies and inspect the resolved release feature graph for X11. GPUI's headless test support has a separate feature set. [Pinned Linux platform manifest](https://github.com/zed-industries/zed/blob/deb48ceb47125223df73902d1c3b72f2f442222b/crates/gpui_linux/Cargo.toml) · [Pinned GPUI manifest](https://github.com/zed-industries/zed/blob/deb48ceb47125223df73902d1c3b72f2f442222b/crates/gpui/Cargo.toml)
+Milestones 1–4 used GPUI and its Linux platform crates together at Zed revision `deb48ceb47125223df73902d1c3b72f2f442222b`. The settings panel uses this revision, so it can share widgets and GPUI types without a framework migration. Enable the Wayland backend and its wgpu renderer. Disable default platform features in release dependencies and inspect the resolved release feature graph for X11. GPUI's headless test support has a separate feature set. [Pinned Linux platform manifest](https://github.com/zed-industries/zed/blob/deb48ceb47125223df73902d1c3b72f2f442222b/crates/gpui_linux/Cargo.toml) · [Pinned GPUI manifest](https://github.com/zed-industries/zed/blob/deb48ceb47125223df73902d1c3b72f2f442222b/crates/gpui/Cargo.toml)
 
 ## Desktop services
 
@@ -25,7 +25,7 @@ Pin GPUI and its Linux platform crates together at Zed revision `deb48ceb4712522
 
 ## Acceptance tests
 
-Terminal, Files and Text Editor have passed their model or service tests, GPUI headless tests and software-rendered Wayland acceptance tests. The shared header has also been exercised with client and server decorations. System Monitor is next. The target-image smoke tests are pending until joe Linux packages mundaneDE and the suite together, when they will run in joe’s VM tests. [Terminal report](terminal-tests.md) · [Files report](files-tests.md) · [Text Editor report](editor-tests.md)
+Terminal, Files, Text Editor and System Monitor have passed their model or service tests, GPUI headless tests and software-rendered Wayland acceptance tests. The shared header has also been exercised with client and server decorations. The GPUI migration and accessibility gates are next. Image Viewer follows them in the application order. The target-image smoke tests are pending until joe Linux packages mundaneDE and the suite together, when they will run in joe’s VM tests. [Terminal report](terminal-tests.md) · [Files report](files-tests.md) · [Text Editor report](editor-tests.md) · [System Monitor report](monitor-tests.md)
 
 Each numbered row is a milestone in delivery order. For every row, run its model or service tests, drive its user interaction in a GPUI headless test context, then capture the specified state from the actual Wayland client under a nested or headless compositor. The headless interaction test asserts state and focus. The compositor test checks the rendered result against a reviewed reference image.
 
@@ -66,7 +66,10 @@ Run queries as the desktop user. Pass arguments directly to dave, show the full 
 
 Use the keyboard to reach and operate every action. Give controls accessible names, roles and state in their shared definitions. Keep a visible focus indicator, return focus to the invoking control after a dialog closes, and label errors and selections with text or shape as well as colour. Test the primary workflow of each app by keyboard, including Escape and reverse tab order.
 
-Shared controls declare their role and name in `mundane-ui`. The GPUI team is planning the AccessKit-to-AT-SPI bridge and will define its declaration API.
+Shared controls declare their role and name in `mundane-ui`. Two milestones follow System Monitor.
+
+1. Pin `gpui` and `gpui_linux` to upstream Zed `f4fe0be1f8c7974db07e01c5cd05bee0cf4eb8d9`. Verify one matching GPUI package set in Cargo metadata, remove the redundant element trait implementation, update the two keyboard tests, and commit the lockfile after the full test and screenshot suite passes.
+2. Implement the shared control contract against the upstream AccessKit bridge. Cover the accessible application constructor, names, roles, actions and focus, the TextField text interface, caret, selection, insert/delete events and password masking. Run the private-bus AT-SPI assertions, Orca recording speech test and cost gate before closing this milestone. [Migration notes and acceptance gates at 52a66ec](https://github.com/theJoeLinuxFoundation/gpui-shades/blob/52a66ec/docs/linux-accessibility.md)
 
 In the first Terminal milestone, probe the pinned GPUI Linux platform for a route to AT-SPI. Try a named button, an editable field and a dialog in an AT-SPI inspector and with Orca. Verify focus, text, role and activation. If a platform bridge is needed, record the missing pieces and track bridge work with mundaneDE before claiming screen-reader support. Test high contrast, 100%, 150% and 200% output scaling, and increased text size for clipping, readable focus and reachable dialog actions.
 

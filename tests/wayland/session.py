@@ -211,9 +211,34 @@ def exercise_files(folder, scale, profile, labwc):
     print(f"Passed {name}, rename, collision, copy, move, preferred handler and Trash", flush=True)
 
 
+def exercise_monitor(args, scale, stack, app, app_id):
+    until((RUNTIME / "sampled").exists, "two process samples")
+    key("c")
+    key("Home")
+    key("Down")  # file-indexer, second by CPU, 128 MiB RSS
+    if args.profile == "contrast":
+        key("equal", "ctrl")
+    name = f"monitor-{args.compositor}-{args.profile}.png"
+    compare_screenshot(name, scale)
+    key("Delete")
+    if args.at_spi:
+        inspect_accessibility(stack, app_id, app.pid)
+    key("Escape")
+    signals = RUNTIME / "signals"
+    assert not signals.exists()
+    key("Delete")
+    key("Tab")
+    key("Return")
+    until(signals.is_file, "confirmed fixture SIGTERM")
+    key("w", "ctrl")
+    assert app.wait(timeout=8) == 0
+    assert signals.read_text() == "1978 19780\n"
+    print(f"Passed {name}, CPU sort, selection, cancel and confirmed termination")
+
+
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--app", choices=["terminal", "files", "text-editor"], default="terminal")
+    parser.add_argument("--app", choices=["terminal", "files", "text-editor", "system-monitor"], default="terminal")
     parser.add_argument("--at-spi", action="store_true")
     parser.add_argument("--profile", choices=["standard", "fractional", "contrast"], default="standard")
     parser.add_argument("--compositor", choices=["sway", "labwc"], default="sway")
@@ -305,6 +330,24 @@ seat seat0 fallback true
                 return "ack_configure" in (OUTPUT / log).read_text(errors="replace")
             return app_id in command("-t", "get_tree")
         until(mapped, f"mapped {suite_app}")
+        if suite_app == "system-monitor":
+            resize(720, 440)
+            # Smoke-test the installed entry point using the real procfs service.
+            key("Shift_L")
+            if labwc:
+                run("wlrctl", "toplevel", "waitfor", app_id, "state:active")
+            key("m")
+            key("Home")
+            key("w", "ctrl")
+            assert app.wait(timeout=8) == 0
+
+            # The same view receives deterministic counters and a recording signal sink.
+            fixture = Path(argv[0]).parent / "examples/monitor-fixture"
+            log = f"fixture-{args.compositor}-{args.profile}.log"
+            app = launch(stack, str(fixture), log=log, env={**os.environ, "WAYLAND_DEBUG": "client"})
+            until(mapped, "mapped monitor fixture")
+            exercise_monitor(args, scale, stack, app, app_id)
+            return
         if suite_app == "text-editor":
             resize(720, 440)
             until(lambda: "Field notes.txt" in (OUTPUT / log).read_text(errors="replace"), "document title")
@@ -377,7 +420,14 @@ seat seat0 fallback true
         key("Shift_L")
         if contrast:
             key("equal", "ctrl")
-        # Wait for a fresh prompt and the resized kernel PTY before exercising the renderer.
+        # A configure can precede keyboard focus on the first headless seat.
+        # Wait until the shell has actually received a key after the resize.
+        ready = Path.home() / ".prompt-ready"
+        ready.unlink()
+        def received_enter():
+            key("Return")
+            return ready.exists()
+        until(received_enter, "input at the resized shell prompt")
         type_text("stty size > size.tmp && mv size.tmp size.txt")
         key("Return")
         until(lambda: (Path.home() / "size.txt").exists(), "shell command")

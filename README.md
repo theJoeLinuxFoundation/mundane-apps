@@ -30,7 +30,7 @@ Files browses local directories, opens files in the preferred application, and c
 | Refresh / show or hide hidden items | F5 / Ctrl+H |
 | Cycle focus / dismiss a dialog | Tab or Shift+Tab / Escape |
 
-All three apps use the shared window header. With client-side decorations, F6 reaches the header and Tab reaches the available window controls. Drag the title to move the window or double-click it to maximize or restore. [Files test report](docs/files-tests.md)
+The suite uses a shared window header. With client-side decorations, F6 reaches the header and Tab reaches the available window controls. Drag the title to move the window or double-click it to maximize or restore. [Files test report](docs/files-tests.md)
 
 ## Text Editor
 
@@ -45,6 +45,18 @@ Open a local UTF-8 file or start with an untitled document. Find highlights a ma
 | Increase / decrease / reset document text size | Ctrl++ / Ctrl+- / Ctrl+0 |
 | Close document | Ctrl+W |
 
+## System Monitor
+
+System Monitor samples visible processes every two seconds. CPU is measured across successive samples, with 100% representing one logical CPU. Memory shows approximate resident size. Select a process and choose **End process…** to review its name and PID before sending SIGTERM. [System Monitor tests](docs/monitor-tests.md)
+
+| Action | Shortcut |
+| --- | --- |
+| Sort by process name, PID, CPU or memory | N, P, C or M |
+| Reverse the current sort | Activate the same column again |
+| Select a process | ↑ / ↓, Home or End |
+| Request termination / cancel | Delete / Escape |
+| Increase / decrease / reset row text size | Ctrl++ / Ctrl+- / Ctrl+0 |
+
 ## Building
 
 Use a Rust toolchain with Cargo, a C/C++ toolchain, pkg-config, and the Linux development files for Wayland, xkbcommon and fontconfig. The release build was tested with Rust 1.95 on x86-64 Linux. Run Terminal in a Wayland session with Mesa, a Vulkan driver, installed fonts and xterm-256color terminfo.
@@ -54,6 +66,7 @@ cargo build --workspace --release --locked
 ./target/release/mundane-terminal
 ./target/release/mundane-files "$HOME"
 ./target/release/mundane-text-editor
+./target/release/mundane-system-monitor
 ```
 
 Files uses the OpenURI desktop portal or GIO's default handler, GIO Trash, and GNU coreutils for recursive copies and cross-filesystem moves. Its desktop entry handles local directories. Text Editor accepts a local path and declares `text/plain`. Its Open and Save As dialogs use the FileChooser desktop portal. Distribution packaging and the joe image smoke test are pending. [Development plan](docs/plan.md)
