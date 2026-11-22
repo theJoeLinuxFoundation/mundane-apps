@@ -151,6 +151,10 @@ Browse drives and partitions with Up and Down. Select a filesystem to see its mo
 
 Use **Add city** (Ctrl+N) to find a world clock by city or IANA time zone. Open **Timer** (Ctrl+T) to start a countdown in seconds, m:ss or h:mm:ss. Escape returns to the saved cities. [Clocks tests](docs/clocks-tests.md)
 
+## Characters
+
+Search by Unicode name or code point (for example, U+1D11E). Enter focuses the results. Use the arrow keys to select a character, then Ctrl+C or **Copy character** to copy it. Ctrl+F returns to search. [Characters tests](docs/characters-tests.md)
+
 ## Building
 
 Use a Rust toolchain with Cargo, a C/C++ toolchain, pkg-config, and the Linux development files for Wayland, xkbcommon and fontconfig. The release build was tested with Rust 1.100 on x86-64 Linux. Run Terminal in a Wayland session with Mesa, a Vulkan driver, installed fonts and xterm-256color terminfo.
@@ -171,6 +175,7 @@ cargo build --workspace --release --locked
 ./target/release/mundane-disk-usage tests/fixtures
 ./target/release/mundane-disks
 ./target/release/mundane-clocks
+./target/release/mundane-characters
 ```
 
 Files uses the OpenURI desktop portal or GIO's default handler, GIO Trash, and GNU coreutils for recursive copies and cross-filesystem moves. Its desktop entry handles local directories. Text Editor accepts a local path and declares `text/plain`. Its Open and Save As dialogs use the FileChooser desktop portal. Distribution packaging and the joe image smoke test are pending. [Development plan](docs/plan.md)

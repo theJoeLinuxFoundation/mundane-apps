@@ -1,0 +1,17 @@
+[package]
+name = "mundane-characters"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+gpui.workspace = true
+mundane-ui = { path = "../../crates/mundane-ui" }
+
+[build-dependencies]
+cc = "1"
+pkg-config = "0.3"
+
+[dev-dependencies]
+gpui = { workspace = true, features = ["test-support"] }

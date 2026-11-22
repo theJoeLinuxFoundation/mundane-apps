@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Characters
+Exec=mundane-characters
+Icon=accessories-character-map
+Categories=Utility;
+Terminal=false

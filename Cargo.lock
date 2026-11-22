@@ -3108,6 +3108,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "mundane-characters"
+version = "0.1.0"
+dependencies = [
+ "cc",
+ "gpui",
+ "mundane-ui",
+ "pkg-config",
+]
+
+[[package]]
 name = "mundane-clocks"
 version = "0.1.0"
 dependencies = [
