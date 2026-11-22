@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Text Editor
+Exec=mundane-text-editor %f
+Icon=accessories-text-editor
+Categories=Utility;TextEditor;
+MimeType=text/plain;
+Terminal=false

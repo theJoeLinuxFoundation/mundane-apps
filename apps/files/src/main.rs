@@ -448,16 +448,20 @@ impl Render for Files {
                     .child(tools),
             )
             .child(
-                focus_ring(div().id("listing"), &self.list_focus, theme)
-                    .min_h_0()
-                    .flex_1()
-                    .overflow_hidden()
-                    .on_key_down(cx.listener(Self::keys))
-                    .when(
-                        self.entries.is_empty() && !self.loading && self.message.is_none(),
-                        |el| el.child(div().p_3().child("This folder is empty.")),
-                    )
-                    .child(list),
+                focus_ring(
+                    mundane_ui::Role::List.control("Folder contents"),
+                    &self.list_focus,
+                    theme,
+                )
+                .min_h_0()
+                .flex_1()
+                .overflow_hidden()
+                .on_key_down(cx.listener(Self::keys))
+                .when(
+                    self.entries.is_empty() && !self.loading && self.message.is_none(),
+                    |el| el.child(div().p_3().child("This folder is empty.")),
+                )
+                .child(list),
             )
             .child(
                 div()

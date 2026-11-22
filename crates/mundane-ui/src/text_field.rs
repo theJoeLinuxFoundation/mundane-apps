@@ -1,7 +1,9 @@
 // Adapted from Zed's crates/gpui/examples/input.rs at deb48ceb under Apache-2.0.
 // See LICENSES/Apache-2.0.txt. Local changes integrate theme and focus roles,
 // Linux editing shortcuts, horizontal scrolling and composition range handling.
-use super::{Theme, focus_ring};
+use super::{Role, Theme, focus_ring};
+mod multiline;
+use multiline::Multiline;
 use std::ops::Range;
 
 use gpui::{
@@ -33,6 +35,7 @@ actions!(
 );
 
 pub struct TextField {
+    multi: Option<Multiline>,
     theme: Theme,
     focus_handle: FocusHandle,
     content: SharedString,
@@ -48,6 +51,7 @@ pub struct TextField {
 impl TextField {
     pub fn new(label: &'static str, theme: Theme, cx: &App) -> Self {
         Self {
+            multi: None,
             theme,
             focus_handle: cx.focus_handle().tab_stop(true),
             content: "".into(),
@@ -161,7 +165,7 @@ impl TextField {
 
     fn paste(&mut self, _: &Paste, window: &mut Window, cx: &mut Context<Self>) {
         if let Some(text) = cx.read_from_clipboard().and_then(|item| item.text()) {
-            self.replace_text_in_range(None, &text.replace("\n", " "), window, cx);
+            self.replace_text_in_range(None, &text, window, cx);
         }
     }
 
@@ -182,6 +186,8 @@ impl TextField {
     }
 
     fn move_to(&mut self, offset: usize, cx: &mut Context<Self>) {
+        self.reveal_caret();
+        self.selection_reversed = false;
         self.selected_range = offset..offset;
         cx.notify()
     }
@@ -195,6 +201,9 @@ impl TextField {
     }
 
     fn index_for_mouse_position(&self, position: Point<Pixels>) -> usize {
+        if let Some(m) = &self.multi {
+            return m.hit(position).unwrap_or(0);
+        }
         if self.content.is_empty() {
             return 0;
         }
@@ -213,6 +222,7 @@ impl TextField {
     }
 
     fn select_to(&mut self, offset: usize, cx: &mut Context<Self>) {
+        self.reveal_caret();
         if self.selection_reversed {
             self.selected_range.start = offset
         } else {
@@ -223,6 +233,23 @@ impl TextField {
             self.selected_range = self.selected_range.end..self.selected_range.start;
         }
         cx.notify()
+    }
+
+    fn reveal_caret(&mut self) {
+        if let Some(m) = &mut self.multi {
+            m.reveal = true;
+            m.column = None;
+        }
+    }
+
+    fn insertion(&self, text: &str) -> String {
+        match &self.multi {
+            None => text.replace(['\r', '\n'], " "),
+            Some(m) => {
+                let lf = text.replace("\r\n", "\n");
+                if m.crlf { lf.replace('\n', "\r\n") } else { lf }
+            }
+        }
     }
 
     fn offset_from_utf16(&self, offset: usize) -> usize {
@@ -325,7 +352,8 @@ impl EntityInputHandler for TextField {
         _: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        let new_text = new_text.replace(['\r', '\n'], " ");
+        self.save_undo();
+        let new_text = self.insertion(new_text);
         let new_text = new_text.as_str();
         let range = range_utf16
             .as_ref()
@@ -336,6 +364,10 @@ impl EntityInputHandler for TextField {
         self.content =
             (self.content[0..range.start].to_owned() + new_text + &self.content[range.end..])
                 .into();
+        self.selection_reversed = false;
+        if let Some(m) = &mut self.multi {
+            m.reindex(&self.content);
+        }
         self.selected_range = range.start + new_text.len()..range.start + new_text.len();
         self.marked_range.take();
         cx.notify();
@@ -349,7 +381,8 @@ impl EntityInputHandler for TextField {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        let new_text = new_text.replace(['\r', '\n'], " ");
+        self.save_undo();
+        let new_text = self.insertion(new_text);
         let new_text = new_text.as_str();
         let range = range_utf16
             .as_ref()
@@ -360,6 +393,10 @@ impl EntityInputHandler for TextField {
         self.content =
             (self.content[0..range.start].to_owned() + new_text + &self.content[range.end..])
                 .into();
+        self.selection_reversed = false;
+        if let Some(m) = &mut self.multi {
+            m.reindex(&self.content);
+        }
         if !new_text.is_empty() {
             self.marked_range = Some(range.start..range.start + new_text.len());
         } else {
@@ -383,6 +420,9 @@ impl EntityInputHandler for TextField {
         _window: &mut Window,
         _cx: &mut Context<Self>,
     ) -> Option<Bounds<Pixels>> {
+        if let Some(m) = &self.multi {
+            return m.ime_bounds(self.offset_from_utf16(range_utf16.start));
+        }
         let bounds = self.last_bounds.unwrap_or(bounds);
         let last_layout = self.last_layout.as_ref()?;
         let range = self.range_from_utf16(&range_utf16);
@@ -404,6 +444,9 @@ impl EntityInputHandler for TextField {
         _window: &mut Window,
         _cx: &mut Context<Self>,
     ) -> Option<usize> {
+        if let Some(m) = &self.multi {
+            return m.hit(point).map(|offset| self.offset_to_utf16(offset));
+        }
         let line_point = self.last_bounds?.localize(&point)?;
         let last_layout = self.last_layout.as_ref()?;
 
@@ -605,34 +648,58 @@ impl Element for TextElement {
 
 impl Render for TextField {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        focus_ring(div().id("field"), &self.focus_handle, self.theme)
-            .w_full()
-            .overflow_hidden()
-            .rounded_md()
-            .flex()
-            .key_context("TextField")
-            .text_color(rgb(self.theme.text))
-            .cursor(CursorStyle::IBeam)
-            .on_action(cx.listener(Self::backspace))
-            .on_action(cx.listener(Self::delete))
-            .on_action(cx.listener(Self::left))
-            .on_action(cx.listener(Self::right))
-            .on_action(cx.listener(Self::select_left))
-            .on_action(cx.listener(Self::select_right))
-            .on_action(cx.listener(Self::select_all))
-            .on_action(cx.listener(Self::home))
-            .on_action(cx.listener(Self::end))
-            .on_action(cx.listener(Self::paste))
-            .on_action(cx.listener(Self::cut))
-            .on_action(cx.listener(Self::copy))
-            .on_mouse_down(MouseButton::Left, cx.listener(Self::on_mouse_down))
-            .on_mouse_up(MouseButton::Left, cx.listener(Self::on_mouse_up))
-            .on_mouse_up_out(MouseButton::Left, cx.listener(Self::on_mouse_up))
-            .on_mouse_move(cx.listener(Self::on_mouse_move))
-            .bg(rgb(self.theme.surface))
-            .line_height(px(24.))
-            .text_size(px(16.))
-            .child(
+        let multi = self.multi.is_some();
+        let role = if multi {
+            Role::MultilineTextInput
+        } else {
+            Role::TextInput
+        };
+        focus_ring(
+            role.control(self.placeholder.clone()),
+            &self.focus_handle,
+            self.theme,
+        )
+        .w_full()
+        .overflow_hidden()
+        .rounded_md()
+        .flex()
+        .key_context(if multi {
+            "TextField DocumentText"
+        } else {
+            "TextField SingleLine"
+        })
+        .text_color(rgb(self.theme.text))
+        .cursor(CursorStyle::IBeam)
+        .on_action(cx.listener(Self::backspace))
+        .on_action(cx.listener(Self::delete))
+        .on_action(cx.listener(Self::left))
+        .on_action(cx.listener(Self::right))
+        .on_action(cx.listener(Self::select_left))
+        .on_action(cx.listener(Self::select_right))
+        .on_action(cx.listener(Self::select_all))
+        .on_action(cx.listener(Self::home))
+        .on_action(cx.listener(Self::end))
+        .on_action(cx.listener(Self::paste))
+        .on_action(cx.listener(Self::cut))
+        .on_action(cx.listener(Self::copy))
+        .on_mouse_down(MouseButton::Left, cx.listener(Self::on_mouse_down))
+        .on_mouse_up(MouseButton::Left, cx.listener(Self::on_mouse_up))
+        .on_mouse_up_out(MouseButton::Left, cx.listener(Self::on_mouse_up))
+        .on_mouse_move(cx.listener(Self::on_mouse_move))
+        .bg(rgb(self.theme.surface))
+        .line_height(px(24.))
+        .text_size(px(16. + self.multi.as_ref().map_or(0, |m| m.zoom) as f32))
+        .when(multi, |el| {
+            el.size_full()
+                .min_h_0()
+                .font_family("DejaVu Sans Mono")
+                .p_3()
+                .on_key_down(cx.listener(Self::document_keys))
+                .on_scroll_wheel(cx.listener(Self::scroll_document))
+                .child(self.paper(cx))
+        })
+        .when(!multi, |el| {
+            el.child(
                 div()
                     .h(px(32.))
                     .w_full()
@@ -640,6 +707,7 @@ impl Render for TextField {
                     .overflow_hidden()
                     .child(TextElement { input: cx.entity() }),
             )
+        })
     }
 }
 
@@ -661,7 +729,7 @@ pub fn bind_text_keys(cx: &mut App) {
         KeyBinding::new("ctrl-v", Paste, Some("TextField")),
         KeyBinding::new("ctrl-c", Copy, Some("TextField")),
         KeyBinding::new("ctrl-x", Cut, Some("TextField")),
-        KeyBinding::new("home", Home, Some("TextField")),
-        KeyBinding::new("end", End, Some("TextField")),
+        KeyBinding::new("home", Home, Some("SingleLine")),
+        KeyBinding::new("end", End, Some("SingleLine")),
     ]);
 }

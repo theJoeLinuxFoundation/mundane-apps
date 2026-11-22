@@ -92,8 +92,8 @@ impl Files {
                 } else {
                     format!("{:.1} KiB", entry.bytes as f64 / 1024.)
                 };
-                div()
-                    .id(("entry", i))
+                mundane_ui::Role::ListItem
+                    .row(entry.name.to_string_lossy().into_owned(), i)
                     .w_full()
                     .h(px(46.))
                     .px_3()

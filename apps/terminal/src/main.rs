@@ -248,60 +248,65 @@ impl Terminal {
         )
         .size_full();
 
-        focus_ring(div().id("screen"), &self.grid_focus, self.theme)
-            .flex_1()
-            .min_h_0()
-            .p(px(8.))
-            .overflow_hidden()
-            .cursor_text()
-            .on_key_down(cx.listener(Self::grid_key))
-            .on_mouse_down(
-                MouseButton::Left,
-                cx.listener(|this, ev: &MouseDownEvent, window, cx| {
-                    this.grid_focus.focus(window, cx);
-                    let mut screen = this.session.screen.lock();
-                    let (point, side) = this.layout.hit(ev.position, &screen);
-                    let kind = match ev.click_count {
-                        2 => SelectionType::Semantic,
-                        3 => SelectionType::Lines,
-                        _ => SelectionType::Simple,
-                    };
-                    screen.selection = Some(Selection::new(kind, point, side));
-                    cx.notify();
-                }),
-            )
-            .on_mouse_move(cx.listener(|this, ev: &MouseMoveEvent, _, cx| {
-                if ev.pressed_button == Some(MouseButton::Left) {
-                    let mut screen = this.session.screen.lock();
-                    let (point, side) = this.layout.hit(ev.position, &screen);
-                    if let Some(selection) = &mut screen.selection {
-                        selection.update(point, side);
-                    }
-                    cx.notify();
-                }
-            }))
-            .on_scroll_wheel(cx.listener(|this, ev: &ScrollWheelEvent, _, cx| {
-                let delta = match ev.delta {
-                    ScrollDelta::Pixels(p) => f32::from(p.y) / this.layout.height(),
-                    ScrollDelta::Lines(p) => p.y,
+        focus_ring(
+            mundane_ui::Role::Terminal.control("Shell"),
+            &self.grid_focus,
+            self.theme,
+        )
+        .flex_1()
+        .min_h_0()
+        .p(px(8.))
+        .overflow_hidden()
+        .cursor_text()
+        .on_key_down(cx.listener(Self::grid_key))
+        .on_mouse_down(
+            MouseButton::Left,
+            cx.listener(|this, ev: &MouseDownEvent, window, cx| {
+                this.grid_focus.focus(window, cx);
+                let mut screen = this.session.screen.lock();
+                let (point, side) = this.layout.hit(ev.position, &screen);
+                let kind = match ev.click_count {
+                    2 => SelectionType::Semantic,
+                    3 => SelectionType::Lines,
+                    _ => SelectionType::Simple,
                 };
-                this.wheel_remainder += delta;
-                let rows = this.wheel_remainder.trunc() as i32;
-                this.wheel_remainder -= rows as f32;
-                this.session
-                    .screen
-                    .lock()
-                    .scroll_display(Scroll::Delta(rows));
+                screen.selection = Some(Selection::new(kind, point, side));
                 cx.notify();
-            }))
-            .child(surface)
+            }),
+        )
+        .on_mouse_move(cx.listener(|this, ev: &MouseMoveEvent, _, cx| {
+            if ev.pressed_button == Some(MouseButton::Left) {
+                let mut screen = this.session.screen.lock();
+                let (point, side) = this.layout.hit(ev.position, &screen);
+                if let Some(selection) = &mut screen.selection {
+                    selection.update(point, side);
+                }
+                cx.notify();
+            }
+        }))
+        .on_scroll_wheel(cx.listener(|this, ev: &ScrollWheelEvent, _, cx| {
+            let delta = match ev.delta {
+                ScrollDelta::Pixels(p) => f32::from(p.y) / this.layout.height(),
+                ScrollDelta::Lines(p) => p.y,
+            };
+            this.wheel_remainder += delta;
+            let rows = this.wheel_remainder.trunc() as i32;
+            this.wheel_remainder -= rows as f32;
+            this.session
+                .screen
+                .lock()
+                .scroll_display(Scroll::Delta(rows));
+            cx.notify();
+        }))
+        .child(surface)
     }
 
     fn dialog(&self, find: &Find, cx: &Context<Self>) -> impl IntoElement {
         let view = cx.weak_entity();
         let field = find.field.clone();
         let submit = find.submit.clone();
-        div()
+        mundane_ui::Role::Dialog
+            .control("Find in Terminal")
             .absolute()
             .inset_0()
             .occlude()

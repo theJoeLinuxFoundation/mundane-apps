@@ -1,5 +1,5 @@
 [workspace]
-members = ["apps/files", "apps/terminal", "crates/mundane-ui", "crates/mundane-services"]
+members = ["apps/files", "apps/terminal", "apps/text-editor", "crates/mundane-ui", "crates/mundane-services"]
 resolver = "2"
 
 [workspace.package]

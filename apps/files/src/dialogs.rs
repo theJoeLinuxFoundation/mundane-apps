@@ -109,7 +109,8 @@ impl Files {
         let field = dialog.field.clone();
         let cancel = cx.weak_entity();
         let accept = cancel.clone();
-        div()
+        mundane_ui::Role::Dialog
+            .control(title)
             .absolute()
             .inset_0()
             .occlude()

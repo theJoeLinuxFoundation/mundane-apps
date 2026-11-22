@@ -34,7 +34,10 @@ fn controls(
     visible
 }
 
+type CloseHandler = Rc<dyn Fn(&mut Window, &mut App)>;
+
 pub struct WindowHeader {
+    close_handler: CloseHandler,
     minimize: FocusHandle,
     maximize: FocusHandle,
     close: FocusHandle,
@@ -44,11 +47,17 @@ pub struct WindowHeader {
 impl WindowHeader {
     pub fn new(cx: &App) -> Self {
         Self {
+            close_handler: Rc::new(|window, _| window.remove_window()),
             minimize: cx.focus_handle().tab_stop(true),
             maximize: cx.focus_handle().tab_stop(true),
             close: cx.focus_handle().tab_stop(true),
             drag_origin: Default::default(),
         }
+    }
+
+    pub fn on_close(mut self, handler: impl Fn(&mut Window, &mut App) + 'static) -> Self {
+        self.close_handler = Rc::new(handler);
+        self
     }
 
     pub fn render(
@@ -131,10 +140,11 @@ impl WindowHeader {
                     Control::Restore => ("Restore", &self.maximize),
                     Control::Close => ("Close", &self.close),
                 };
-                button_base(label, focus, theme, move |window, _| match control {
+                let close = self.close_handler.clone();
+                button_base(label, focus, theme, move |window, cx| match control {
                     Control::Minimize => window.minimize_window(),
                     Control::Maximize | Control::Restore => window.zoom_window(),
-                    Control::Close => window.remove_window(),
+                    Control::Close => close(window, cx),
                 })
                 .size(px(32.))
                 .flex_none()

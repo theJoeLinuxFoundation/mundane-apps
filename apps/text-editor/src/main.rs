@@ -1,0 +1,377 @@
+mod document;
+#[cfg(test)]
+mod tests;
+mod view;
+
+use document::Document;
+use gpui::{prelude::*, *};
+use mundane_ui::{TextField, Theme, WindowHeader};
+use std::path::{Path, PathBuf};
+
+const APP_ID: &str = "org.joelinux.mundane.TextEditor";
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Pending {
+    Close,
+    Open,
+}
+
+#[derive(Clone, Copy)]
+enum Command {
+    Open,
+    Find,
+    Save,
+    SaveAs,
+    Next,
+    Done,
+    Cancel,
+    Discard,
+    ConfirmSave,
+}
+impl Command {
+    fn label(self) -> &'static str {
+        match self {
+            Self::Open => "Open",
+            Self::Find => "Find",
+            Self::Save | Self::ConfirmSave => "Save",
+            Self::SaveAs => "Save As",
+            Self::Next => "Next",
+            Self::Done => "Done",
+            Self::Cancel => "Cancel",
+            Self::Discard => "Discard",
+        }
+    }
+}
+
+struct Confirmation {
+    pending: Pending,
+    return_focus: FocusHandle,
+    buttons: [FocusHandle; 3],
+}
+
+struct Editor {
+    document: Document,
+    body: Entity<TextField>,
+    query: Entity<TextField>,
+    searching: bool,
+    last_query: SharedString,
+    header: WindowHeader,
+    tools: [FocusHandle; 4],
+    find_buttons: [FocusHandle; 2],
+    confirmation: Option<Confirmation>,
+    busy: Option<&'static str>,
+    busy_focus: FocusHandle,
+    error: Option<String>,
+    theme: Theme,
+}
+
+impl Editor {
+    fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
+        let theme = Theme::current();
+        let body = cx.new(|cx| TextField::multiline("Document text", theme, cx));
+        let query = cx.new(|cx| TextField::new("Find in document", theme, cx));
+        cx.observe(&body, |_, _, cx| cx.notify()).detach();
+        cx.observe(&query, |this, query, cx| {
+            let term = query.read(cx).snapshot();
+            if this.searching && term != this.last_query {
+                this.last_query = term;
+                this.find_match(false, cx);
+            }
+        })
+        .detach();
+        body.read(cx).focus_handle(cx).focus(window, cx);
+        let view = cx.weak_entity();
+        window.on_window_should_close(cx, move |window, cx| {
+            view.update(cx, |this, cx| this.can_leave(Pending::Close, window, cx))
+                .unwrap_or(true)
+        });
+        let view = cx.weak_entity();
+        let header = WindowHeader::new(cx).on_close(move |window, cx| {
+            let _ = view.update(cx, |this, cx| this.request(Pending::Close, window, cx));
+        });
+        Self {
+            document: Document::default(),
+            body,
+            query,
+            searching: false,
+            last_query: "".into(),
+            header,
+            tools: std::array::from_fn(|_| cx.focus_handle().tab_stop(true)),
+            find_buttons: std::array::from_fn(|_| cx.focus_handle().tab_stop(true)),
+            confirmation: None,
+            busy: None,
+            busy_focus: cx.focus_handle(),
+            error: None,
+            theme,
+        }
+    }
+
+    fn dirty(&self, cx: &App) -> bool {
+        self.body.read(cx).text() != self.document.saved.as_str()
+    }
+
+    fn name(&self) -> String {
+        self.document
+            .path
+            .as_deref()
+            .and_then(Path::file_name)
+            .map(|n| n.to_string_lossy().into_owned())
+            .unwrap_or_else(|| "Untitled".into())
+    }
+
+    fn focus_body(&self, window: &mut Window, cx: &mut App) {
+        self.body.read(cx).focus_handle(cx).focus(window, cx);
+    }
+
+    fn can_leave(&mut self, pending: Pending, window: &mut Window, cx: &mut Context<Self>) -> bool {
+        if self.busy.is_some() || self.confirmation.is_some() {
+            return false;
+        }
+        if !self.dirty(cx) {
+            return true;
+        }
+        let confirm = Confirmation {
+            pending,
+            return_focus: window
+                .focused(cx)
+                .unwrap_or_else(|| self.body.read(cx).focus_handle(cx)),
+            buttons: std::array::from_fn(|_| cx.focus_handle()),
+        };
+        confirm.buttons[0].focus(window, cx);
+        self.confirmation = Some(confirm);
+        cx.notify();
+        false
+    }
+
+    fn request(&mut self, pending: Pending, window: &mut Window, cx: &mut Context<Self>) {
+        if self.can_leave(pending, window, cx) {
+            self.proceed(pending, window, cx);
+        }
+    }
+
+    fn proceed(&mut self, pending: Pending, window: &mut Window, cx: &mut Context<Self>) {
+        match pending {
+            Pending::Close => window.remove_window(),
+            Pending::Open => self.choose(false, None, window, cx),
+        }
+    }
+
+    fn wait(&mut self, message: &'static str, window: &mut Window, cx: &mut Context<Self>) {
+        self.busy = Some(message);
+        self.error = None;
+        self.busy_focus.focus(window, cx);
+        cx.notify();
+    }
+
+    fn ready(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.busy = None;
+        self.focus_body(window, cx);
+        cx.notify();
+    }
+
+    fn choose(
+        &mut self,
+        save: bool,
+        after: Option<Pending>,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.wait("Choosing a file…", window, cx);
+        let choice = if save {
+            let dir = self
+                .document
+                .path
+                .as_deref()
+                .and_then(Path::parent)
+                .map(Path::to_owned)
+                .or_else(|| std::env::var_os("HOME").map(PathBuf::from))
+                .unwrap_or_else(|| PathBuf::from("/"));
+            let prompt = cx.prompt_for_new_path(&dir, Some(&self.name()));
+            cx.foreground_executor().spawn(prompt)
+        } else {
+            let prompt = cx.prompt_for_paths(PathPromptOptions {
+                files: true,
+                directories: false,
+                multiple: false,
+                prompt: None,
+            });
+            cx.foreground_executor().spawn(async move {
+                prompt
+                    .await
+                    .map(|result| result.map(|paths| paths.and_then(|v| v.into_iter().next())))
+            })
+        };
+        cx.spawn_in(window, async move |view, cx| {
+            let choice = choice.await;
+            let _ = view.update_in(cx, |this, window, cx| {
+                this.ready(window, cx);
+                match choice {
+                    Ok(Ok(Some(path))) if save => this.write(path, after, window, cx),
+                    Ok(Ok(Some(path))) => this.open(path, window, cx),
+                    Ok(Ok(None)) => {}
+                    Ok(Err(err)) => this.error = Some(format!("File chooser unavailable. {err}")),
+                    Err(err) => this.error = Some(err.to_string()),
+                }
+            });
+        })
+        .detach();
+    }
+
+    fn open(&mut self, path: PathBuf, window: &mut Window, cx: &mut Context<Self>) {
+        self.wait("Opening file…", window, cx);
+        let task = cx
+            .background_executor()
+            .spawn(async move { Document::open(path) });
+        cx.spawn_in(window, async move |view, cx| {
+            let result = task.await;
+            let _ = view.update_in(cx, |this, window, cx| {
+                this.ready(window, cx);
+                match result {
+                    Ok(doc) => {
+                        this.body
+                            .update(cx, |field, cx| field.set_document(doc.saved.clone(), cx));
+                        this.searching = false;
+                        this.document = doc;
+                    }
+                    Err(err) => this.error = Some(format!("Could not open file. {err}")),
+                }
+            });
+        })
+        .detach();
+    }
+
+    fn save(&mut self, after: Option<Pending>, window: &mut Window, cx: &mut Context<Self>) {
+        if let Some(path) = self.document.path.clone() {
+            self.write(path, after, window, cx);
+        } else {
+            self.choose(true, after, window, cx);
+        }
+    }
+
+    fn write(
+        &mut self,
+        path: PathBuf,
+        after: Option<Pending>,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.wait("Saving file…", window, cx);
+        let doc = self.document.clone();
+        let text = self.body.read(cx).snapshot();
+        let work = cx
+            .background_executor()
+            .spawn(async move { doc.save(path, text) });
+        cx.spawn_in(window, async move |view, cx| {
+            let result = work.await;
+            let _ = view.update_in(cx, |this, window, cx| {
+                this.ready(window, cx);
+                match result {
+                    Ok(doc) => {
+                        this.document = doc;
+                        if let Some(action) = after {
+                            this.request(action, window, cx);
+                        }
+                    }
+                    Err(err) => this.error = Some(format!("Could not save file. {err}")),
+                }
+            });
+        })
+        .detach();
+    }
+
+    fn find_match(&mut self, advance: bool, cx: &mut Context<Self>) {
+        let query = self.query.read(cx).snapshot();
+        if !query.is_empty() {
+            let body = self.body.read(cx);
+            let range = body.selection();
+            let start = if advance { range.end } else { range.start };
+            let text = body.text();
+            if let Some(offset) = text[start..]
+                .find(query.as_str())
+                .map(|i| i + start)
+                .or_else(|| text.find(query.as_str()))
+            {
+                self.body.update(cx, |field, cx| {
+                    field.select_match(offset..offset + query.len(), cx)
+                });
+            } else {
+                self.body
+                    .update(cx, |field, cx| field.select_match(start..start, cx));
+            }
+        }
+        cx.notify();
+    }
+
+    fn command(&mut self, command: Command, window: &mut Window, cx: &mut Context<Self>) {
+        if self.busy.is_some() {
+            return;
+        }
+        if let Some(confirm) = self.confirmation.take() {
+            match command {
+                Command::Discard => self.proceed(confirm.pending, window, cx),
+                Command::ConfirmSave => self.save(Some(confirm.pending), window, cx),
+                Command::Cancel => confirm.return_focus.focus(window, cx),
+                _ => self.confirmation = Some(confirm),
+            }
+        } else {
+            match command {
+                Command::Open => self.request(Pending::Open, window, cx),
+                Command::Save => self.save(None, window, cx),
+                Command::SaveAs => self.choose(true, None, window, cx),
+                Command::Find => {
+                    self.searching = true;
+                    self.query.update(cx, |field, cx| {
+                        field.select_match(0..field.text().len(), cx)
+                    });
+                    self.query.read(cx).focus_handle(cx).focus(window, cx);
+                    self.find_match(false, cx);
+                }
+                Command::Next => self.find_match(true, cx),
+                Command::Done => {
+                    self.searching = false;
+                    self.focus_body(window, cx);
+                }
+                _ => {}
+            }
+        }
+        cx.notify();
+    }
+}
+
+fn main() {
+    if std::env::var_os("WAYLAND_DISPLAY").is_none() {
+        eprintln!("Text Editor requires a Wayland session.");
+        std::process::exit(1);
+    }
+    let path = std::env::args_os().nth(1).map(PathBuf::from);
+    Application::with_platform(gpui_linux::current_platform(false)).run(move |cx| {
+        mundane_ui::bind_text_keys(cx);
+        cx.on_window_closed(|cx, _| {
+            if cx.windows().is_empty() {
+                cx.quit()
+            }
+        })
+        .detach();
+        let bounds = Bounds::centered(None, size(px(800.), px(520.)), cx);
+        if let Err(e) = cx.open_window(
+            WindowOptions {
+                app_id: Some(APP_ID.into()),
+                window_bounds: Some(WindowBounds::Windowed(bounds)),
+                window_decorations: Some(WindowDecorations::Client),
+                ..Default::default()
+            },
+            |window, cx| {
+                cx.new(|cx| {
+                    let mut editor = Editor::new(window, cx);
+                    if let Some(path) = path {
+                        editor.open(path, window, cx);
+                    }
+                    editor
+                })
+            },
+        ) {
+            eprintln!("Could not open Text Editor. {e}");
+            std::process::exit(1);
+        }
+    });
+}
