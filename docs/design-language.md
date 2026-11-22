@@ -67,3 +67,16 @@ Run `tests/wayland/run --design-sheet panel` for the images and the private-bus 
 | Popover, menu and searchable list | [Dark](design/menus-dark.png) | [Light](design/menus-light.png) | [Contrast](design/menus-high-contrast.png) | [Contrast](design/menus-light-high-contrast.png) | [Accent](design/menus-accent.png) | [Reduced](design/menus-reduced-motion.png) |
 
 Run `tests/wayland/run --design-sheet menus` to check filtering, disabled options, selection, both dismissal keys and focus restoration.
+
+## Settings controls and confirmations
+
+Quick Settings tiles receive a label, icon, status, availability, on/off state and optional error text from their owner. The labelled switch uses the Switch role and exposes its checked state as well as visible On/Off text. Activation requests a change. The next render reflects the owner’s response. Disabled controls issue no requests.
+
+`ValueSlider` exposes its accessible name, numeric value, minimum, maximum and step. Pointer clicks and drags, arrow keys, Home/End, and AccessKit SetValue, Increment and Decrement share the range checks. Requests snap to the configured step. `ConfirmDialog::show` focuses Cancel. Tab and Shift+Tab stay inside, Escape cancels, and an explicit confirm emits the confirmed outcome. Both outcomes restore the trigger. Wrap underlying controls in `ApplicationContent` while the dialog is open.
+
+| Reference sheet | Dark | Light | Dark high contrast | Light high contrast | Custom accent | Reduced motion |
+| --- | --- | --- | --- | --- | --- | --- |
+| Tiles, switch and slider | [Dark](design/settings-dark.png) | [Light](design/settings-light.png) | [Contrast](design/settings-high-contrast.png) | [Contrast](design/settings-light-high-contrast.png) | [Accent](design/settings-accent.png) | [Reduced](design/settings-reduced-motion.png) |
+| Confirmation | [Dark](design/confirmation-dark.png) | [Light](design/confirmation-light.png) | [Contrast](design/confirmation-high-contrast.png) | [Contrast](design/confirmation-light-high-contrast.png) | [Accent](design/confirmation-accent.png) | [Reduced](design/confirmation-reduced-motion.png) |
+
+Run `tests/wayland/run --design-sheet settings` to exercise authoritative tile state, switch activation, the slider Value interface and keyboard steps, and both dialog outcomes.

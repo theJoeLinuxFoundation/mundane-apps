@@ -1,6 +1,12 @@
 use gpui::{prelude::*, *};
 use mundane_ui::{self as ui, Theme};
 pub struct Showcase {
+    slider: ui::ValueSlider,
+    level: f64,
+    connected: bool,
+    confirmed: bool,
+    confirmation: Entity<ui::ConfirmDialog>,
+    covered: ui::ApplicationContent,
     popover: ui::Popover,
     menus: Vec<Entity<ui::ChoiceMenu>>,
     chosen: SharedString,
@@ -53,7 +59,27 @@ impl Showcase {
                 menus.push(menu);
             }
         }
+        let confirmation = cx.new(|cx| {
+            ui::ConfirmDialog::new(
+                "Reset preferences?",
+                "Restore the saved defaults for this profile.",
+                "Reset",
+                cx,
+            )
+        });
+        cx.observe(&confirmation, |_, _, cx| cx.notify()).detach();
+        cx.subscribe(&confirmation, |s, _, event, cx| {
+            s.confirmed = *event == ui::Confirmation::Confirmed;
+            cx.notify();
+        })
+        .detach();
         Self {
+            slider: ui::ValueSlider::new(cx),
+            level: 50.,
+            connected: true,
+            confirmed: false,
+            confirmation,
+            covered: Default::default(),
             popover,
             menus,
             chosen: "None".into(),
@@ -135,6 +161,100 @@ impl Showcase {
             .child(
                 ui::text_label("selected", format!("Selected: {}", self.chosen))
                     .child(format!("Selected: {}", self.chosen)),
+            )
+    }
+    fn confirm(&mut self, w: &mut Window, cx: &mut Context<Self>) {
+        self.confirmation
+            .update(cx, |c, cx| c.show(&self.handles[2], w, cx));
+    }
+    fn settings(&self, cx: &Context<Self>) -> Div {
+        let t = Theme::current(cx);
+        let v = cx.weak_entity();
+        let sw = cx.weak_entity();
+        let slider = cx.weak_entity();
+        let confirm = cx.weak_entity();
+        let tile = ui::quick_tile(
+            ui::TileState {
+                label: "Connection",
+                status: if self.connected {
+                    "Connected"
+                } else {
+                    "Disconnected"
+                },
+                on: self.connected,
+                enabled: true,
+                error: None,
+            },
+            "⌁",
+            &self.handles[0],
+            t,
+            move |value, _, cx| {
+                let _ = v.update(cx, |s, cx| {
+                    s.connected = value;
+                    cx.notify();
+                });
+            },
+        );
+        let error = ui::quick_tile(
+            ui::TileState {
+                label: "Updates",
+                status: "Unavailable",
+                on: false,
+                enabled: false,
+                error: Some("Service unavailable"),
+            },
+            "↻",
+            &self.handles[3],
+            t,
+            |_, _, _| {},
+        );
+        div()
+            .flex()
+            .flex_col()
+            .gap_3()
+            .child(ui::heading("tiles", "Quick settings"))
+            .child(div().flex().gap_2().child(tile).child(error))
+            .child(ui::labelled_switch(
+                "Quiet mode",
+                &self.handles[1],
+                self.on,
+                true,
+                t,
+                move |v, w, cx| {
+                    let _ = sw.update(cx, |s, cx| {
+                        s.on = v;
+                        s.handles[1].focus(w, cx);
+                        cx.notify();
+                    });
+                },
+            ))
+            .child(self.slider.render(
+                "Level",
+                ui::SliderRange::new(0., 100., 5.).unwrap(),
+                self.level,
+                true,
+                t,
+                move |v, _, cx| {
+                    let _ = slider.update(cx, |s, cx| {
+                        s.level = v;
+                        cx.notify();
+                    });
+                },
+            ))
+            .child(
+                div()
+                    .flex()
+                    .items_center()
+                    .gap_2()
+                    .child(ui::button(
+                        "Reset preferences",
+                        &self.handles[2],
+                        t,
+                        move |w, cx| {
+                            let _ = confirm.update(cx, |s, cx| s.confirm(w, cx));
+                        },
+                    ))
+                    .when(self.confirmed, |el| el.child("Defaults restored")),
             )
     }
     fn panel(&self, cx: &Context<Self>) -> Div {
@@ -266,11 +386,15 @@ impl Render for Showcase {
             w.set_window_title(&title);
         }
         let (heading, body) = match self.group.as_str() {
+            "settings" => ("Settings controls", self.settings(cx)),
             "menus" => ("Menus and searchable options", self.menus(cx)),
             "panel" => ("Panel controls", self.panel(cx)),
             _ => unreachable!(),
         };
-        div()
+        let dialog = self.confirmation.read(cx).is_open();
+        let page = self
+            .covered
+            .render(dialog)
             .size_full()
             .flex()
             .flex_col()
@@ -318,6 +442,22 @@ impl Render for Showcase {
                             .bg(rgb(t.panel))
                             .child(body),
                     ),
-            )
+            );
+        div()
+            .relative()
+            .size_full()
+            .text_color(rgb(t.text))
+            .font_family("DejaVu Sans")
+            .capture_key_down(cx.listener(|s, e: &KeyDownEvent, w, cx| {
+                if s.group == "settings"
+                    && e.keystroke.key == "f8"
+                    && !s.confirmation.read(cx).is_open()
+                {
+                    s.confirm(w, cx);
+                    cx.stop_propagation();
+                }
+            }))
+            .child(page)
+            .when(dialog, |el| el.child(self.confirmation.clone()))
     }
 }

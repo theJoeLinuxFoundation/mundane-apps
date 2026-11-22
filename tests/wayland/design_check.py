@@ -42,6 +42,10 @@ def check(group, stack, launch, until, key, compare, root, runtime, output):
         title = f"Design sheet · {mode} · {motion} · {focus}"
         until(lambda: title in subprocess.check_output(["wlrctl", "toplevel", "list"], text=True), title)
         compare(f"{group}-{name}.png", 1, refs)
+        if group == "settings":
+            key("F8")
+            compare(f"confirmation-{name}.png", 1, refs)
+            key("Escape")
     if group != "core":
         verify(group,app.pid,key)
     if group == "core":

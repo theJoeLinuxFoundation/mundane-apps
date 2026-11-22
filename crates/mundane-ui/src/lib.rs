@@ -192,3 +192,8 @@ pub use menu::{ChoiceMenu, MenuChoice, MenuEvent, menu_trigger};
 
 mod popover;
 pub use popover::{Popover, popover_contents};
+
+mod settings;
+pub use settings::{
+    ConfirmDialog, Confirmation, SliderRange, TileState, ValueSlider, labelled_switch, quick_tile,
+};
