@@ -40,4 +40,4 @@ tests/wayland/run --app music --at-spi
 tests/wayland/run --app music --at-spi --profile contrast
 ```
 
-Set `MUNDANE_TEST_GST_PLUGIN_DIRS` if the distro splits these plugins across prefixes. The packaged joe Linux VM check remains pending on the image.
+Set `MUNDANE_TEST_GST_PLUGIN_DIRS` if the distro splits these plugins across prefixes. The [joe image report](vm/182cd7c/README.md) includes the packaged GNOME Wayland check.

@@ -10,7 +10,7 @@ Before sending a change, the app re-reads the object and compares its daemon own
 
 The service and GPUI tests each start a disposable D-Bus daemon and a fake UDisks service. The service test covers polkit denial, a replacement at the same object path, disappearance during Mount, and a subsequent attempt against the removed object. The GPUI keyboard test selects a partition, mounts and unmounts it, then observes removal on the refresh timer. The fake records the method, object path, options and interactive-authorization flag. [Fake UDisks service](../tests/disks/udisks.py)
 
-The Wayland harness routes the release binary’s system-bus connection to the private test daemon. Six pixel references show the mounted Survey partition on headless Sway and labwc. The profiles cover 100%, 150% and 200%, including larger text and high contrast. The private AT-SPI inspector checks the selected volume, mount point and Unmount action. The references and tests use synthetic device paths. Real polkit interaction and hardware integration remain pending on the packaged joe image.
+The Wayland harness routes the release binary’s system-bus connection to the private test daemon. Six pixel references show the mounted Survey partition on headless Sway and labwc. The profiles cover 100%, 150% and 200%, including larger text and high contrast. The private AT-SPI inspector checks the selected volume, mount point and Unmount action. The references and tests use synthetic device paths. The [joe image report](vm/182cd7c/README.md) covers the virtual drive inventory. Real polkit interaction and physical hardware integration remain pending.
 
 ```sh
 cargo test --workspace --locked --offline

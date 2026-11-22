@@ -30,7 +30,7 @@ tests/wayland/run --at-spi --app text-editor
 tests/wayland/run --at-spi --app system-monitor
 ```
 
-The recorded output was rendered offline with eSpeak NG. A human listen-through is pending. The mundaneDE launcher and Settings owners will run their speech scenarios in their respective projects. The joe Linux image smoke test remains pending on packaging.
+The recorded output was rendered offline with eSpeak NG. A human listen-through is pending. The mundaneDE launcher and Settings owners will run their speech scenarios in their respective projects. The [joe image smoke report](../vm/182cd7c/README.md) records the focused app windows observed through AT-SPI in GNOME Wayland.
 
 ## Frame cost
 

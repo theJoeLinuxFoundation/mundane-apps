@@ -1,0 +1,2313 @@
+{
+  "image": "joe-desktop-suite-182cd7c.img",
+  "planned": 27,
+  "status": "failed",
+  "checks": [
+    {
+      "app": "archive-manager",
+      "desktop": "org.joelinux.mundane.ArchiveManager.desktop",
+      "binary": "mundane-archive-manager",
+      "mimes": [
+        "application/zip",
+        "application/x-tar",
+        "application/x-compressed-tar",
+        "application/x-xz-compressed-tar"
+      ],
+      "mode": "desktop",
+      "status": "passed",
+      "launch": {
+        "entry": "/usr/share/applications/org.joelinux.mundane.ArchiveManager.desktop",
+        "executable": "/usr/bin/mundane-archive-manager",
+        "icon": "package-x-generic",
+        "icon_found": true,
+        "icon_theme": "Papirus",
+        "gtk_theme": "Adwaita",
+        "gtk_icon_found": true
+      },
+      "window": {
+        "pid": 1089,
+        "title": "Archive Manager",
+        "controls": [
+          "Archive Manager",
+          "Archive Manager",
+          "Archive Manager",
+          "Archive Manager",
+          "Open…",
+          "Mark",
+          "Extract selected…",
+          "Extract all…",
+          "Minimize",
+          "Maximize",
+          "Close",
+          "Archive contents",
+          "New archive…",
+          "Add files…",
+          "Remove…",
+          "Archive entries",
+          "Open a ZIP or tar archive."
+        ],
+        "content": null
+      },
+      "screenshot": "screenshots/archive-manager-desktop.png",
+      "closed": true,
+      "journal": {
+        "entries": [
+          {
+            "MESSAGE": "MESA-EGL: warning: failed to get driver name for fd -1",
+            "_EXE": "/usr/bin/mundane-archive-manager",
+            "_PID": "1089",
+            "_COMM": "mundane-archive",
+            "SYSLOG_IDENTIFIER": "org.joelinux.mundane.ArchiveManager.desktop"
+          },
+          {
+            "MESSAGE": "MESA-EGL: warning: MESA-LOADER: failed to retrieve device information",
+            "_EXE": "/usr/bin/mundane-archive-manager",
+            "_PID": "1089",
+            "_COMM": "mundane-archive",
+            "SYSLOG_IDENTIFIER": "org.joelinux.mundane.ArchiveManager.desktop"
+          },
+          {
+            "MESSAGE": "MESA-EGL: warning: failed to get driver name for fd -1",
+            "_EXE": "/usr/bin/mundane-archive-manager",
+            "_PID": "1089",
+            "_COMM": "mundane-archive",
+            "SYSLOG_IDENTIFIER": "org.joelinux.mundane.ArchiveManager.desktop"
+          },
+          {
+            "MESSAGE": "MESA-EGL: warning: egl: failed to create dri2 screen",
+            "_EXE": "/usr/bin/mundane-archive-manager",
+            "_PID": "1089",
+            "_COMM": "mundane-archive",
+            "SYSLOG_IDENTIFIER": "org.joelinux.mundane.ArchiveManager.desktop"
+          }
+        ],
+        "crashes": []
+      }
+    },
+    {
+      "app": "archive-manager",
+      "desktop": "org.joelinux.mundane.ArchiveManager.desktop",
+      "binary": "mundane-archive-manager",
+      "mimes": [
+        "application/zip",
+        "application/x-tar",
+        "application/x-compressed-tar",
+        "application/x-xz-compressed-tar"
+      ],
+      "mode": "mime",
+      "file": "Coastal survey.zip",
+      "evidence": "Read me.txt",
+      "status": "passed",
+      "launch": {
+        "entry": "/usr/share/applications/org.joelinux.mundane.ArchiveManager.desktop",
+        "executable": "/usr/bin/mundane-archive-manager",
+        "icon": "package-x-generic",
+        "icon_found": true,
+        "icon_theme": "Papirus",
+        "gtk_theme": "Adwaita",
+        "gtk_icon_found": true,
+        "mime": "application/zip",
+        "default": "org.gnome.Nautilus.desktop",
+        "registered": true,
+        "declares": true,
+        "route": "open-with"
+      },
+      "window": {
+        "pid": 1183,
+        "title": "Coastal survey.zip — Archive Manager",
+        "controls": [
+          "Coastal survey.zip — Archive Manager",
+          "Archive Manager",
+          "Archive Manager",
+          "Archive Manager",
+          "Open…",
+          "Mark",
+          "Extract selected…",
+          "Extract all…",
+          "Minimize",
+          "Maximize",
+          "Close",
+          "Coastal survey.zip",
+          "New archive…",
+          "Add files…",
+          "Remove…",
+          "Archive entries",
+          "Charts",
+          "channel.txt",
+          "tides.csv",
+          "Notes",
+          "stations.txt",
+          "Read me.txt",
+          "6 entries"
+        ],
+        "content": "Read me.txt"
+      },
+      "screenshot": "screenshots/archive-manager-mime.png",
+      "closed": true,
+      "journal": {
+        "entries": [
+          {
+            "MESSAGE": "MESA-EGL: warning: failed to get driver name for fd -1",
+            "_EXE": "/usr/bin/mundane-archive-manager",
+            "_PID": "1183",
+            "_COMM": "mundane-archive",
+            "SYSLOG_IDENTIFIER": "org.joelinux.mundane.ArchiveManager.desktop"
+          },
+          {
+            "MESSAGE": "MESA-EGL: warning: MESA-LOADER: failed to retrieve device information",
+            "_EXE": "/usr/bin/mundane-archive-manager",
+            "_PID": "1183",
+            "_COMM": "mundane-archive",
+            "SYSLOG_IDENTIFIER": "org.joelinux.mundane.ArchiveManager.desktop"
+          },
+          {
+            "MESSAGE": "MESA-EGL: warning: failed to get driver name for fd -1",
+            "_EXE": "/usr/bin/mundane-archive-manager",
+            "_PID": "1183",
+            "_COMM": "mundane-archive",
+            "SYSLOG_IDENTIFIER": "org.joelinux.mundane.ArchiveManager.desktop"
+          },
+          {
+            "MESSAGE": "MESA-EGL: warning: egl: failed to create dri2 screen",
+            "_EXE": "/usr/bin/mundane-archive-manager",
+            "_PID": "1183",
+            "_COMM": "mundane-archive",
+            "SYSLOG_IDENTIFIER": "org.joelinux.mundane.ArchiveManager.desktop"
+          }
+        ],
+        "crashes": []
+      }
+    },
+    {
+      "app": "calculator",
+      "desktop": "org.joelinux.mundane.Calculator.desktop",
+      "binary": "mundane-calculator",
+      "mimes": [],
+      "mode": "desktop",
+      "status": "passed",
+      "launch": {
+        "entry": "/usr/share/applications/org.joelinux.mundane.Calculator.desktop",
+        "executable": "/usr/bin/mundane-calculator",
+        "icon": "accessories-calculator",
+        "icon_found": true,
+        "icon_theme": "Papirus",
+        "gtk_theme": "Adwaita",
+        "gtk_icon_found": true
+      },
+      "window": {
+        "pid": 1264,
+        "title": "Calculator",
+        "controls": [
+          "Calculator",
+          "Calculator",
+          "Calculator",
+          "Calculator",
+          "Percent",
+          "Units",
+          "Use result",
+          "Minimize",
+          "Maximize",
+          "Close",
+          "Expression",
+          "Result",
+          "Open parenthesis",
+          "Close parenthesis",
+          "Backspace",
+          "Divide",
+          "7",
+          "8",
+          "9",
+          "Multiply",
+          "4",
+          "5",
+          "6",
+          "Subtract",
+          "1",
+          "2",
+          "3",
+          "Add",
+          "Clear expression",
+          "0",
+          "Decimal point",
+          "Equals",
+          "History",
+          "History",
+          "Clear history"
+        ],
+        "content": null
+      },
+      "screenshot": "screenshots/calculator-desktop.png",
+      "closed": true,
+      "journal": {
+        "entries": [
+          {
+            "MESSAGE": "MESA-EGL: warning: failed to get driver name for fd -1",
+            "_EXE": "/usr/bin/mundane-calculator",
+            "_PID": "1264",
+            "_COMM": "mundane-calcula",
+            "SYSLOG_IDENTIFIER": "org.joelinux.mundane.Calculator.desktop"
+          },
+          {
+            "MESSAGE": "MESA-EGL: warning: MESA-LOADER: failed to retrieve device information",
+            "_EXE": "/usr/bin/mundane-calculator",
+            "_PID": "1264",
+            "_COMM": "mundane-calcula",
+            "SYSLOG_IDENTIFIER": "org.joelinux.mundane.Calculator.desktop"
+          },
+          {
+            "MESSAGE": "MESA-EGL: warning: failed to get driver name for fd -1",
+            "_EXE": "/usr/bin/mundane-calculator",
+            "_PID": "1264",
+            "_COMM": "mundane-calcula",
+            "SYSLOG_IDENTIFIER": "org.joelinux.mundane.Calculator.desktop"
+          },
+          {
+            "MESSAGE": "MESA-EGL: warning: egl: failed to create dri2 screen",
+            "_EXE": "/usr/bin/mundane-calculator",
+            "_PID": "1264",
+            "_COMM": "mundane-calcula",
+            "SYSLOG_IDENTIFIER": "org.joelinux.mundane.Calculator.desktop"
+          }
+        ],
+        "crashes": []
+      }
+    },
+    {
+      "app": "characters",
+      "desktop": "org.joelinux.mundane.Characters.desktop",
+      "binary": "mundane-characters",
+      "mimes": [],
+      "mode": "desktop",
+      "status": "passed",
+      "launch": {
+        "entry": "/usr/share/applications/org.joelinux.mundane.Characters.desktop",
+        "executable": "/usr/bin/mundane-characters",
+        "icon": "accessories-character-map",
+        "icon_found": true,
+        "icon_theme": "Papirus",
+        "gtk_theme": "Adwaita",
+        "gtk_icon_found": true
+      },
+      "window": {
+        "pid": 1344,
+        "title": "Characters",
+        "controls": [
+          "Characters",
+          "Characters",
+          "Characters",
+          "Characters",
+          "Categories",
+          "Copy character",
+          "Minimize",
+          "Maximize",
+          "Close",
+          "Name or code point",
+          "Matching characters",
+          "SPACE",
+          "EXCLAMATION MARK",
+          "QUOTATION MARK",
+          "NUMBER SIGN",
+          "DOLLAR SIGN",
+          "PERCENT SIGN",
+          "AMPERSAND",
+          "APOSTROPHE",
+          " ",
+          "SPACE",
+          "U+0020",
+          "1–64 of 163336",
+          "Previous",
+          "Next"
+        ],
+        "content": null
+      },
+      "screenshot": "screenshots/characters-desktop.png",
+      "closed": true,
+      "journal": {
+        "entries": [
+          {
+            "MESSAGE": "MESA-EGL: warning: failed to get driver name for fd -1",
+            "_EXE": "/usr/bin/mundane-characters",
+            "_PID": "1344",
+            "_COMM": "mundane-charact",
+            "SYSLOG_IDENTIFIER": "org.joelinux.mundane.Characters.desktop"
+          },
+          {
+            "MESSAGE": "MESA-EGL: warning: MESA-LOADER: failed to retrieve device information",
+            "_EXE": "/usr/bin/mundane-characters",
+            "_PID": "1344",
+            "_COMM": "mundane-charact",
+            "SYSLOG_IDENTIFIER": "org.joelinux.mundane.Characters.desktop"
+          },
+          {
+            "MESSAGE": "MESA-EGL: warning: failed to get driver name for fd -1",
+            "_EXE": "/usr/bin/mundane-characters",
+            "_PID": "1344",
+            "_COMM": "mundane-charact",
+            "SYSLOG_IDENTIFIER": "org.joelinux.mundane.Characters.desktop"
+          },
+          {
+            "MESSAGE": "MESA-EGL: warning: egl: failed to create dri2 screen",
+            "_EXE": "/usr/bin/mundane-characters",
+            "_PID": "1344",
+            "_COMM": "mundane-charact",
+            "SYSLOG_IDENTIFIER": "org.joelinux.mundane.Characters.desktop"
+          }
+        ],
+        "crashes": []
+      }
+    },
+    {
+      "app": "clocks",
+      "desktop": "org.joelinux.mundane.Clocks.desktop",
+      "binary": "mundane-clocks",
+      "mimes": [],
+      "mode": "desktop",
+      "status": "failed",
+      "launch": {
+        "entry": "/usr/share/applications/org.joelinux.mundane.Clocks.desktop",
+        "executable": "/usr/bin/mundane-clocks",
+        "icon": "preferences-system-time",
+        "icon_found": true,
+        "icon_theme": "Papirus",
+        "gtk_theme": "Adwaita",
+        "gtk_icon_found": true,
+        "alarm_autostart": false
+      },
+      "window": {
+        "pid": 1424,
+        "title": "Clocks",
+        "controls": [
+          "Clocks",
+          "Clocks",
+          "Clocks",
+          "Clocks",
+          "Add city",
+          "Timer",
+          "Alarms",
+          "Minimize",
+          "Maximize",
+          "Close",
+          "World clocks",
+          "World clocks",
+          "Remove city",
+          "Saved cities",
+          "UTC",
+          "1 saved city"
+        ],
+        "content": null
+      },
+      "screenshot": "screenshots/clocks-desktop.png",
+      "closed": true,
+      "journal": {
+        "entries": [
+          {
+            "MESSAGE": "MESA-EGL: warning: failed to get driver name for fd -1",
+            "_EXE": "/usr/bin/mundane-clocks",
+            "_PID": "1424",
+            "_COMM": "mundane-clocks",
+            "SYSLOG_IDENTIFIER": "org.joelinux.mundane.Clocks.desktop"
+          },
+          {
+            "MESSAGE": "MESA-EGL: warning: MESA-LOADER: failed to retrieve device information",
+            "_EXE": "/usr/bin/mundane-clocks",
+            "_PID": "1424",
+            "_COMM": "mundane-clocks",
+            "SYSLOG_IDENTIFIER": "org.joelinux.mundane.Clocks.desktop"
+          },
+          {
+            "MESSAGE": "MESA-EGL: warning: failed to get driver name for fd -1",
+            "_EXE": "/usr/bin/mundane-clocks",
+            "_PID": "1424",
+            "_COMM": "mundane-clocks",
+            "SYSLOG_IDENTIFIER": "org.joelinux.mundane.Clocks.desktop"
+          },
+          {
+            "MESSAGE": "MESA-EGL: warning: egl: failed to create dri2 screen",
+            "_EXE": "/usr/bin/mundane-clocks",
+            "_PID": "1424",
+            "_COMM": "mundane-clocks",
+            "SYSLOG_IDENTIFIER": "org.joelinux.mundane.Clocks.desktop"
+          }
+        ],
+        "crashes": []
+      },
+      "packaging": [
+        "Missing Clocks alarm watcher XDG autostart entry"
+      ]
+    },
+    {
+      "app": "disk-usage",
+      "desktop": "org.joelinux.mundane.DiskUsage.desktop",
+      "binary": "mundane-disk-usage",
+      "mimes": [],
+      "mode": "desktop",
+      "status": "passed",
+      "launch": {
+        "entry": "/usr/share/applications/org.joelinux.mundane.DiskUsage.desktop",
+        "executable": "/usr/bin/mundane-disk-usage",
+        "icon": "drive-harddisk",
+        "icon_found": true,
+        "icon_theme": "Papirus",
+        "gtk_theme": "Adwaita",
+        "gtk_icon_found": true
+      },
+      "window": {
+        "pid": 1503,
+        "title": "Disk Usage",
+        "controls": [
+          "Disk Usage",
+          "Disk Usage",
+          "Disk Usage",
+          "Disk Usage",
+          "Open folder…",
+          "Open in Files",
+          "Rescan",
+          "Minimize",
+          "Maximize",
+          "Close",
+          "Hide treemap",
+          "Back",
+          "Folder contents",
+          "Show file sizes",
+          "Folder contents",
+          "Choose a folder to scan."
+        ],
+        "content": null
+      },
+      "screenshot": "screenshots/disk-usage-desktop.png",
+      "closed": true,
+      "journal": {
+        "entries": [
+          {
+            "MESSAGE": "MESA-EGL: warning: failed to get driver name for fd -1",
+            "_EXE": "/usr/bin/mundane-disk-usage",
+            "_PID": "1503",
+            "_COMM": "mundane-disk-us",
+            "SYSLOG_IDENTIFIER": "org.joelinux.mundane.DiskUsage.desktop"
+          },
+          {
+            "MESSAGE": "MESA-EGL: warning: MESA-LOADER: failed to retrieve device information",
+            "_EXE": "/usr/bin/mundane-disk-usage",
+            "_PID": "1503",
+            "_COMM": "mundane-disk-us",
+            "SYSLOG_IDENTIFIER": "org.joelinux.mundane.DiskUsage.desktop"
+          },
+          {
+            "MESSAGE": "MESA-EGL: warning: failed to get driver name for fd -1",
+            "_EXE": "/usr/bin/mundane-disk-usage",
+            "_PID": "1503",
+            "_COMM": "mundane-disk-us",
+            "SYSLOG_IDENTIFIER": "org.joelinux.mundane.DiskUsage.desktop"
+          },
+          {
+            "MESSAGE": "MESA-EGL: warning: egl: failed to create dri2 screen",
+            "_EXE": "/usr/bin/mundane-disk-usage",
+            "_PID": "1503",
+            "_COMM": "mundane-disk-us",
+            "SYSLOG_IDENTIFIER": "org.joelinux.mundane.DiskUsage.desktop"
+          }
+        ],
+        "crashes": []
+      }
+    },
+    {
+      "app": "disk-usage",
+      "desktop": "org.joelinux.mundane.DiskUsage.desktop",
+      "binary": "mundane-disk-usage",
+      "mimes": [],
+      "mode": "folder",
+      "file": "Smoke folder",
+      "evidence": "Dispatch.txt",
+      "status": "passed",
+      "launch": {
+        "entry": "/usr/share/applications/org.joelinux.mundane.DiskUsage.desktop",
+        "executable": "/usr/bin/mundane-disk-usage",
+        "icon": "drive-harddisk",
+        "icon_found": true,
+        "icon_theme": "Papirus",
+        "gtk_theme": "Adwaita",
+        "gtk_icon_found": true
+      },
+      "window": {
+        "pid": 1583,
+        "title": "Smoke folder — Disk Usage",
+        "controls": [
+          "Smoke folder — Disk Usage",
+          "Disk Usage",
+          "Disk Usage",
+          "Disk Usage",
+          "Open folder…",
+          "Open in Files",
+          "Rescan",
+          "Minimize",
+          "Maximize",
+          "Close",
+          "Hide treemap",
+          "Back",
+          "Smoke folder",
+          "Show file sizes",
+          "Treemap by size",
+          "Dispatch.txt · 4.0 KiB",
+          "Folder contents",
+          "Dispatch.txt",
+          "Allocated space · 4.0 KiB · 1 item"
+        ],
+        "content": "Dispatch.txt"
+      },
+      "screenshot": "screenshots/disk-usage-folder.png",
+      "closed": true,
+      "journal": {
+        "entries": [
+          {
+            "MESSAGE": "MESA-EGL: warning: failed to get driver name for fd -1",
+            "_EXE": "/usr/bin/mundane-disk-usage",
+            "_PID": "1583",
+            "_COMM": "mundane-disk-us",
+            "SYSLOG_IDENTIFIER": "org.joelinux.mundane.DiskUsage.desktop"
+          },
+          {
+            "MESSAGE": "MESA-EGL: warning: MESA-LOADER: failed to retrieve device information",
+            "_EXE": "/usr/bin/mundane-disk-usage",
+            "_PID": "1583",
+            "_COMM": "mundane-disk-us",
+            "SYSLOG_IDENTIFIER": "org.joelinux.mundane.DiskUsage.desktop"
+          },
+          {
+            "MESSAGE": "MESA-EGL: warning: failed to get driver name for fd -1",
+            "_EXE": "/usr/bin/mundane-disk-usage",
+            "_PID": "1583",
+            "_COMM": "mundane-disk-us",
+            "SYSLOG_IDENTIFIER": "org.joelinux.mundane.DiskUsage.desktop"
+          },
+          {
+            "MESSAGE": "MESA-EGL: warning: egl: failed to create dri2 screen",
+            "_EXE": "/usr/bin/mundane-disk-usage",
+            "_PID": "1583",
+            "_COMM": "mundane-disk-us",
+            "SYSLOG_IDENTIFIER": "org.joelinux.mundane.DiskUsage.desktop"
+          }
+        ],
+        "crashes": []
+      }
+    },
+    {
+      "app": "disks",
+      "desktop": "org.joelinux.mundane.Disks.desktop",
+      "binary": "mundane-disks",
+      "mimes": [],
+      "mode": "desktop",
+      "status": "passed",
+      "launch": {
+        "entry": "/usr/share/applications/org.joelinux.mundane.Disks.desktop",
+        "executable": "/usr/bin/mundane-disks",
+        "icon": "drive-harddisk",
+        "icon_found": true,
+        "icon_theme": "Papirus",
+        "gtk_theme": "Adwaita",
+        "gtk_icon_found": true
+      },
+      "window": {
+        "pid": 1663,
+        "title": "Disks",
+        "controls": [
+          "Disks",
+          "Disks",
+          "Disks",
+          "Disks",
+          "Refresh",
+          "Minimize",
+          "Maximize",
+          "Close",
+          "Storage devices",
+          "Storage devices",
+          "Mount",
+          "Drives and volumes",
+          "/dev/loop0",
+          "/dev/loop1",
+          "/dev/loop2",
+          "/dev/loop3",
+          "/dev/loop4",
+          "/dev/loop5",
+          "/dev/loop6",
+          "/dev/loop7",
+          "VirtIO Disk",
+          "Select a filesystem to mount or unmount."
+        ],
+        "content": null
+      },
+      "screenshot": "screenshots/disks-desktop.png",
+      "closed": true,
+      "journal": {
+        "entries": [
+          {
+            "MESSAGE": "MESA-EGL: warning: failed to get driver name for fd -1",
+            "_EXE": "/usr/bin/mundane-disks",
+            "_PID": "1663",
+            "_COMM": "mundane-disks",
+            "SYSLOG_IDENTIFIER": "org.joelinux.mundane.Disks.desktop"
+          },
+          {
+            "MESSAGE": "MESA-EGL: warning: MESA-LOADER: failed to retrieve device information",
+            "_EXE": "/usr/bin/mundane-disks",
+            "_PID": "1663",
+            "_COMM": "mundane-disks",
+            "SYSLOG_IDENTIFIER": "org.joelinux.mundane.Disks.desktop"
+          },
+          {
+            "MESSAGE": "MESA-EGL: warning: failed to get driver name for fd -1",
+            "_EXE": "/usr/bin/mundane-disks",
+            "_PID": "1663",
+            "_COMM": "mundane-disks",
+            "SYSLOG_IDENTIFIER": "org.joelinux.mundane.Disks.desktop"
+          },
+          {
+            "MESSAGE": "MESA-EGL: warning: egl: failed to create dri2 screen",
+            "_EXE": "/usr/bin/mundane-disks",
+            "_PID": "1663",
+            "_COMM": "mundane-disks",
+            "SYSLOG_IDENTIFIER": "org.joelinux.mundane.Disks.desktop"
+          }
+        ],
+        "crashes": []
+      }
+    },
+    {
+      "app": "document-viewer",
+      "desktop": "org.joelinux.mundane.DocumentViewer.desktop",
+      "binary": "mundane-document-viewer",
+      "mimes": [
+        "application/pdf"
+      ],
+      "mode": "desktop",
+      "status": "passed",
+      "launch": {
+        "entry": "/usr/share/applications/org.joelinux.mundane.DocumentViewer.desktop",
+        "executable": "/usr/bin/mundane-document-viewer",
+        "icon": "document-viewer",
+        "icon_found": true,
+        "icon_theme": "Papirus",
+        "gtk_theme": "Adwaita",
+        "gtk_icon_found": false
+      },
+      "window": {
+        "pid": 1748,
+        "title": "Document Viewer",
+        "controls": [
+          "Document Viewer",
+          "Document Viewer",
+          "Document Viewer",
+          "Document Viewer",
+          "Open",
+          "Find",
+          "Minimize",
+          "Maximize",
+          "Close",
+          "Document"
+        ],
+        "content": null
+      },
+      "screenshot": "screenshots/document-viewer-desktop.png",
+      "closed": true,
+      "journal": {
+        "entries": [
+          {
+            "MESSAGE": "MESA-EGL: warning: failed to get driver name for fd -1",
+            "_EXE": "/usr/bin/mundane-document-viewer",
+            "_PID": "1748",
+            "_COMM": "mundane-documen",
+            "SYSLOG_IDENTIFIER": "org.joelinux.mundane.DocumentViewer.desktop"
+          },
+          {
+            "MESSAGE": "MESA-EGL: warning: MESA-LOADER: failed to retrieve device information",
+            "_EXE": "/usr/bin/mundane-document-viewer",
+            "_PID": "1748",
+            "_COMM": "mundane-documen",
+            "SYSLOG_IDENTIFIER": "org.joelinux.mundane.DocumentViewer.desktop"
+          },
+          {
+            "MESSAGE": "MESA-EGL: warning: failed to get driver name for fd -1",
+            "_EXE": "/usr/bin/mundane-document-viewer",
+            "_PID": "1748",
+            "_COMM": "mundane-documen",
+            "SYSLOG_IDENTIFIER": "org.joelinux.mundane.DocumentViewer.desktop"
+          },
+          {
+            "MESSAGE": "MESA-EGL: warning: egl: failed to create dri2 screen",
+            "_EXE": "/usr/bin/mundane-document-viewer",
+            "_PID": "1748",
+            "_COMM": "mundane-documen",
+            "SYSLOG_IDENTIFIER": "org.joelinux.mundane.DocumentViewer.desktop"
+          }
+        ],
+        "crashes": []
+      }
+    },
+    {
+      "app": "document-viewer",
+      "desktop": "org.joelinux.mundane.DocumentViewer.desktop",
+      "binary": "mundane-document-viewer",
+      "mimes": [
+        "application/pdf"
+      ],
+      "mode": "mime",
+      "file": "Coastal survey.pdf",
+      "evidence": "Survey overview",
+      "status": "passed",
+      "launch": {
+        "entry": "/usr/share/applications/org.joelinux.mundane.DocumentViewer.desktop",
+        "executable": "/usr/bin/mundane-document-viewer",
+        "icon": "document-viewer",
+        "icon_found": true,
+        "icon_theme": "Papirus",
+        "gtk_theme": "Adwaita",
+        "gtk_icon_found": false,
+        "mime": "application/pdf",
+        "default": "org.gnome.Evince.desktop",
+        "registered": true,
+        "declares": true,
+        "route": "open-with"
+      },
+      "window": {
+        "pid": 1828,
+        "title": "Coastal survey.pdf — Document Viewer",
+        "controls": [
+          "Coastal survey.pdf — Document Viewer",
+          "Document Viewer",
+          "Document Viewer",
+          "Document Viewer",
+          "Open",
+          "Find",
+          "Continuous",
+          "Print…",
+          "Minimize",
+          "Maximize",
+          "Close",
+          "Previous page",
+          "Page number",
+          "Next page",
+          "Zoom out",
+          "Zoom in",
+          "Page 1 of 2",
+          "Document status"
+        ],
+        "content": "Survey overview"
+      },
+      "screenshot": "screenshots/document-viewer-mime.png",
+      "closed": true,
+      "journal": {
+        "entries": [
+          {
+            "MESSAGE": "MESA-EGL: warning: failed to get driver name for fd -1",
+            "_EXE": "/usr/bin/mundane-document-viewer",
+            "_PID": "1828",
+            "_COMM": "mundane-documen",
+            "SYSLOG_IDENTIFIER": "org.joelinux.mundane.DocumentViewer.desktop"
+          },
+          {
+            "MESSAGE": "MESA-EGL: warning: MESA-LOADER: failed to retrieve device information",
+            "_EXE": "/usr/bin/mundane-document-viewer",
+            "_PID": "1828",
+            "_COMM": "mundane-documen",
+            "SYSLOG_IDENTIFIER": "org.joelinux.mundane.DocumentViewer.desktop"
+          },
+          {
+            "MESSAGE": "MESA-EGL: warning: failed to get driver name for fd -1",
+            "_EXE": "/usr/bin/mundane-document-viewer",
+            "_PID": "1828",
+            "_COMM": "mundane-documen",
+            "SYSLOG_IDENTIFIER": "org.joelinux.mundane.DocumentViewer.desktop"
+          },
+          {
+            "MESSAGE": "MESA-EGL: warning: egl: failed to create dri2 screen",
+            "_EXE": "/usr/bin/mundane-document-viewer",
+            "_PID": "1828",
+            "_COMM": "mundane-documen",
+            "SYSLOG_IDENTIFIER": "org.joelinux.mundane.DocumentViewer.desktop"
+          }
+        ],
+        "crashes": []
+      }
+    },
+    {
+      "app": "files",
+      "desktop": "org.joelinux.mundane.Files.desktop",
+      "binary": "mundane-files",
+      "mimes": [
+        "inode/directory"
+      ],
+      "mode": "desktop",
+      "status": "passed",
+      "launch": {
+        "entry": "/usr/share/applications/org.joelinux.mundane.Files.desktop",
+        "executable": "/usr/bin/mundane-files",
+        "icon": "system-file-manager",
+        "icon_found": true,
+        "icon_theme": "Papirus",
+        "gtk_theme": "Adwaita",
+        "gtk_icon_found": true
+      },
+      "window": {
+        "pid": 1909,
+        "title": "Files",
+        "controls": [
+          "Files",
+          "Files",
+          "Files",
+          "Files",
+          "New tab",
+          "Search",
+          "Location",
+          "Minimize",
+          "Maximize",
+          "Close",
+          "Up",
+          "Copy",
+          "Cut",
+          "Paste",
+          "Rename",
+          "Trash",
+          "Places",
+          "Home",
+          "Desktop",
+          "Documents",
+          "Downloads",
+          "Pictures",
+          "Music",
+          "Videos",
+          "File system",
+          "Bookmark folder",
+          "Folder contents",
+          "Desktop",
+          "Documents",
+          "Downloads",
+          "Music",
+          "Pictures",
+          "Projects",
+          "Public",
+          "Templates",
+          "Videos",
+          "9 items"
+        ],
+        "content": null
+      },
+      "screenshot": "screenshots/files-desktop.png",
+      "closed": true,
+      "journal": {
+        "entries": [
+          {
+            "MESSAGE": "MESA-EGL: warning: failed to get driver name for fd -1",
+            "_EXE": "/usr/bin/mundane-files",
+            "_PID": "1909",
+            "_COMM": "mundane-files",
+            "SYSLOG_IDENTIFIER": "org.joelinux.mundane.Files.desktop"
+          },
+          {
+            "MESSAGE": "MESA-EGL: warning: MESA-LOADER: failed to retrieve device information",
+            "_EXE": "/usr/bin/mundane-files",
+            "_PID": "1909",
+            "_COMM": "mundane-files",
+            "SYSLOG_IDENTIFIER": "org.joelinux.mundane.Files.desktop"
+          },
+          {
+            "MESSAGE": "MESA-EGL: warning: failed to get driver name for fd -1",
+            "_EXE": "/usr/bin/mundane-files",
+            "_PID": "1909",
+            "_COMM": "mundane-files",
+            "SYSLOG_IDENTIFIER": "org.joelinux.mundane.Files.desktop"
+          },
+          {
+            "MESSAGE": "MESA-EGL: warning: egl: failed to create dri2 screen",
+            "_EXE": "/usr/bin/mundane-files",
+            "_PID": "1909",
+            "_COMM": "mundane-files",
+            "SYSLOG_IDENTIFIER": "org.joelinux.mundane.Files.desktop"
+          }
+        ],
+        "crashes": []
+      }
+    },
+    {
+      "app": "files",
+      "desktop": "org.joelinux.mundane.Files.desktop",
+      "binary": "mundane-files",
+      "mimes": [
+        "inode/directory"
+      ],
+      "mode": "mime",
+      "file": "Smoke folder",
+      "evidence": "Dispatch.txt",
+      "status": "passed",
+      "launch": {
+        "entry": "/usr/share/applications/org.joelinux.mundane.Files.desktop",
+        "executable": "/usr/bin/mundane-files",
+        "icon": "system-file-manager",
+        "icon_found": true,
+        "icon_theme": "Papirus",
+        "gtk_theme": "Adwaita",
+        "gtk_icon_found": true,
+        "mime": "inode/directory",
+        "default": "org.gnome.Nautilus.desktop",
+        "registered": true,
+        "declares": true,
+        "route": "open-with"
+      },
+      "window": {
+        "pid": 1994,
+        "title": "Files",
+        "controls": [
+          "Files",
+          "Files",
+          "Files",
+          "Files",
+          "New tab",
+          "Search",
+          "Location",
+          "Minimize",
+          "Maximize",
+          "Close",
+          "Up",
+          "Copy",
+          "Cut",
+          "Paste",
+          "Rename",
+          "Trash",
+          "Places",
+          "Home",
+          "Desktop",
+          "Documents",
+          "Downloads",
+          "Pictures",
+          "Music",
+          "Videos",
+          "File system",
+          "Bookmark folder",
+          "Folder contents",
+          "Dispatch.txt",
+          "1 item"
+        ],
+        "content": "Dispatch.txt"
+      },
+      "screenshot": "screenshots/files-mime.png",
+      "closed": true,
+      "journal": {
+        "entries": [
+          {
+            "MESSAGE": "MESA-EGL: warning: failed to get driver name for fd -1",
+            "_EXE": "/usr/bin/mundane-files",
+            "_PID": "1994",
+            "_COMM": "mundane-files",
+            "SYSLOG_IDENTIFIER": "org.joelinux.mundane.Files.desktop"
+          },
+          {
+            "MESSAGE": "MESA-EGL: warning: MESA-LOADER: failed to retrieve device information",
+            "_EXE": "/usr/bin/mundane-files",
+            "_PID": "1994",
+            "_COMM": "mundane-files",
+            "SYSLOG_IDENTIFIER": "org.joelinux.mundane.Files.desktop"
+          },
+          {
+            "MESSAGE": "MESA-EGL: warning: failed to get driver name for fd -1",
+            "_EXE": "/usr/bin/mundane-files",
+            "_PID": "1994",
+            "_COMM": "mundane-files",
+            "SYSLOG_IDENTIFIER": "org.joelinux.mundane.Files.desktop"
+          },
+          {
+            "MESSAGE": "MESA-EGL: warning: egl: failed to create dri2 screen",
+            "_EXE": "/usr/bin/mundane-files",
+            "_PID": "1994",
+            "_COMM": "mundane-files",
+            "SYSLOG_IDENTIFIER": "org.joelinux.mundane.Files.desktop"
+          }
+        ],
+        "crashes": []
+      }
+    },
+    {
+      "app": "fonts",
+      "desktop": "org.joelinux.mundane.Fonts.desktop",
+      "binary": "mundane-fonts",
+      "mimes": [
+        "font/ttf",
+        "font/otf",
+        "font/collection",
+        "application/x-font-ttf",
+        "application/x-font-otf"
+      ],
+      "mode": "desktop",
+      "status": "passed",
+      "launch": {
+        "entry": "/usr/share/applications/org.joelinux.mundane.Fonts.desktop",
+        "executable": "/usr/bin/mundane-fonts",
+        "icon": "preferences-desktop-font",
+        "icon_found": true,
+        "icon_theme": "Papirus",
+        "gtk_theme": "Adwaita",
+        "gtk_icon_found": true
+      },
+      "window": {
+        "pid": 2080,
+        "title": "Adwaita Mono · Regular — Fonts",
+        "controls": [
+          "Adwaita Mono · Regular — Fonts",
+          "Fonts",
+          "Fonts",
+          "Fonts",
+          "Open font",
+          "Edit sample",
+          "Minimize",
+          "Maximize",
+          "Close",
+          "Find a font family",
+          "Font families",
+          "Adwaita Mono",
+          "Adwaita Sans",
+          "DejaVu Math TeX Gyre",
+          "DejaVu Sans",
+          "DejaVu Sans Mono",
+          "DejaVu Serif",
+          "Liberation Mono",
+          "Liberation Sans",
+          "Adwaita Mono · Regular",
+          "Previous face",
+          "Next face",
+          "Sample text",
+          "Sample text",
+          "Preview in Adwaita Mono · Regular",
+          "All sample characters covered."
+        ],
+        "content": null
+      },
+      "screenshot": "screenshots/fonts-desktop.png",
+      "closed": true,
+      "journal": {
+        "entries": [
+          {
+            "MESSAGE": "MESA-EGL: warning: failed to get driver name for fd -1",
+            "_EXE": "/usr/bin/mundane-fonts",
+            "_PID": "2080",
+            "_COMM": "mundane-fonts",
+            "SYSLOG_IDENTIFIER": "org.joelinux.mundane.Fonts.desktop"
+          },
+          {
+            "MESSAGE": "MESA-EGL: warning: MESA-LOADER: failed to retrieve device information",
+            "_EXE": "/usr/bin/mundane-fonts",
+            "_PID": "2080",
+            "_COMM": "mundane-fonts",
+            "SYSLOG_IDENTIFIER": "org.joelinux.mundane.Fonts.desktop"
+          },
+          {
+            "MESSAGE": "MESA-EGL: warning: failed to get driver name for fd -1",
+            "_EXE": "/usr/bin/mundane-fonts",
+            "_PID": "2080",
+            "_COMM": "mundane-fonts",
+            "SYSLOG_IDENTIFIER": "org.joelinux.mundane.Fonts.desktop"
+          },
+          {
+            "MESSAGE": "MESA-EGL: warning: egl: failed to create dri2 screen",
+            "_EXE": "/usr/bin/mundane-fonts",
+            "_PID": "2080",
+            "_COMM": "mundane-fonts",
+            "SYSLOG_IDENTIFIER": "org.joelinux.mundane.Fonts.desktop"
+          }
+        ],
+        "crashes": []
+      }
+    },
+    {
+      "app": "fonts",
+      "desktop": "org.joelinux.mundane.Fonts.desktop",
+      "binary": "mundane-fonts",
+      "mimes": [
+        "font/ttf",
+        "font/otf",
+        "font/collection",
+        "application/x-font-ttf",
+        "application/x-font-otf"
+      ],
+      "mode": "mime",
+      "file": "Survey.ttc",
+      "evidence": "Preview in Survey Fixture",
+      "status": "passed",
+      "launch": {
+        "entry": "/usr/share/applications/org.joelinux.mundane.Fonts.desktop",
+        "executable": "/usr/bin/mundane-fonts",
+        "icon": "preferences-desktop-font",
+        "icon_found": true,
+        "icon_theme": "Papirus",
+        "gtk_theme": "Adwaita",
+        "gtk_icon_found": true,
+        "mime": "font/collection",
+        "default": "org.gnome.font-viewer.desktop",
+        "registered": true,
+        "declares": true,
+        "route": "open-with"
+      },
+      "window": {
+        "pid": 2163,
+        "title": "Survey Fixture · Regular — Fonts",
+        "controls": [
+          "Survey Fixture · Regular — Fonts",
+          "Fonts",
+          "Fonts",
+          "Fonts",
+          "Open font",
+          "Installed fonts",
+          "Install for me",
+          "Edit sample",
+          "Minimize",
+          "Maximize",
+          "Close",
+          "Find a font family",
+          "Font families",
+          "Survey Fixture",
+          "Survey Fixture · Regular",
+          "Previous face",
+          "Next face",
+          "Sample text",
+          "Sample text",
+          "Preview in Survey Fixture · Regular",
+          "Missing glyphs · U+0054, U+0062, U+0063, U+0065, U+0066, U+0068, U+0069, U+006B, U+006E, U+006F, U+0071, U+0072, U+0075, U+0077, U+0078"
+        ],
+        "content": "Preview in Survey Fixture"
+      },
+      "screenshot": "screenshots/fonts-mime.png",
+      "closed": true,
+      "journal": {
+        "entries": [
+          {
+            "MESSAGE": "MESA-EGL: warning: failed to get driver name for fd -1",
+            "_EXE": "/usr/bin/mundane-fonts",
+            "_PID": "2163",
+            "_COMM": "mundane-fonts",
+            "SYSLOG_IDENTIFIER": "org.joelinux.mundane.Fonts.desktop"
+          },
+          {
+            "MESSAGE": "MESA-EGL: warning: MESA-LOADER: failed to retrieve device information",
+            "_EXE": "/usr/bin/mundane-fonts",
+            "_PID": "2163",
+            "_COMM": "mundane-fonts",
+            "SYSLOG_IDENTIFIER": "org.joelinux.mundane.Fonts.desktop"
+          },
+          {
+            "MESSAGE": "MESA-EGL: warning: failed to get driver name for fd -1",
+            "_EXE": "/usr/bin/mundane-fonts",
+            "_PID": "2163",
+            "_COMM": "mundane-fonts",
+            "SYSLOG_IDENTIFIER": "org.joelinux.mundane.Fonts.desktop"
+          },
+          {
+            "MESSAGE": "MESA-EGL: warning: egl: failed to create dri2 screen",
+            "_EXE": "/usr/bin/mundane-fonts",
+            "_PID": "2163",
+            "_COMM": "mundane-fonts",
+            "SYSLOG_IDENTIFIER": "org.joelinux.mundane.Fonts.desktop"
+          }
+        ],
+        "crashes": []
+      }
+    },
+    {
+      "app": "image-viewer",
+      "desktop": "org.joelinux.mundane.ImageViewer.desktop",
+      "binary": "mundane-image-viewer",
+      "mimes": [
+        "image/png",
+        "image/jpeg",
+        "image/webp",
+        "image/svg+xml"
+      ],
+      "mode": "desktop",
+      "status": "passed",
+      "launch": {
+        "entry": "/usr/share/applications/org.joelinux.mundane.ImageViewer.desktop",
+        "executable": "/usr/bin/mundane-image-viewer",
+        "icon": "image-viewer",
+        "icon_found": true,
+        "icon_theme": "Papirus",
+        "gtk_theme": "Adwaita",
+        "gtk_icon_found": false
+      },
+      "window": {
+        "pid": 2247,
+        "title": "Image Viewer",
+        "controls": [
+          "Image Viewer",
+          "Image Viewer",
+          "Image Viewer",
+          "Image Viewer",
+          "Open",
+          "Minimize",
+          "Maximize",
+          "Close",
+          "Image area"
+        ],
+        "content": null
+      },
+      "screenshot": "screenshots/image-viewer-desktop.png",
+      "closed": true,
+      "journal": {
+        "entries": [
+          {
+            "MESSAGE": "MESA-EGL: warning: failed to get driver name for fd -1",
+            "_EXE": "/usr/bin/mundane-image-viewer",
+            "_PID": "2247",
+            "_COMM": "mundane-image-v",
+            "SYSLOG_IDENTIFIER": "org.joelinux.mundane.ImageViewer.desktop"
+          },
+          {
+            "MESSAGE": "MESA-EGL: warning: MESA-LOADER: failed to retrieve device information",
+            "_EXE": "/usr/bin/mundane-image-viewer",
+            "_PID": "2247",
+            "_COMM": "mundane-image-v",
+            "SYSLOG_IDENTIFIER": "org.joelinux.mundane.ImageViewer.desktop"
+          },
+          {
+            "MESSAGE": "MESA-EGL: warning: failed to get driver name for fd -1",
+            "_EXE": "/usr/bin/mundane-image-viewer",
+            "_PID": "2247",
+            "_COMM": "mundane-image-v",
+            "SYSLOG_IDENTIFIER": "org.joelinux.mundane.ImageViewer.desktop"
+          },
+          {
+            "MESSAGE": "MESA-EGL: warning: egl: failed to create dri2 screen",
+            "_EXE": "/usr/bin/mundane-image-viewer",
+            "_PID": "2247",
+            "_COMM": "mundane-image-v",
+            "SYSLOG_IDENTIFIER": "org.joelinux.mundane.ImageViewer.desktop"
+          }
+        ],
+        "crashes": []
+      }
+    },
+    {
+      "app": "image-viewer",
+      "desktop": "org.joelinux.mundane.ImageViewer.desktop",
+      "binary": "mundane-image-viewer",
+      "mimes": [
+        "image/png",
+        "image/jpeg",
+        "image/webp",
+        "image/svg+xml"
+      ],
+      "mode": "mime",
+      "file": "North Point.jpg",
+      "evidence": "North Point.jpg",
+      "status": "passed",
+      "launch": {
+        "entry": "/usr/share/applications/org.joelinux.mundane.ImageViewer.desktop",
+        "executable": "/usr/bin/mundane-image-viewer",
+        "icon": "image-viewer",
+        "icon_found": true,
+        "icon_theme": "Papirus",
+        "gtk_theme": "Adwaita",
+        "gtk_icon_found": false,
+        "mime": "image/jpeg",
+        "default": "org.gnome.Loupe.desktop",
+        "registered": true,
+        "declares": true,
+        "route": "open-with"
+      },
+      "window": {
+        "pid": 2326,
+        "title": "North Point.jpg — Image Viewer",
+        "controls": [
+          "North Point.jpg — Image Viewer",
+          "Image Viewer",
+          "Image Viewer",
+          "Image Viewer",
+          "Open",
+          "Minimize",
+          "Maximize",
+          "Close",
+          "North Point.jpg",
+          "Image status",
+          "Zoom out",
+          "Zoom in",
+          "Fit"
+        ],
+        "content": "North Point.jpg"
+      },
+      "screenshot": "screenshots/image-viewer-mime.png",
+      "closed": true,
+      "journal": {
+        "entries": [
+          {
+            "MESSAGE": "MESA-EGL: warning: failed to get driver name for fd -1",
+            "_EXE": "/usr/bin/mundane-image-viewer",
+            "_PID": "2326",
+            "_COMM": "mundane-image-v",
+            "SYSLOG_IDENTIFIER": "org.joelinux.mundane.ImageViewer.desktop"
+          },
+          {
+            "MESSAGE": "MESA-EGL: warning: MESA-LOADER: failed to retrieve device information",
+            "_EXE": "/usr/bin/mundane-image-viewer",
+            "_PID": "2326",
+            "_COMM": "mundane-image-v",
+            "SYSLOG_IDENTIFIER": "org.joelinux.mundane.ImageViewer.desktop"
+          },
+          {
+            "MESSAGE": "MESA-EGL: warning: failed to get driver name for fd -1",
+            "_EXE": "/usr/bin/mundane-image-viewer",
+            "_PID": "2326",
+            "_COMM": "mundane-image-v",
+            "SYSLOG_IDENTIFIER": "org.joelinux.mundane.ImageViewer.desktop"
+          },
+          {
+            "MESSAGE": "MESA-EGL: warning: egl: failed to create dri2 screen",
+            "_EXE": "/usr/bin/mundane-image-viewer",
+            "_PID": "2326",
+            "_COMM": "mundane-image-v",
+            "SYSLOG_IDENTIFIER": "org.joelinux.mundane.ImageViewer.desktop"
+          }
+        ],
+        "crashes": []
+      }
+    },
+    {
+      "app": "maps",
+      "desktop": "org.joelinux.mundane.Maps.desktop",
+      "binary": "mundane-maps",
+      "mimes": [],
+      "mode": "desktop",
+      "status": "passed",
+      "launch": {
+        "entry": "/usr/share/applications/org.joelinux.mundane.Maps.desktop",
+        "executable": "/usr/bin/mundane-maps",
+        "icon": "mark-location",
+        "icon_found": true,
+        "icon_theme": "Papirus",
+        "gtk_theme": "Adwaita",
+        "gtk_icon_found": true
+      },
+      "window": {
+        "pid": 2405,
+        "title": "Maps",
+        "controls": [
+          "Maps",
+          "Maps",
+          "Maps",
+          "Maps",
+          "Places",
+          "Save area",
+          "Open saved area",
+          "Minimize",
+          "Maximize",
+          "Close",
+          "Find a place",
+          "Search",
+          "Zoom out",
+          "Zoom in",
+          "Map view",
+          "Zoom 2   ·   Map unavailable · [6] Could not resolve hostname (Could not resolve host: tiles.openfreemap.org)",
+          "OpenFreeMap",
+          "© OpenMapTiles",
+          "Data from OpenStreetMap",
+          "© OpenStreetMap contributors · ODbL"
+        ],
+        "content": null
+      },
+      "screenshot": "screenshots/maps-desktop.png",
+      "closed": true,
+      "journal": {
+        "entries": [
+          {
+            "MESSAGE": "MESA-EGL: warning: failed to get driver name for fd -1",
+            "_EXE": "/usr/bin/mundane-maps",
+            "_PID": "2405",
+            "_COMM": "mundane-maps",
+            "SYSLOG_IDENTIFIER": "org.joelinux.mundane.Maps.desktop"
+          },
+          {
+            "MESSAGE": "MESA-EGL: warning: MESA-LOADER: failed to retrieve device information",
+            "_EXE": "/usr/bin/mundane-maps",
+            "_PID": "2405",
+            "_COMM": "mundane-maps",
+            "SYSLOG_IDENTIFIER": "org.joelinux.mundane.Maps.desktop"
+          },
+          {
+            "MESSAGE": "MESA-EGL: warning: failed to get driver name for fd -1",
+            "_EXE": "/usr/bin/mundane-maps",
+            "_PID": "2405",
+            "_COMM": "mundane-maps",
+            "SYSLOG_IDENTIFIER": "org.joelinux.mundane.Maps.desktop"
+          },
+          {
+            "MESSAGE": "MESA-EGL: warning: egl: failed to create dri2 screen",
+            "_EXE": "/usr/bin/mundane-maps",
+            "_PID": "2405",
+            "_COMM": "mundane-maps",
+            "SYSLOG_IDENTIFIER": "org.joelinux.mundane.Maps.desktop"
+          }
+        ],
+        "crashes": []
+      }
+    },
+    {
+      "app": "music",
+      "desktop": "org.joelinux.mundane.Music.desktop",
+      "binary": "mundane-music",
+      "mimes": [
+        "audio/mpeg",
+        "audio/mp4",
+        "audio/x-m4a",
+        "audio/flac",
+        "audio/x-flac",
+        "audio/ogg",
+        "audio/x-vorbis+ogg",
+        "audio/x-opus+ogg",
+        "audio/wav",
+        "audio/x-wav"
+      ],
+      "mode": "desktop",
+      "status": "passed",
+      "launch": {
+        "entry": "/usr/share/applications/org.joelinux.mundane.Music.desktop",
+        "executable": "/usr/bin/mundane-music",
+        "icon": "multimedia-audio-player",
+        "icon_found": true,
+        "icon_theme": "Papirus",
+        "gtk_theme": "Adwaita",
+        "gtk_icon_found": false
+      },
+      "window": {
+        "pid": 2490,
+        "title": "Music",
+        "controls": [
+          "Music",
+          "Music",
+          "Music",
+          "Music",
+          "Add tracks…",
+          "Minimize",
+          "Maximize",
+          "Close",
+          "Playback status",
+          "Add tracks to start playback",
+          "Previous track",
+          "Next track",
+          "Play queue",
+          "Play queue",
+          "Play selected",
+          "Move up",
+          "Move down",
+          "Remove",
+          "Play queue",
+          "Playback position",
+          "Back 5 seconds",
+          "Play",
+          "Forward 5 seconds"
+        ],
+        "content": null
+      },
+      "screenshot": "screenshots/music-desktop.png",
+      "closed": true,
+      "journal": {
+        "entries": [
+          {
+            "MESSAGE": "MESA-EGL: warning: failed to get driver name for fd -1",
+            "_EXE": "/usr/bin/mundane-music",
+            "_PID": "2490",
+            "_COMM": "mundane-music",
+            "SYSLOG_IDENTIFIER": "org.joelinux.mundane.Music.desktop"
+          },
+          {
+            "MESSAGE": "MESA-EGL: warning: MESA-LOADER: failed to retrieve device information",
+            "_EXE": "/usr/bin/mundane-music",
+            "_PID": "2490",
+            "_COMM": "mundane-music",
+            "SYSLOG_IDENTIFIER": "org.joelinux.mundane.Music.desktop"
+          },
+          {
+            "MESSAGE": "MESA-EGL: warning: failed to get driver name for fd -1",
+            "_EXE": "/usr/bin/mundane-music",
+            "_PID": "2490",
+            "_COMM": "mundane-music",
+            "SYSLOG_IDENTIFIER": "org.joelinux.mundane.Music.desktop"
+          },
+          {
+            "MESSAGE": "MESA-EGL: warning: egl: failed to create dri2 screen",
+            "_EXE": "/usr/bin/mundane-music",
+            "_PID": "2490",
+            "_COMM": "mundane-music",
+            "SYSLOG_IDENTIFIER": "org.joelinux.mundane.Music.desktop"
+          }
+        ],
+        "crashes": []
+      }
+    },
+    {
+      "app": "music",
+      "desktop": "org.joelinux.mundane.Music.desktop",
+      "binary": "mundane-music",
+      "mimes": [
+        "audio/mpeg",
+        "audio/mp4",
+        "audio/x-m4a",
+        "audio/flac",
+        "audio/x-flac",
+        "audio/ogg",
+        "audio/x-vorbis+ogg",
+        "audio/x-opus+ogg",
+        "audio/wav",
+        "audio/x-wav"
+      ],
+      "mode": "mime",
+      "file": "02.opus",
+      "evidence": "Harbour Lights",
+      "status": "passed",
+      "launch": {
+        "entry": "/usr/share/applications/org.joelinux.mundane.Music.desktop",
+        "executable": "/usr/bin/mundane-music",
+        "icon": "multimedia-audio-player",
+        "icon_found": true,
+        "icon_theme": "Papirus",
+        "gtk_theme": "Adwaita",
+        "gtk_icon_found": false,
+        "mime": "audio/x-opus+ogg",
+        "default": "org.gnome.Decibels.desktop",
+        "registered": true,
+        "declares": true,
+        "route": "open-with"
+      },
+      "window": {
+        "pid": 2572,
+        "title": "Harbour Lights — Music",
+        "controls": [
+          "Harbour Lights — Music",
+          "Music",
+          "Music",
+          "Music",
+          "Add tracks…",
+          "Minimize",
+          "Maximize",
+          "Close",
+          "Playback status",
+          "Harbour Lights",
+          "Soundings · Coastal Sessions",
+          "Previous track",
+          "Next track",
+          "Play queue",
+          "Play queue",
+          "Play selected",
+          "Move up",
+          "Move down",
+          "Remove",
+          "Play queue",
+          "Harbour Lights",
+          "Slower",
+          "Playback speed 1×",
+          "Faster",
+          "Playback position",
+          "Back 5 seconds",
+          "Pause",
+          "Forward 5 seconds"
+        ],
+        "content": "Harbour Lights"
+      },
+      "screenshot": "screenshots/music-mime.png",
+      "closed": true,
+      "journal": {
+        "entries": [
+          {
+            "MESSAGE": "MESA-EGL: warning: failed to get driver name for fd -1",
+            "_EXE": "/usr/bin/mundane-music",
+            "_PID": "2572",
+            "_COMM": "mundane-music",
+            "SYSLOG_IDENTIFIER": "org.joelinux.mundane.Music.desktop"
+          },
+          {
+            "MESSAGE": "MESA-EGL: warning: MESA-LOADER: failed to retrieve device information",
+            "_EXE": "/usr/bin/mundane-music",
+            "_PID": "2572",
+            "_COMM": "mundane-music",
+            "SYSLOG_IDENTIFIER": "org.joelinux.mundane.Music.desktop"
+          },
+          {
+            "MESSAGE": "MESA-EGL: warning: failed to get driver name for fd -1",
+            "_EXE": "/usr/bin/mundane-music",
+            "_PID": "2572",
+            "_COMM": "mundane-music",
+            "SYSLOG_IDENTIFIER": "org.joelinux.mundane.Music.desktop"
+          },
+          {
+            "MESSAGE": "MESA-EGL: warning: egl: failed to create dri2 screen",
+            "_EXE": "/usr/bin/mundane-music",
+            "_PID": "2572",
+            "_COMM": "mundane-music",
+            "SYSLOG_IDENTIFIER": "org.joelinux.mundane.Music.desktop"
+          }
+        ],
+        "crashes": []
+      }
+    },
+    {
+      "app": "packages",
+      "desktop": "org.joelinux.mundane.Packages.desktop",
+      "binary": "mundane-packages",
+      "mimes": [],
+      "mode": "desktop",
+      "status": "failed",
+      "launch": {
+        "entry": "/usr/share/applications/org.joelinux.mundane.Packages.desktop",
+        "executable": "/usr/bin/mundane-packages",
+        "icon": "system-software-install",
+        "icon_found": true,
+        "icon_theme": "Papirus",
+        "gtk_theme": "Adwaita",
+        "gtk_icon_found": true
+      },
+      "window": {
+        "pid": 2664,
+        "title": "Packages",
+        "controls": [
+          "Packages",
+          "Packages",
+          "Packages",
+          "Packages",
+          "Installed",
+          "Discover",
+          "Updates",
+          "Minimize",
+          "Maximize",
+          "Close",
+          "Search packages",
+          "Search",
+          "Installed packages",
+          "Installed packages",
+          "No packages found.",
+          "Unreadable JSON from dave: EOF while parsing a value at line 1 column 0"
+        ],
+        "content": null
+      },
+      "screenshot": "screenshots/packages-desktop.png",
+      "closed": true,
+      "runtime": {
+        "polkit_action_installed": false,
+        "dave list --json": {
+          "exit": 1,
+          "stderr": "dave: list does not take --json (it is for install-system); see 'dave help list'\n",
+          "stdout": ""
+        },
+        "dave info dave": {
+          "exit": 0,
+          "stderr": "",
+          "stdout": "Name            dave\nDescription     The joe Linux package manager and deployment tool\nInstalled       0.4.0-r2, because mundane-apps needs it\nAvailable       not from the configured repositories\nLicence         MIT\nInstalled size  15.6 MiB in 11 files\nDepends on      systemd\nRequired by     joe-base, mundane-apps, mundane-de\n"
+        },
+        "dave info mundane-apps": {
+          "exit": 0,
+          "stderr": "",
+          "stdout": "Name            mundane-apps\nDescription     mundaneDE's applications: Files, Terminal, Text Editor and fifteen more, written with GPUI\nInstalled       0.1.0pre20261122-r1, by request\nAvailable       not from the configured repositories\nLicence         BSD-3-Clause AND Apache-2.0\nInstalled size  509.7 MiB in 38 files\nDepends on      glibc, gcc, glib, cairo, pango, fontconfig, freetype, icu, curl, libarchive, libinput, libxcb, libxkbcommon, mesa, seatd, systemd, wayland, vulkan-icd-loader, pdfium, gstreamer, gst-plugins-base, gst-plugins-good, gst-plugins-bad, gst-libav, pipewire, udisks, xdg-desktop-portal, polkit, dave, shared-mime-info, desktop-file-utils, hicolor-icon-theme, adwaita-icon-theme\nRequired by     nothing installed\n"
+        }
+      },
+      "packaging": [
+        "dave list --json could not list installed packages"
+      ],
+      "journal": {
+        "entries": [
+          {
+            "MESSAGE": "MESA-EGL: warning: failed to get driver name for fd -1",
+            "_EXE": "/usr/bin/mundane-packages",
+            "_PID": "2664",
+            "_COMM": "mundane-package",
+            "SYSLOG_IDENTIFIER": "org.joelinux.mundane.Packages.desktop"
+          },
+          {
+            "MESSAGE": "MESA-EGL: warning: MESA-LOADER: failed to retrieve device information",
+            "_EXE": "/usr/bin/mundane-packages",
+            "_PID": "2664",
+            "_COMM": "mundane-package",
+            "SYSLOG_IDENTIFIER": "org.joelinux.mundane.Packages.desktop"
+          },
+          {
+            "MESSAGE": "MESA-EGL: warning: failed to get driver name for fd -1",
+            "_EXE": "/usr/bin/mundane-packages",
+            "_PID": "2664",
+            "_COMM": "mundane-package",
+            "SYSLOG_IDENTIFIER": "org.joelinux.mundane.Packages.desktop"
+          },
+          {
+            "MESSAGE": "MESA-EGL: warning: egl: failed to create dri2 screen",
+            "_EXE": "/usr/bin/mundane-packages",
+            "_PID": "2664",
+            "_COMM": "mundane-package",
+            "SYSLOG_IDENTIFIER": "org.joelinux.mundane.Packages.desktop"
+          }
+        ],
+        "crashes": []
+      }
+    },
+    {
+      "app": "system-monitor",
+      "desktop": "org.joelinux.mundane.SystemMonitor.desktop",
+      "binary": "mundane-system-monitor",
+      "mimes": [],
+      "mode": "desktop",
+      "status": "passed",
+      "launch": {
+        "entry": "/usr/share/applications/org.joelinux.mundane.SystemMonitor.desktop",
+        "executable": "/usr/bin/mundane-system-monitor",
+        "icon": "utilities-system-monitor",
+        "icon_found": true,
+        "icon_theme": "Papirus",
+        "gtk_theme": "Adwaita",
+        "gtk_icon_found": false
+      },
+      "window": {
+        "pid": 2760,
+        "title": "System Monitor",
+        "controls": [
+          "System Monitor",
+          "System Monitor",
+          "System Monitor",
+          "System Monitor",
+          "Filter",
+          "Resources",
+          "End process…",
+          "Minimize",
+          "Maximize",
+          "Close",
+          "Process",
+          "PID",
+          "CPU",
+          "Memory",
+          "Processes",
+          "(sd-pam) (PID 396)",
+          "(sd-pam) (PID 874)",
+          "(udev-worker) (PID 2729)",
+          "ModemManager (PID 360)",
+          "NetworkManager (PID 320)",
+          "accounts-daemon (PID 299)",
+          "at-spi-bus-laun (PID 470)",
+          "at-spi2-registr (PID 478)",
+          "avahi-daemon (PID 300)",
+          "avahi-daemon (PID 342)",
+          "Process status"
+        ],
+        "content": null
+      },
+      "screenshot": "screenshots/system-monitor-desktop.png",
+      "closed": true,
+      "journal": {
+        "entries": [
+          {
+            "MESSAGE": "MESA-EGL: warning: failed to get driver name for fd -1",
+            "_EXE": "/usr/bin/mundane-system-monitor",
+            "_PID": "2760",
+            "_COMM": "mundane-system-",
+            "SYSLOG_IDENTIFIER": "org.joelinux.mundane.SystemMonitor.desktop"
+          },
+          {
+            "MESSAGE": "MESA-EGL: warning: MESA-LOADER: failed to retrieve device information",
+            "_EXE": "/usr/bin/mundane-system-monitor",
+            "_PID": "2760",
+            "_COMM": "mundane-system-",
+            "SYSLOG_IDENTIFIER": "org.joelinux.mundane.SystemMonitor.desktop"
+          },
+          {
+            "MESSAGE": "MESA-EGL: warning: failed to get driver name for fd -1",
+            "_EXE": "/usr/bin/mundane-system-monitor",
+            "_PID": "2760",
+            "_COMM": "mundane-system-",
+            "SYSLOG_IDENTIFIER": "org.joelinux.mundane.SystemMonitor.desktop"
+          },
+          {
+            "MESSAGE": "MESA-EGL: warning: egl: failed to create dri2 screen",
+            "_EXE": "/usr/bin/mundane-system-monitor",
+            "_PID": "2760",
+            "_COMM": "mundane-system-",
+            "SYSLOG_IDENTIFIER": "org.joelinux.mundane.SystemMonitor.desktop"
+          }
+        ],
+        "crashes": []
+      }
+    },
+    {
+      "app": "terminal",
+      "desktop": "org.joelinux.mundane.Terminal.desktop",
+      "binary": "mundane-terminal",
+      "mimes": [],
+      "mode": "desktop",
+      "status": "passed",
+      "launch": {
+        "entry": "/usr/share/applications/org.joelinux.mundane.Terminal.desktop",
+        "executable": "/usr/bin/mundane-terminal",
+        "icon": "utilities-terminal",
+        "icon_found": true,
+        "icon_theme": "Papirus",
+        "gtk_theme": "Adwaita",
+        "gtk_icon_found": true
+      },
+      "window": {
+        "pid": 2842,
+        "title": "Terminal",
+        "controls": [
+          "Terminal",
+          "Terminal",
+          "Terminal",
+          "Terminal",
+          "Profiles",
+          "New tab",
+          "New window",
+          "Find",
+          "Minimize",
+          "Maximize",
+          "Close",
+          "Shell"
+        ],
+        "content": null
+      },
+      "screenshot": "screenshots/terminal-desktop.png",
+      "closed": true,
+      "journal": {
+        "entries": [
+          {
+            "MESSAGE": "MESA-EGL: warning: failed to get driver name for fd -1",
+            "_EXE": "/usr/bin/mundane-terminal",
+            "_PID": "2842",
+            "_COMM": "mundane-termina",
+            "SYSLOG_IDENTIFIER": "org.joelinux.mundane.Terminal.desktop"
+          },
+          {
+            "MESSAGE": "MESA-EGL: warning: MESA-LOADER: failed to retrieve device information",
+            "_EXE": "/usr/bin/mundane-terminal",
+            "_PID": "2842",
+            "_COMM": "mundane-termina",
+            "SYSLOG_IDENTIFIER": "org.joelinux.mundane.Terminal.desktop"
+          },
+          {
+            "MESSAGE": "MESA-EGL: warning: failed to get driver name for fd -1",
+            "_EXE": "/usr/bin/mundane-terminal",
+            "_PID": "2842",
+            "_COMM": "mundane-termina",
+            "SYSLOG_IDENTIFIER": "org.joelinux.mundane.Terminal.desktop"
+          },
+          {
+            "MESSAGE": "MESA-EGL: warning: egl: failed to create dri2 screen",
+            "_EXE": "/usr/bin/mundane-terminal",
+            "_PID": "2842",
+            "_COMM": "mundane-termina",
+            "SYSLOG_IDENTIFIER": "org.joelinux.mundane.Terminal.desktop"
+          }
+        ],
+        "crashes": []
+      }
+    },
+    {
+      "app": "text-editor",
+      "desktop": "org.joelinux.mundane.TextEditor.desktop",
+      "binary": "mundane-text-editor",
+      "mimes": [
+        "text/plain"
+      ],
+      "mode": "desktop",
+      "status": "passed",
+      "launch": {
+        "entry": "/usr/share/applications/org.joelinux.mundane.TextEditor.desktop",
+        "executable": "/usr/bin/mundane-text-editor",
+        "icon": "accessories-text-editor",
+        "icon_found": true,
+        "icon_theme": "Papirus",
+        "gtk_theme": "Adwaita",
+        "gtk_icon_found": true
+      },
+      "window": {
+        "pid": 2927,
+        "title": "Untitled — Text Editor",
+        "controls": [
+          "Untitled — Text Editor",
+          "Text Editor",
+          "Text Editor",
+          "Text Editor",
+          "Print",
+          "Recent",
+          "New tab",
+          "Open",
+          "Find",
+          "Save",
+          "Save As",
+          "Minimize",
+          "Maximize",
+          "Close",
+          "Document text",
+          "Document status",
+          "Go to line",
+          "Indentation: Tabs"
+        ],
+        "content": null
+      },
+      "screenshot": "screenshots/text-editor-desktop.png",
+      "closed": true,
+      "journal": {
+        "entries": [
+          {
+            "MESSAGE": "MESA-EGL: warning: failed to get driver name for fd -1",
+            "_EXE": "/usr/bin/mundane-text-editor",
+            "_PID": "2927",
+            "_COMM": "mundane-text-ed",
+            "SYSLOG_IDENTIFIER": "org.joelinux.mundane.TextEditor.desktop"
+          },
+          {
+            "MESSAGE": "MESA-EGL: warning: MESA-LOADER: failed to retrieve device information",
+            "_EXE": "/usr/bin/mundane-text-editor",
+            "_PID": "2927",
+            "_COMM": "mundane-text-ed",
+            "SYSLOG_IDENTIFIER": "org.joelinux.mundane.TextEditor.desktop"
+          },
+          {
+            "MESSAGE": "MESA-EGL: warning: failed to get driver name for fd -1",
+            "_EXE": "/usr/bin/mundane-text-editor",
+            "_PID": "2927",
+            "_COMM": "mundane-text-ed",
+            "SYSLOG_IDENTIFIER": "org.joelinux.mundane.TextEditor.desktop"
+          },
+          {
+            "MESSAGE": "MESA-EGL: warning: egl: failed to create dri2 screen",
+            "_EXE": "/usr/bin/mundane-text-editor",
+            "_PID": "2927",
+            "_COMM": "mundane-text-ed",
+            "SYSLOG_IDENTIFIER": "org.joelinux.mundane.TextEditor.desktop"
+          }
+        ],
+        "crashes": []
+      }
+    },
+    {
+      "app": "text-editor",
+      "desktop": "org.joelinux.mundane.TextEditor.desktop",
+      "binary": "mundane-text-editor",
+      "mimes": [
+        "text/plain"
+      ],
+      "mode": "mime",
+      "file": "Dispatch.txt",
+      "evidence": "Coastal smoke document",
+      "status": "passed",
+      "launch": {
+        "entry": "/usr/share/applications/org.joelinux.mundane.TextEditor.desktop",
+        "executable": "/usr/bin/mundane-text-editor",
+        "icon": "accessories-text-editor",
+        "icon_found": true,
+        "icon_theme": "Papirus",
+        "gtk_theme": "Adwaita",
+        "gtk_icon_found": true,
+        "mime": "text/plain",
+        "default": "org.gnome.TextEditor.desktop",
+        "registered": true,
+        "declares": true,
+        "route": "open-with"
+      },
+      "window": {
+        "pid": 3007,
+        "title": "Dispatch.txt — Text Editor",
+        "controls": [
+          "Dispatch.txt — Text Editor",
+          "Text Editor",
+          "Text Editor",
+          "Text Editor",
+          "Print",
+          "Recent",
+          "New tab",
+          "Open",
+          "Find",
+          "Save",
+          "Save As",
+          "Minimize",
+          "Maximize",
+          "Close",
+          "Document text",
+          "Document status",
+          "Go to line",
+          "Indentation: Tabs"
+        ],
+        "content": "Coastal smoke document"
+      },
+      "screenshot": "screenshots/text-editor-mime.png",
+      "closed": true,
+      "journal": {
+        "entries": [
+          {
+            "MESSAGE": "MESA-EGL: warning: failed to get driver name for fd -1",
+            "_EXE": "/usr/bin/mundane-text-editor",
+            "_PID": "3007",
+            "_COMM": "mundane-text-ed",
+            "SYSLOG_IDENTIFIER": "org.joelinux.mundane.TextEditor.desktop"
+          },
+          {
+            "MESSAGE": "MESA-EGL: warning: MESA-LOADER: failed to retrieve device information",
+            "_EXE": "/usr/bin/mundane-text-editor",
+            "_PID": "3007",
+            "_COMM": "mundane-text-ed",
+            "SYSLOG_IDENTIFIER": "org.joelinux.mundane.TextEditor.desktop"
+          },
+          {
+            "MESSAGE": "MESA-EGL: warning: failed to get driver name for fd -1",
+            "_EXE": "/usr/bin/mundane-text-editor",
+            "_PID": "3007",
+            "_COMM": "mundane-text-ed",
+            "SYSLOG_IDENTIFIER": "org.joelinux.mundane.TextEditor.desktop"
+          },
+          {
+            "MESSAGE": "MESA-EGL: warning: egl: failed to create dri2 screen",
+            "_EXE": "/usr/bin/mundane-text-editor",
+            "_PID": "3007",
+            "_COMM": "mundane-text-ed",
+            "SYSLOG_IDENTIFIER": "org.joelinux.mundane.TextEditor.desktop"
+          }
+        ],
+        "crashes": []
+      }
+    },
+    {
+      "app": "video",
+      "desktop": "org.joelinux.mundane.Video.desktop",
+      "binary": "mundane-video",
+      "mimes": [
+        "video/webm",
+        "video/mp4"
+      ],
+      "mode": "desktop",
+      "status": "passed",
+      "launch": {
+        "entry": "/usr/share/applications/org.joelinux.mundane.Video.desktop",
+        "executable": "/usr/bin/mundane-video",
+        "icon": "video-x-generic",
+        "icon_found": true,
+        "icon_theme": "Papirus",
+        "gtk_theme": "Adwaita",
+        "gtk_icon_found": true
+      },
+      "window": {
+        "pid": 3086,
+        "title": "Video",
+        "controls": [
+          "Video",
+          "Video",
+          "Video",
+          "Video",
+          "Open",
+          "Fullscreen",
+          "Minimize",
+          "Maximize",
+          "Close",
+          "Video",
+          "Playback position",
+          "Back 5 seconds",
+          "Play",
+          "Forward 5 seconds"
+        ],
+        "content": null
+      },
+      "screenshot": "screenshots/video-desktop.png",
+      "closed": true,
+      "journal": {
+        "entries": [
+          {
+            "MESSAGE": "MESA-EGL: warning: failed to get driver name for fd -1",
+            "_EXE": "/usr/bin/mundane-video",
+            "_PID": "3086",
+            "_COMM": "mundane-video",
+            "SYSLOG_IDENTIFIER": "org.joelinux.mundane.Video.desktop"
+          },
+          {
+            "MESSAGE": "MESA-EGL: warning: MESA-LOADER: failed to retrieve device information",
+            "_EXE": "/usr/bin/mundane-video",
+            "_PID": "3086",
+            "_COMM": "mundane-video",
+            "SYSLOG_IDENTIFIER": "org.joelinux.mundane.Video.desktop"
+          },
+          {
+            "MESSAGE": "MESA-EGL: warning: failed to get driver name for fd -1",
+            "_EXE": "/usr/bin/mundane-video",
+            "_PID": "3086",
+            "_COMM": "mundane-video",
+            "SYSLOG_IDENTIFIER": "org.joelinux.mundane.Video.desktop"
+          },
+          {
+            "MESSAGE": "MESA-EGL: warning: egl: failed to create dri2 screen",
+            "_EXE": "/usr/bin/mundane-video",
+            "_PID": "3086",
+            "_COMM": "mundane-video",
+            "SYSLOG_IDENTIFIER": "org.joelinux.mundane.Video.desktop"
+          }
+        ],
+        "crashes": []
+      }
+    },
+    {
+      "app": "video",
+      "desktop": "org.joelinux.mundane.Video.desktop",
+      "binary": "mundane-video",
+      "mimes": [
+        "video/webm",
+        "video/mp4"
+      ],
+      "mode": "mime",
+      "file": "Coastal passage.webm",
+      "evidence": "Coastal passage.webm",
+      "status": "passed",
+      "launch": {
+        "entry": "/usr/share/applications/org.joelinux.mundane.Video.desktop",
+        "executable": "/usr/bin/mundane-video",
+        "icon": "video-x-generic",
+        "icon_found": true,
+        "icon_theme": "Papirus",
+        "gtk_theme": "Adwaita",
+        "gtk_icon_found": true,
+        "mime": "video/webm",
+        "default": "org.gnome.Showtime.desktop",
+        "registered": true,
+        "declares": true,
+        "route": "open-with"
+      },
+      "window": {
+        "pid": 3168,
+        "title": "Coastal passage.webm — Video",
+        "controls": [
+          "Coastal passage.webm — Video",
+          "Video",
+          "Video",
+          "Video",
+          "Open",
+          "Fullscreen",
+          "Minimize",
+          "Maximize",
+          "Close",
+          "Coastal passage.webm",
+          "Playback status",
+          "Playback position",
+          "Back 5 seconds",
+          "Pause",
+          "Forward 5 seconds"
+        ],
+        "content": "Coastal passage.webm"
+      },
+      "screenshot": "screenshots/video-mime.png",
+      "closed": true,
+      "journal": {
+        "entries": [
+          {
+            "MESSAGE": "MESA-EGL: warning: failed to get driver name for fd -1",
+            "_EXE": "/usr/bin/mundane-video",
+            "_PID": "3168",
+            "_COMM": "mundane-video",
+            "SYSLOG_IDENTIFIER": "org.joelinux.mundane.Video.desktop"
+          },
+          {
+            "MESSAGE": "MESA-EGL: warning: MESA-LOADER: failed to retrieve device information",
+            "_EXE": "/usr/bin/mundane-video",
+            "_PID": "3168",
+            "_COMM": "mundane-video",
+            "SYSLOG_IDENTIFIER": "org.joelinux.mundane.Video.desktop"
+          },
+          {
+            "MESSAGE": "MESA-EGL: warning: failed to get driver name for fd -1",
+            "_EXE": "/usr/bin/mundane-video",
+            "_PID": "3168",
+            "_COMM": "mundane-video",
+            "SYSLOG_IDENTIFIER": "org.joelinux.mundane.Video.desktop"
+          },
+          {
+            "MESSAGE": "MESA-EGL: warning: egl: failed to create dri2 screen",
+            "_EXE": "/usr/bin/mundane-video",
+            "_PID": "3168",
+            "_COMM": "mundane-video",
+            "SYSLOG_IDENTIFIER": "org.joelinux.mundane.Video.desktop"
+          }
+        ],
+        "crashes": []
+      }
+    },
+    {
+      "app": "weather",
+      "desktop": "org.joelinux.mundane.Weather.desktop",
+      "binary": "mundane-weather",
+      "mimes": [],
+      "mode": "desktop",
+      "status": "passed",
+      "launch": {
+        "entry": "/usr/share/applications/org.joelinux.mundane.Weather.desktop",
+        "executable": "/usr/bin/mundane-weather",
+        "icon": "weather-few-clouds",
+        "icon_found": true,
+        "icon_theme": "Papirus",
+        "gtk_theme": "Adwaita",
+        "gtk_icon_found": true
+      },
+      "window": {
+        "pid": 3259,
+        "title": "Weather",
+        "controls": [
+          "Weather",
+          "Weather",
+          "Weather",
+          "Weather",
+          "Current location",
+          "Show forecast",
+          "Minimize",
+          "Maximize",
+          "Close",
+          "City or coordinates",
+          "Locations",
+          "Abidjan",
+          "Accra",
+          "Adak",
+          "Addis Ababa",
+          "Adelaide",
+          "Aden",
+          "Algiers",
+          "Almaty",
+          "Choose a city or enter latitude longitude and IANA time zone",
+          "MET Norway",
+          "CC BY 4.0"
+        ],
+        "content": null
+      },
+      "screenshot": "screenshots/weather-desktop.png",
+      "closed": true,
+      "journal": {
+        "entries": [
+          {
+            "MESSAGE": "MESA-EGL: warning: failed to get driver name for fd -1",
+            "_EXE": "/usr/bin/mundane-weather",
+            "_PID": "3259",
+            "_COMM": "mundane-weather",
+            "SYSLOG_IDENTIFIER": "org.joelinux.mundane.Weather.desktop"
+          },
+          {
+            "MESSAGE": "MESA-EGL: warning: MESA-LOADER: failed to retrieve device information",
+            "_EXE": "/usr/bin/mundane-weather",
+            "_PID": "3259",
+            "_COMM": "mundane-weather",
+            "SYSLOG_IDENTIFIER": "org.joelinux.mundane.Weather.desktop"
+          },
+          {
+            "MESSAGE": "MESA-EGL: warning: failed to get driver name for fd -1",
+            "_EXE": "/usr/bin/mundane-weather",
+            "_PID": "3259",
+            "_COMM": "mundane-weather",
+            "SYSLOG_IDENTIFIER": "org.joelinux.mundane.Weather.desktop"
+          },
+          {
+            "MESSAGE": "MESA-EGL: warning: egl: failed to create dri2 screen",
+            "_EXE": "/usr/bin/mundane-weather",
+            "_PID": "3259",
+            "_COMM": "mundane-weather",
+            "SYSLOG_IDENTIFIER": "org.joelinux.mundane.Weather.desktop"
+          }
+        ],
+        "crashes": []
+      }
+    }
+  ],
+  "session": {
+    "session": "1",
+    "uid": 1000,
+    "gnome_shell_pid": "447",
+    "wayland": "wayland-0"
+  },
+  "error": "One or more VM checks failed; see report.json",
+  "image_sha256": "b81856992d7d8f5d0d52d881feb2c5bd8f11e8aa1ebddb1580ba05befa5160c5",
+  "harness_commit": "ea01d9e",
+  "suite_commit": "182cd7c"
+}

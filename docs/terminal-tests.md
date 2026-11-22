@@ -31,7 +31,7 @@ With AT-SPI2 2.62.1 and Orca 51.1, the inspector found the GTK application, its 
 
 Those observations were made at the milestone 1 pin, Zed `deb48ceb`. For current results at `f4fe0be1`, including the recorded Terminal Find transcript, see the shared accessibility report. [Current acceptance results](accessibility/report.md)
 
-The joe Linux VM smoke test is pending until the distribution packages mundaneDE and Terminal together.
+The [joe image report](vm/182cd7c/README.md) includes the packaged GNOME Wayland check.
 
 ## Window controls
 

@@ -18,6 +18,6 @@ done
 tests/wayland/run --app archive-manager --at-spi
 ```
 
-Sway and labwc use headless outputs and Pixman. GPUI renders through Mesa lavapipe at scales 1, 1.5 and 2, with larger type and high contrast at scale 2. The joe image smoke test remains pending.
+Sway and labwc use headless outputs and Pixman. GPUI renders through Mesa lavapipe at scales 1, 1.5 and 2, with larger type and high contrast at scale 2. The [joe image report](vm/182cd7c/README.md) includes the packaged GNOME Wayland check.
 
 Round four creates a tar.xz from selected files, adds a second file and confirms removal through the keyboard. Python’s tarfile independently reads the result. Native tests round-trip ZIP, tar, gzip and xz, including a UTF-8 filename, duplicate-name conflicts and stale reviewed files. The writer streams retained libarchive entries into a temporary neighbour. A successful close, sync and version check precede publication. New archives use no-replace creation.

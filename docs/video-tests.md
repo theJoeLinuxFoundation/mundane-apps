@@ -50,4 +50,4 @@ The Wayland tests require the listed plugins, PipeWire, WirePlumber, `wpctl` and
 
 Six pixel-exact references show the sailing clip paused at 0:05 of 0:12. Sway and labwc use headless outputs with Pixman; GPUI uses Mesa lavapipe. Output scales are 100%, 150% and 200%, with high contrast at 200%. The private AT-SPI test reads the slider’s elapsed time and duration, sets the time to seven seconds, steps back five seconds and toggles playback. The original WebM fixtures and their generator use the repository’s BSD-3-Clause licence. [Fixture generator](../tests/fixtures/coastal_passage.py)
 
-The packaged joe Linux VM smoke test is pending on the image.
+The [joe image report](vm/182cd7c/README.md) includes the packaged GNOME Wayland check.
