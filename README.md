@@ -135,6 +135,10 @@ Music plays local FLAC, PCM WAV, Ogg Opus and Ogg Vorbis through PipeWire. **Add
 | Focus Add tracks / return to the queue | F6 / Escape |
 | Increase, decrease or reset text size | Ctrl++ / Ctrl+- / Ctrl+0 |
 
+## Archive Manager
+
+Open a ZIP, tar or gzip-compressed tar archive with Ctrl+O. Use Up and Down to browse the tree and Space to mark entries. Ctrl+E extracts the marked entries or the focused entry, including a selected folder’s descendants. Ctrl+Shift+E extracts the whole archive. Choose a destination in the portal. Archive Manager creates a new folder there and preserves existing files. [Extraction rules and tests](docs/archive-tests.md)
+
 ## Building
 
 Use a Rust toolchain with Cargo, a C/C++ toolchain, pkg-config, and the Linux development files for Wayland, xkbcommon and fontconfig. The release build was tested with Rust 1.100 on x86-64 Linux. Run Terminal in a Wayland session with Mesa, a Vulkan driver, installed fonts and xterm-256color terminfo.

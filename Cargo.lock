@@ -3051,6 +3051,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "mundane-archive-manager"
+version = "0.1.0"
+dependencies = [
+ "gpui",
+ "mundane-services",
+ "mundane-ui",
+ "tempfile",
+]
+
+[[package]]
 name = "mundane-calculator"
 version = "0.1.0"
 dependencies = [
@@ -3188,6 +3198,7 @@ version = "0.1.0"
 dependencies = [
  "accesskit",
  "gpui",
+ "gpui_linux",
  "unicode-segmentation",
 ]
 

@@ -14,3 +14,6 @@ pub mod playback;
 
 #[cfg(feature = "packages")]
 pub mod packages;
+
+#[cfg(feature = "archive")]
+pub mod archive;

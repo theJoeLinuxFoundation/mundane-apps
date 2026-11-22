@@ -246,7 +246,7 @@ def exercise_monitor(args, scale, stack, app, app_id):
 def main():
     global OUTPUT
     parser = argparse.ArgumentParser()
-    parser.add_argument("--app", choices=["terminal", "files", "text-editor", "system-monitor", "image-viewer", "calculator", "document-viewer", "video", "packages", "music"], default="terminal")
+    parser.add_argument("--app", choices=["terminal", "files", "text-editor", "system-monitor", "image-viewer", "calculator", "document-viewer", "video", "packages", "music", "archive-manager"], default="terminal")
     parser.add_argument("--missing-video-decoder", action="store_true", help="inspect Video with the vpx plugin absent")
     parser.add_argument("--fields", action="store_true", help="exercise two-window activation, password and multiline fields")
     parser.add_argument("--cost", type=Path, help="directory containing the two release cost fixture binaries")
@@ -306,7 +306,7 @@ seat seat0 fallback true
         display = until(lambda: next((p for p in RUNTIME.glob("wayland-*") if p.is_socket()), None), "private Wayland socket")
         os.environ["WAYLAND_DISPLAY"] = display.name
         run("dbus-update-activation-environment", "WAYLAND_DISPLAY", "XDG_CURRENT_DESKTOP")
-        if args.app in ("packages", "music") or (args.at_spi and args.app in (
+        if args.app in ("packages", "music", "archive-manager") or (args.at_spi and args.app in (
                 "terminal", "image-viewer", "calculator", "document-viewer", "video") and not args.cost):
             launch(stack, "wtype", "-k", "Shift_L", "-s", "300000", log="seat.log")
         if args.at_spi:
@@ -381,6 +381,12 @@ seat seat0 fallback true
         suite_app = args.app
         app_id = f"org.joelinux.mundane.{suite_app.title().replace('-', '')}"
         argv = [str(Path(os.environ.get(f"MUNDANE_{suite_app.upper().replace('-', '_')}_BIN", ROOT / f"target/debug/mundane-{suite_app}")).resolve())]
+        if suite_app == "archive-manager":
+            archive_dest = Path.home() / "Extracted"
+            archive_dest.mkdir()
+            argv.append(str(ROOT / "tests/fixtures/archive/Coastal survey.zip"))
+            launch(stack, "python3", str(HERE / "chooser_portal.py"), str(archive_dest), log="archive-portal.log")
+            until((RUNTIME / "chooser-ready").exists, "private FileChooser")
         if suite_app == "music":
             from video_audio import start, record, check_tone
             from video_plugins import MUSIC_PLUGINS, configure, loaded_plugins
@@ -448,6 +454,33 @@ seat seat0 fallback true
                 return "ack_configure" in (OUTPUT / log).read_text(errors="replace")
             return app_id in command("-t", "get_tree")
         until(mapped, f"mapped {suite_app}")
+        if suite_app == "archive-manager":
+            until(lambda: "Coastal survey.zip — Archive Manager" in (OUTPUT / log).read_text()
+                  and "wl_keyboard" in (OUTPUT / log).read_text() and ".enter(" in (OUTPUT / log).read_text(),
+                  "mapped and loaded archive")
+            key("Shift_L")
+            if labwc:
+                run("wlrctl", "toplevel", "waitfor", app_id, "state:active")
+            key("Home")
+            key("Down")
+            key("space")
+            key("Down")
+            key("space")
+            if args.profile == "contrast":
+                key("equal", "ctrl")
+            name = f"archive-{args.compositor}-{args.profile}.png"
+            compare_screenshot(name, scale)
+            if args.at_spi:
+                inspect_accessibility(stack, app_id, app.pid)
+            key("e", "ctrl")
+            result = archive_dest / "Coastal survey (extracted)"
+            until(result.is_dir, "published archive extraction")
+            assert (result / "Charts/channel.txt").read_bytes() == b"East channel\n"
+            assert (result / "Charts/tides.csv").is_file() and not (result / "Notes").exists()
+            key("w", "ctrl")
+            assert app.wait(timeout=8) == 0
+            print(f"Passed {name}, marked subtree members and portal extraction")
+            return
         if suite_app == "music":
             def playing(title):
                 return title + " — Music" in (OUTPUT / log).read_text(errors="replace")

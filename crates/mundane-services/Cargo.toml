@@ -26,6 +26,7 @@ tempfile = { version = "3", optional = true }
 url = { version = "2", optional = true }
 
 [features]
+archive = ["dep:anyhow", "dep:tempfile", "dep:rustix"]
 test-audio = ["video"]
 packages = ["dep:anyhow", "dep:serde", "dep:serde_json"]
 video = ["dep:gstreamer", "dep:gstreamer-app", "dep:gstreamer-video", "dep:anyhow", "dep:rustix", "dep:async-channel"]

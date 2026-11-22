@@ -203,6 +203,7 @@ tree = [(n.get_role_name(), n.get_name(), n.get_interfaces()) for n in walk(root
 print(json.dumps(tree, ensure_ascii=False), flush=True)
 expected = {"Terminal": ["Find in Terminal", "Find match", "Find text"],
             "Packages": ["Review package changes", "Install chartroom", "Cancel", "Apply changes"],
+            "ArchiveManager": ["Archive entries", "Extract selected…", "Extract all…", "2 marked"],
             "Music": ["Harbour Lights", "Play", "Playback position", "Add tracks…", "Next track"],
             "Video": ["Coastal passage.webm", "Play", "Playback position", "Playback status"],
             "DocumentViewer": ["Page 2 of 2", "Page number", "Find text", "Document status"],
@@ -225,6 +226,10 @@ if suite == "Packages":
     row = named(root, transition)
     assert row and Atspi.Text.get_text(row, 0, -1) == transition
     assert "Cached repository index" in dialog.get_description()
+if suite == "ArchiveManager":
+    row = named(root, "tides.csv")
+    assert row.get_state_set().contains(Atspi.StateType.SELECTED)
+    assert "Marked" in row.get_description()
 if suite == "Music":
     queue = next(n for n in walk(root) if n.get_role() == Atspi.Role.LIST_BOX)
     rows = children(queue)

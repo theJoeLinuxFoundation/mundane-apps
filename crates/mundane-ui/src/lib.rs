@@ -196,3 +196,6 @@ mod tests {
 
 mod playback;
 pub use playback::{PlaybackControls, TransportAction, TransportState, playback_time};
+
+mod browser;
+pub use browser::{BrowserList, BrowserRow, browser_key, browser_window, byte_size};
