@@ -1,0 +1,199 @@
+#!/usr/bin/env python3
+"""Smoke-test joe's installed applications inside an isolated GNOME Wayland VM."""
+import argparse
+import json
+import os
+from pathlib import Path
+import shlex
+import shutil
+import subprocess
+import sys
+import tempfile
+import time
+
+sys.dont_write_bytecode = True
+from cases import cases, stage
+from machine import boot
+
+ROOT = Path(__file__).resolve().parents[2]
+GUEST = "/run/mundane-app-smoke"
+# Dominant sky/water colours in the actual fixtures, plus PDF page/graph.
+PICTURES = {"video": ("e5cfab", "668e88"), "image-viewer": ("e7cfa1", "619ca1"),
+            "document-viewer": ("faf7ed", "639e96")}
+
+
+def samples(path):
+    with path.open("rb") as f:
+        if f.readline() != b"P6\n":
+            raise ValueError("Expected QMP P6 screendump")
+        size = tuple(map(int, f.readline().split()))
+        width, height = size
+        if f.readline() != b"255\n":
+            raise ValueError("Expected 8-bit QMP screendump")
+        pixels = f.read()
+    if width < 320 or height < 200 or len(pixels) != width * height * 3:
+        raise ValueError("Invalid guest scanout")
+    # Skip shell panels and desktop clocks. Sample RGB triples on an 8px grid.
+    return size, [pixels[i:i+3] for y in range(48, height-48, 8)
+                  for i in range(3 * (width*y+16), 3 * (width*(y+1)-16), 24)]
+
+
+def painted(before, after, case):
+    if before[0] != after[0]:
+        return False
+    changed = [b for a, b in zip(before[1], after[1]) if a != b]
+    if len(changed) < 500 or len(set(changed)) < 12:
+        return False
+    fills = [bytes.fromhex(c) for c in ("17201e", "222e2a", "f8faf8", "e9eeea", "000000", "ffffff")]
+    def matches(pixel, color, tolerance):
+        return all(abs(a-b) <= tolerance for a, b in zip(pixel, color))
+    if sum(any(matches(p, c, 3) for c in fills) for p in changed) < 100:
+        return False
+    for color in PICTURES.get(case["app"], ()) if case["mode"] == "mime" else ():
+        if sum(matches(p, bytes.fromhex(color), 14) for p in changed) < 20:
+            return False
+    return True
+
+
+def probe(vm, verb, *args, timeout=65):
+    argv = ["python3", "-B", GUEST + "/guest.py", verb]
+    argv += [json.dumps(a, ensure_ascii=True) if isinstance(a, (list, dict)) else str(a) for a in args]
+    command = (shlex.join(argv) + " 2>/run/joe-smoke-probe.err || "
+               "{ cat /run/joe-smoke-probe.err; exit 1; }")
+    return json.loads(vm.shell(command, timeout))
+
+
+def wait(description, fn, seconds):
+    deadline = time.monotonic() + seconds
+    while True:
+        result = fn()
+        if result:
+            return result
+        if time.monotonic() > deadline:
+            raise TimeoutError(description)
+        time.sleep(.4)
+
+
+def save_report(run, report):
+    (run / "report.tmp").write_text(json.dumps(report, indent=2) + "\n")
+    (run / "report.tmp").replace(run / "report.json")
+
+
+def qualify(vm, plan, report):
+    run = vm.run
+    wait("joe# serial console (see serial.log)",
+         lambda: b"joe# " in (run / "serial.log").read_bytes(), 240)
+    vm.shell("stty -echo; test \"$(id -u)\" = 0 && . /etc/os-release && test \"$ID\" = joe")
+    vm.shell(f"set -eu; mkdir -p {GUEST} /run/joe-smoke-share; "
+             "mount -t 9p -o trans=virtio,version=9p2000.L,ro smoke /run/joe-smoke-share; "
+             f"cp -R /run/joe-smoke-share/. {GUEST}/; chmod -R a+rX {GUEST}; "
+             "umount /run/joe-smoke-share")
+    def session():
+        try:
+            return probe(vm, "session")
+        except RuntimeError as err:
+            report["session_wait"] = str(err)
+            return None
+    report["session"] = wait("GNOME Wayland autologin: " + str(run), session, 180)
+    report.pop("session_wait", None)
+    vm.key("esc")
+    time.sleep(1)
+    first = probe(vm, "cursor")
+    for case in plan:
+        name = f'{case["app"]}-{case["mode"]}'
+        record = {**case, "status": "running"}
+        report["checks"].append(record)
+        save_report(run, report)
+        print(name, flush=True)
+        cursor = probe(vm, "cursor")
+        previous = probe(vm, "pids", case["binary"])
+        try:
+            vm.capture("baseline.ppm")
+            baseline = samples(run / "baseline.ppm")
+            record["launch"] = probe(vm, "launch", case)
+            record["window"] = probe(vm, "window", case)
+            def rendered():
+                vm.capture("current.ppm")
+                return painted(baseline, samples(run / "current.ppm"), case)
+            wait(name + " painted content", rendered, 15)
+            image = name + ".png"
+            subprocess.run(["magick", "current.ppm", image], cwd=run, check=True,
+                           env={"PATH": os.environ["PATH"], "HOME": str(run),
+                                "TMPDIR": str(run), "MAGICK_TEMPORARY_PATH": str(run)})
+            record["screenshot"] = image
+            vm.key("alt", "f4")
+            probe(vm, "closed", record["window"]["pid"], case["binary"])
+            record["closed"] = True
+            if case["app"] == "packages":
+                record["runtime"] = probe(vm, "packages")
+                listed = record["runtime"]["dave list --json"]
+                if listed["exit"] or listed.get("schema") != "dave.list/1" or not listed.get("count"):
+                    record.setdefault("packaging", []).append("dave list --json could not list installed packages")
+                elif "No packages found." in record["window"]["controls"]:
+                    record.setdefault("packaging", []).append("Packages did not display the installed packages")
+        except Exception as exc:
+            vm.capture(name + "-failure.ppm")
+            record["error"] = str(exc)
+        finally:
+            record["journal"] = probe(vm, "journal", cursor, case)
+            launch = record.get("launch", {})
+            if launch.get("alarm_autostart") is False:
+                record.setdefault("packaging", []).append("Missing Clocks alarm watcher XDG autostart entry")
+            if launch and not launch["icon_found"]:
+                record.setdefault("packaging", []).append("Desktop icon missing from the active theme")
+            if case["mode"] == "mime" and launch and not (launch["registered"] and launch["declares"]):
+                record.setdefault("packaging", []).append("MIME registration missing")
+            record["status"] = "failed" if (
+                record.get("error") or record["journal"]["crashes"] or record.get("packaging")
+            ) else "passed"
+            save_report(run, report)
+        if record["status"] == "failed" and not record.get("closed"):
+            probe(vm, "cleanup", case["binary"], previous)
+        time.sleep(.4)  # Allow the compositor's close animation to finish.
+    # A systemd-coredump record can arrive after its process disappears.
+    time.sleep(2)
+    for case in (c for c in plan if c["mode"] == "desktop"):
+        late = probe(vm, "journal", first, case)["crashes"]
+        if late:
+            report.setdefault("crashes", {})[case["app"]] = late
+    if report.get("crashes") or any(c["status"] != "passed" for c in report["checks"]):
+        raise RuntimeError("One or more VM checks failed; see report.json")
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("image", type=Path, nargs="?", help="standalone joe desktop disk image")
+    parser.add_argument("--list", action="store_true", help="list cases without booting")
+    args = parser.parse_args()
+    plan = cases(ROOT)
+    if args.list:
+        for case in plan:
+            print(case["app"], case["mode"], case.get("file", ""))
+        return
+    if not args.image:
+        parser.error("provide the packaged desktop image or --list")
+    image = args.image.resolve(strict=True)
+    for tool in ("qemu-system-x86_64", "qemu-img", "magick"):
+        if not shutil.which(tool):
+            parser.error("missing host tool: " + tool)
+    parent = ROOT / "target/joe-vm"
+    parent.mkdir(parents=True, exist_ok=True)
+    run = Path(tempfile.mkdtemp(dir=parent, prefix="smoke-"))
+    print(run, flush=True)
+    report = {"image": str(image), "planned": len(plan), "status": "incomplete", "checks": []}
+    try:
+        share = run / "share"
+        stage(ROOT, share)
+        with boot(image, run, share) as vm:
+            qualify(vm, plan, report)
+        report["status"] = "passed"
+    except BaseException as exc:
+        report.update(status="failed", error=str(exc))
+        raise
+    finally:
+        save_report(run, report)
+    print(f'Passed {len(plan)} checks. {run / "report.json"}')
+
+
+if __name__ == "__main__":
+    main()
