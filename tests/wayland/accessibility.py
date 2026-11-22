@@ -1,36 +1,276 @@
-"""Inspect AT-SPI application roots while the application's dialog is focused."""
+"""Disposable GTK control and AT-SPI inspector, on the test session's buses."""
+import json
+import os
+import subprocess
 import sys
 import time
-import gi
+from pathlib import Path
 
-if "--control" in sys.argv:
+import gi
+gi.require_version("Atspi", "2.0")
+from gi.repository import Atspi, GLib
+
+if sys.argv[1] == "--control":
     gi.require_version("Gtk", "3.0")
-    from gi.repository import GLib, Gtk
+    from gi.repository import Gtk
     GLib.set_prgname("mundane-probe-control")
     app = Gtk.Window(title="AT-SPI control")
     app.set_accept_focus(False)
     app.add(Gtk.Button(label="Probe button"))
     app.show_all()
     Gtk.main()
-else:
-    gi.require_version("Atspi", "2.0")
-    from gi.repository import Atspi
-    Atspi.init()
-    deadline = time.monotonic() + 10
-    while time.monotonic() < deadline:
-        desktop = Atspi.get_desktop(0)
-        roots = [desktop.get_child_at_index(i) for i in range(desktop.get_child_count())]
-        names = [app.get_name() for app in roots]
-        if "mundane-probe-control" in names:
-            break
-        time.sleep(0.1)
-    assert "mundane-probe-control" in names, names
-    app_pid = int(sys.argv[1])
-    assert all(app.get_process_id() != app_pid for app in roots), names
-    def tree(node):
-        yield node.get_role_name(), node.get_name()
-        for i in range(node.get_child_count()):
-            yield from tree(node.get_child_at_index(i))
-    nodes = list(tree(roots[names.index("mundane-probe-control")]))
-    assert ("push button", "Probe button") in nodes or ("button", "Probe button") in nodes, nodes
-    print("AT-SPI roots:", names, "control tree:", nodes)
+    sys.exit()
+
+Atspi.init()
+desktop = Atspi.get_desktop(0)
+ctx = GLib.MainContext.default()
+
+
+def drain(seconds=0.1):
+    end = time.monotonic() + seconds
+    while time.monotonic() < end:
+        while ctx.pending():
+            ctx.iteration(False)
+        time.sleep(0.005)
+
+
+def wait(fn, description):
+    for _ in range(80):
+        result = fn()
+        if result:
+            return result
+        drain()
+    raise AssertionError(description)
+
+
+def children(node):
+    return [x for i in range(node.get_child_count()) if (x := node.get_child_at_index(i))]
+
+
+def walk(node):
+    yield node
+    for child in children(node):
+        yield from walk(child)
+
+
+def named(root, name):
+    return next((n for n in walk(root) if n.get_name() == name), None)
+
+
+def gtk():
+    return next((n for n in children(desktop) if n.get_name() == "mundane-probe-control"), None)
+
+
+if sys.argv[1] == "--observe":
+    # Keep an AT client registered across the shorter inspector and Orca commands.
+    stream = Path(os.environ["EVENT_LOG"]).open("w", buffering=1)
+    def observed(event):
+        try:
+            print(json.dumps([time.monotonic(), event.type, event.source.get_name(),
+                              event.detail1, event.detail2, str(event.any_data)], ensure_ascii=False), file=stream)
+        except GLib.Error:
+            pass
+    listener = Atspi.EventListener.new(observed)
+    for signal in ("object:state-changed:focused", "object:text-changed", "object:text-caret-moved",
+                   "object:text-selection-changed", "object:children-changed", "window"):
+        assert listener.register(signal)
+    assert named(wait(gtk, "GTK registration"), "Probe button")
+    Path(os.environ["XDG_RUNTIME_DIR"], "observer-ready").touch()
+    Atspi.event_main()
+    sys.exit()
+
+pid, suite = int(sys.argv[1]), sys.argv[2]
+assert named(wait(gtk, "GTK control"), "Probe button")
+def app_root():
+    return next((n for n in children(desktop) if n.get_process_id() == pid), None)
+
+
+def status(enabled):
+    subprocess.run(["gdbus", "call", "--session", "--dest", "org.a11y.Bus", "--object-path", "/org/a11y/bus", "--method",
+                    "org.freedesktop.DBus.Properties.Set", "org.a11y.Status", "IsEnabled",
+                    "<true>" if enabled else "<false>"], check=True)
+
+
+if suite == "Fields":
+    assert app_root() is None, "adapter active before enable"
+    status(True)
+    def windows():
+        root = app_root()
+        if root and {n.get_name() for n in children(root)} == {"Document fixture", "Password fixture"}:
+            return root
+        return None
+    try:
+        root = wait(windows, "late activation of both windows")
+    except AssertionError:
+        if (root := app_root()):
+            print([(n.get_role_name(), n.get_name()) for n in walk(root)], flush=True)
+        raise
+    assert {n.get_name() for n in children(root)} == {"Document fixture", "Password fixture"}
+    def snapshot(root):
+        return [(n.get_name(), n.get_role_name(), n.get_interfaces()) for n in walk(root)]
+    first = snapshot(root)
+    status(False)
+    wait(lambda: app_root() is None, "deactivation")
+    status(True)
+    root = wait(windows, "re-registration")
+    assert sorted(snapshot(root)) == sorted(first)
+    field = named(root, "Passphrase")
+    assert Atspi.Text.get_text(field, 0, -1) == "" and field.get_caret_offset() == 0
+    assert field.get_role() == Atspi.Role.PASSWORD_TEXT
+    secret = "së😀"
+    subprocess.run(["swaymsg", "-q", '[title="Password fixture"] focus'], check=True)
+    subprocess.run(["wtype", "-s", "150", secret, "-s", "100"], check=True)
+    wait(lambda: Atspi.Text.get_text(field, 0, -1) == "•••", "masked field")
+    assert field.get_caret_offset() == 3
+    subprocess.run(["wtype", "-k", "BackSpace", "-s", "150"], check=True)
+    wait(lambda: Atspi.Text.get_text(field, 0, -1) == "••", "masked deletion")
+    result = Path(os.environ["XDG_RUNTIME_DIR"]) / "accepted"
+    disabled = named(named(root, "Password fixture"), "Close fixture")
+    disabled.clear_cache()
+    reported_sensitive = disabled.get_state_set().contains(Atspi.StateType.SENSITIVE)
+    try:
+        disabled.do_action(0)
+    except GLib.Error:
+        pass
+    drain()
+    assert not result.exists()
+    doc = named(root, "Notes")
+    assert Atspi.Text.get_text(doc, 0, -1) == "e\u0301😀\r\nline two"
+    assert doc.get_character_count() == 13
+    subprocess.run(["swaymsg", "-q", '[title="Document fixture"] focus'], check=True)
+    assert doc.set_caret_offset(3)
+    wait(lambda: doc.get_caret_offset() == 3, "non-BMP caret")
+    subprocess.run(["wtype", "-M", "shift", "-k", "Left", "-m", "shift"], check=True)
+    wait(lambda: doc.get_caret_offset() == 2, "reversed selection")
+    selection = Atspi.Text.get_selection(doc, 0)
+    assert (selection.start_offset, selection.end_offset) == (2, 3)
+    frame = named(root, "Document fixture")
+    close = named(frame, "Close fixture")
+    assert close.do_action(0)
+    try:
+        close.do_action(0)  # race a second request against window teardown
+    except GLib.Error:
+        pass
+    wait(lambda: not named(root, "Document fixture"), "frame removal")
+    assert result.read_text() == "close\n" and named(root, "Password fixture")
+    events = [json.loads(line) for line in Path(os.environ["EVENT_LOG"]).read_text().splitlines()]
+    mask_events = [e for e in events if e[2] == "Passphrase" and e[1].startswith("object:text-changed")]
+    assert mask_events and all(set(e[5]) == {"•"} for e in mask_events), mask_events
+    assert any(e[1].endswith(":delete") and e[3:] == [2, 1, "•"] for e in mask_events), mask_events
+    assert not reported_sensitive, "AccessKit reported the disabled push button as SENSITIVE"
+    print("Passed two-window lifecycle, password, Unicode multiline selection and action teardown")
+    sys.exit()
+root = wait(lambda: next((n for n in children(desktop) if n.get_process_id() == pid), None), "GPUI registration")
+if suite == "Processes":
+    listbox = named(root, "Processes")
+    row = named(listbox, "file-indexer (PID 1978)")
+    assert row.get_state_set().contains(Atspi.StateType.SELECTED)
+    assert row.get_description() and "128" in row.get_description()
+    before = [n.get_name() for n in children(listbox)]
+    assert row.get_attributes()["posinset"] == "2" and row.get_attributes()["setsize"] == "8"
+    assert named(root, "Process").do_action(0)
+    def reordered():
+        listbox.clear_cache()
+        return [n.get_name() for n in children(listbox)] != before
+    wait(reordered, "row reorder")
+    assert named(listbox, row.get_name()) == row
+    subprocess.run(["swaymsg", "-q", "output HEADLESS-1 mode 720x240"], check=True)
+    subprocess.run(["wtype", "-s", "150", "-k", "End", "-s", "100"], check=True)
+    def selected_last():
+        listbox.clear_cache()
+        for item in children(listbox):
+            item.clear_cache()
+            if item.get_attributes().get("posinset") == "8" and item.get_state_set().contains(Atspi.StateType.SELECTED):
+                return item
+        return None
+    last = wait(selected_last, "selection and scroll across viewport boundary")
+    rect = Atspi.Component.get_extents(listbox, Atspi.CoordType.WINDOW)
+    cell = Atspi.Component.get_extents(last, Atspi.CoordType.WINDOW)
+    assert rect.y <= cell.y < rect.y + rect.height and cell.y+cell.height <= rect.y+rect.height+1
+    subprocess.run(["swaymsg", "-q", "output HEADLESS-1 mode 720x440"], check=True)
+    subprocess.run(["wtype", "-s", "150", "-k", "Home", "-s", "100"], check=True)
+    wait(lambda: named(listbox, "file-indexer (PID 1978)"), "rematerialized first row")
+    row = named(listbox, "file-indexer (PID 1978)")
+    assert row.do_action(0)
+    wait(lambda: row.get_state_set().contains(Atspi.StateType.SELECTED), "restore selected process")
+    sys.exit()
+tree = [(n.get_role_name(), n.get_name(), n.get_interfaces()) for n in walk(root)]
+print(json.dumps(tree, ensure_ascii=False), flush=True)
+expected = {"Terminal": ["Find in Terminal", "Find match", "Find text"],
+            "Files": ["Open folder", "Cancel", "Open"],
+            "TextEditor": ["Document status", "Find", "Save"],
+            "SystemMonitor": ["End process?", "Cancel", "End process"]}
+assert all(named(root, name) for name in expected[suite]), tree
+if suite in ("Files", "Terminal", "SystemMonitor"):
+    dialog = next(n for n in walk(root) if n.get_role() == Atspi.Role.DIALOG)
+    assert dialog.get_state_set().contains(Atspi.StateType.MODAL)
+    assert dialog.get_description()
+    assert all(n.get_role() != Atspi.Role.TITLE_BAR for n in walk(root))
+if suite == "TextEditor":
+    body = named(root, "Document text")
+    assert "Inspect the tide pools." in Atspi.Text.get_text(body, 0, -1)
+    assert Atspi.Text.get_text(named(root, "Find in document"), 0, -1) == "tide pools"
+if suite == "Terminal":
+    field = named(root, "Find text")
+    assert "Text" in field.get_interfaces()
+    assert Atspi.Text.get_text(field, 0, -1) == "Tokyo"
+    assert field.get_caret_offset() == 5
+    component = Atspi.Component
+    frame = children(root)[0]
+    dialog = named(root, "Find in Terminal")
+    win = component.get_extents(field, Atspi.CoordType.WINDOW)
+    parent = component.get_extents(field, Atspi.CoordType.PARENT)
+    origin = component.get_extents(dialog, Atspi.CoordType.WINDOW)
+    assert (win.x, win.y) == (parent.x+origin.x, parent.y+origin.y)
+    assert win.width > 0 and win.height > 0
+    hit = component.get_accessible_at_point(frame, win.x+win.width//2, win.y+win.height//2, Atspi.CoordType.WINDOW)
+    assert hit and hit.get_name() == "Find text", (hit, win)
+    for offset in range(5):
+        box = Atspi.Text.get_character_extents(field, offset, Atspi.CoordType.WINDOW)
+        assert win.x <= box.x < win.x+win.width and win.y <= box.y < win.y+win.height
+        assert box.width > 0 and box.height > 0
+    field.clear_cache()
+    assert field.get_state_set().contains(Atspi.StateType.FOCUSED)
+    start_typing = time.monotonic()
+    subprocess.run(["wtype", "-k", "z", "-s", "400"], check=True)
+    wait(lambda: Atspi.Text.get_text(field, 0, -1) == "Tokyoz", "typed character")
+    subprocess.run(["wtype", "-k", "BackSpace", "-s", "200"], check=True)
+    assert field.add_selection(1, 4)
+    wait(lambda: (lambda r: (r.start_offset, r.end_offset) == (1, 4))(Atspi.Text.get_selection(field, 0)), "remote text selection")
+    subprocess.run(["wtype", "😀"], check=True)
+    wait(lambda: Atspi.Text.get_text(field, 0,-1) == "T😀o", "replacement of remote selection")
+    assert field.get_caret_offset() == 2
+    subprocess.run(["wtype", "-k", "BackSpace"], check=True)
+    wait(lambda: Atspi.Text.get_text(field, 0,-1) == "To", "delete non-BMP character")
+    assert field.get_caret_offset() == 1
+    heading = named(root, "Find in terminal")
+    assert any("Text" in n.get_interfaces() and Atspi.Text.get_text(n, 0, -1) == "Find in terminal" for n in walk(heading))
+    subprocess.run(["wtype", "-M", "ctrl", "-k", "a", "-m", "ctrl", "Software rendering"], check=True)
+    wait(lambda: Atspi.Text.get_text(field, 0, -1) == "Software rendering", "known match")
+    def orca(module, method):
+        args = ["gdbus", "call", "--session", "--dest", "org.gnome.Orca1.Service",
+                "--object-path", "/org/gnome/Orca1/Service/"+module,
+                "--method", f"org.gnome.Orca1.{module}.{method}", "true"]
+        assert "true" in subprocess.check_output(args, text=True)
+        drain(0.2)
+    orca("ObjectNavigator", "MoveToPreviousSibling")
+    button = named(root, "Find match")
+    assert button.get_action_name(0) == "click" and button.do_action(0)
+    wait(lambda: not named(root, "Find in Terminal"), "removal after AT-SPI click")
+    shell = wait(lambda: named(root, "Shell"), "restored Shell context")
+    shell.clear_cache()
+    assert shell.get_state_set().contains(Atspi.StateType.FOCUSED)
+    drain(0.6)
+    orca("WhereAmIPresenter", "WhereAmIBasic")
+    events = [json.loads(line) for line in Path(os.environ["EVENT_LOG"]).read_text().splitlines()]
+    field_events = [e for e in events if e[2] == "Find text" and e[0] >= start_typing]
+    for kind, start, length, data in [("insert", 5, 1, "z"), ("delete", 5, 1, "z"),
+                                      ("insert", 1, 1, "😀"), ("delete", 1, 1, "😀")]:
+        assert any(e[1] == "object:text-changed:"+kind and e[3:] == [start,length,data] for e in field_events), field_events
+    assert any(e[1] == "object:text-selection-changed" for e in field_events)
+    assert any(e[1] == "object:text-caret-moved" and e[3] == 1 for e in field_events)
+    spoken = [json.loads(line) for line in Path(os.environ["ORCA_TRANSCRIPT"]).read_text().splitlines()]
+    phrases = [s["text"].strip() for s in spoken]
+    for phrase in ["Find text entry Tokyo", "Find match button", "Find in terminal heading", "Shell terminal $"]:
+        assert phrase in phrases, phrases
+    assert any(s["text"] == "z" and s["time"] >= start_typing for s in spoken), "Orca did not echo z typed into Find text"

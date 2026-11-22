@@ -95,19 +95,17 @@ def find_and_copy(text):
 
 
 def inspect_accessibility(stack, app_id, app_pid):
-    # An accessible GTK control on the same bus distinguishes a missing bridge from a broken probe.
-    control = launch(stack, "python3", str(HERE / "accessibility.py"), "--control", log="gtk.log")
-    until(lambda: control.poll() is None and "AT-SPI control" in output("swaymsg", "-r", "-t", "get_tree"),
-          "GTK control window")
+    suite = app_id.rsplit(".", 1)[1]
+    listing = output("orca", "--list-apps")
+    (OUTPUT / f"orca-{suite}.txt").write_text(listing + "\n")
+    assert "mundane-probe-control" in listing and str(app_pid) in listing, listing
     run("swaymsg", "-q", f'[app_id="{app_id}"] focus')
     key("Tab")
     key("Tab", "shift")
-    run("python3", str(HERE / "accessibility.py"), str(app_pid))
-    listing = output("orca", "--list-apps")
-    (OUTPUT / f"orca-{app_id}.txt").write_text(listing + "\n")
-    assert "mundane-probe-control" in listing and str(app_pid) not in listing, listing
-    control.terminate()
-    control.wait(timeout=4)
+    inspection = subprocess.run(["python3", str(HERE / "accessibility.py"), str(app_pid), suite],
+                                timeout=35, stdout=subprocess.PIPE, text=True)
+    (OUTPUT / f"tree-{suite}.json").write_text(inspection.stdout)
+    inspection.check_returncode()
 
 
 def compare_screenshot(name, scale):
@@ -226,6 +224,8 @@ def exercise_monitor(args, scale, stack, app, app_id):
         key("equal", "ctrl")
     name = f"monitor-{args.compositor}-{args.profile}.png"
     compare_screenshot(name, scale)
+    if args.at_spi:
+        run("python3", str(HERE / "accessibility.py"), str(app.pid), "Processes")
     key("Delete")
     if args.at_spi:
         inspect_accessibility(stack, app_id, app.pid)
@@ -243,12 +243,21 @@ def exercise_monitor(args, scale, stack, app, app_id):
 
 
 def main():
+    global OUTPUT
     parser = argparse.ArgumentParser()
     parser.add_argument("--app", choices=["terminal", "files", "text-editor", "system-monitor"], default="terminal")
+    parser.add_argument("--fields", action="store_true", help="exercise two-window activation, password and multiline fields")
+    parser.add_argument("--cost", type=Path, help="directory containing the two release cost fixture binaries")
     parser.add_argument("--at-spi", action="store_true")
     parser.add_argument("--profile", choices=["standard", "fractional", "contrast"], default="standard")
     parser.add_argument("--compositor", choices=["sway", "labwc"], default="sway")
     args = parser.parse_args()
+    if args.cost or args.fields:
+        args.at_spi = True
+    if args.at_spi:
+        suite = "fields" if args.fields else "cost" if args.cost else args.app
+        OUTPUT = OUTPUT / f"accessibility-{suite}-{args.profile}"
+        OUTPUT.mkdir(exist_ok=True)
     labwc = args.compositor == "labwc"
     if args.at_spi and labwc:
         parser.error("The AT-SPI control window requires the Sway test configuration.")
@@ -274,12 +283,6 @@ seat seat0 fallback true
     os.environ["SHELL"] = str(shell)
     (Path.home() / "notes.txt").write_text("Terminal checks\n\nSoftware rendering\nWide characters   東京\n")
     with ExitStack() as stack:
-        if args.at_spi:
-            address = f"unix:path={RUNTIME}/at-spi"
-            os.environ["AT_SPI_BUS_ADDRESS"] = address
-            launch(stack, "dbus-daemon", "--nofork", "--config-file=/usr/share/defaults/at-spi2/accessibility.conf",
-                   f"--address={address}", log="at-spi-bus.log")
-            until(lambda: (RUNTIME / "at-spi").is_socket(), "private AT-SPI bus")
         if labwc:
             lab_config = RUNTIME / "labwc"
             lab_config.mkdir()
@@ -296,6 +299,66 @@ seat seat0 fallback true
         display = until(lambda: next((p for p in RUNTIME.glob("wayland-*") if p.is_socket()), None), "private Wayland socket")
         os.environ["WAYLAND_DISPLAY"] = display.name
         run("dbus-update-activation-environment", "WAYLAND_DISPLAY", "XDG_CURRENT_DESKTOP")
+        if args.at_spi:
+            if args.app == "terminal" and not args.cost:
+                launch(stack, "wtype", "-k", "Shift_L", "-s", "300000", log="seat.log")
+            from gi.repository import Gio, GLib
+            launch(stack, "/usr/lib/at-spi-bus-launcher", "--launch-immediately", log="a11y-bus.log")
+            bus = Gio.bus_get_sync(Gio.BusType.SESSION)
+            def private_address():
+                try:
+                    return bus.call_sync("org.a11y.Bus", "/org/a11y/bus", "org.a11y.Bus",
+                                         "GetAddress", None, None, Gio.DBusCallFlags.NONE, 1000, None).unpack()[0]
+                except GLib.Error:
+                    return None
+            address = until(private_address, "private accessibility launcher")
+            socket = Path(address.split("unix:path=", 1)[1].split(",")[0])
+            assert socket.is_relative_to(RUNTIME) and socket.is_socket(), address
+            os.environ["AT_SPI_BUS_ADDRESS"] = address
+            properties = ("gdbus", "call", "--session", "--dest", "org.a11y.Bus", "--object-path", "/org/a11y/bus", "--method")
+            output(*properties, "org.freedesktop.DBus.Properties.Set", "org.a11y.Status", "IsEnabled", "<true>")
+            assert "true" in output(*properties, "org.freedesktop.DBus.Properties.Get", "org.a11y.Status", "IsEnabled")
+            launch(stack, "/usr/lib/at-spi2-registryd", log="registry.log")
+            until(lambda: "true" in output("gdbus", "call", "--address", address, "--dest", "org.freedesktop.DBus",
+                  "--object-path", "/org/freedesktop/DBus", "--method", "org.freedesktop.DBus.NameHasOwner",
+                  "org.a11y.atspi.Registry"), "private AT-SPI registry")
+            launch(stack, "python3", str(HERE / "accessibility.py"), "--control", log="gtk.log")
+            until(lambda: "AT-SPI control" in output("swaymsg", "-r", "-t", "get_tree"), "GTK window")
+            run("swaymsg", "-q", '[title="AT-SPI control"] move scratchpad')
+            os.environ["EVENT_LOG"] = str(OUTPUT / ("events-" + ("fields" if args.fields else args.app) + ".jsonl"))
+            launch(stack, "python3", str(HERE / "accessibility.py"), "--observe", log=f"events-{'fields' if args.fields else args.app}.log")
+            until((RUNTIME / "observer-ready").exists, "registered GTK control and event observer")
+            if args.fields:
+                output(*properties, "org.freedesktop.DBus.Properties.Set", "org.a11y.Status", "IsEnabled", "<false>")
+                fixture = launch(stack, str(ROOT / "target/debug/examples/accessible-fields"), log="fields.log")
+                until(lambda: "Password fixture" in output("swaymsg", "-r", "-t", "get_tree"), "two mapped windows")
+                subprocess.run(["python3", str(HERE / "accessibility.py"), str(fixture.pid), "Fields"],
+                               check=True, timeout=60)
+                return
+            if args.cost:
+                from frame_cost import measure
+                def set_enabled(enabled):
+                    output(*properties, "org.freedesktop.DBus.Properties.Set", "org.a11y.Status",
+                           "IsEnabled", "<true>" if enabled else "<false>")
+                measure(args.cost.resolve(), set_enabled)
+                return
+            if args.app == "terminal":
+                profile = Path(os.environ["XDG_DATA_HOME"]) / "orca"
+                profile.mkdir(exist_ok=True)
+                (profile / "orca-customizations.py").write_text(
+                    "from orca import gsettings_registry, speech_manager\n"
+                    "gsettings_registry.get_registry().set_runtime_value('typing-echo', 'character-echo', True)\n"
+                    "gsettings_registry.get_registry().set_runtime_value('typing-echo', 'key-echo', True)\n"
+                    "gsettings_registry.get_registry().set_runtime_value('typing-echo', 'alphabetic-keys', True)\n"
+                    "speech_manager.SPEECH_FACTORY_MODULES[:] = ['recording_speech']\n"
+                    "gsettings_registry.get_registry().set_runtime_value('speech', 'speech-server-factory', 'recording_speech')\n")
+                transcript = OUTPUT / "orca-terminal.jsonl"
+                transcript.write_text("")
+                os.environ["ORCA_TRANSCRIPT"] = str(transcript)
+                launch(stack, "orca", "--debug", "--debug-file", str(OUTPUT / "orca-debug.log"), log="orca.log", env={**os.environ, "PYTHONPATH": str(HERE)+os.pathsep+os.environ.get("PYTHONPATH", ""),
+                       "ORCA_TRANSCRIPT": str(transcript), "PULSE_SERVER": "unix:"+str(RUNTIME / "no-audio"),
+                       "SPEECHD_ADDRESS": "unix_socket:"+str(RUNTIME / "no-speechd")})
+                until(lambda: transcript.stat().st_size, "Orca recording backend")
         def command(*args):
             return output("swaymsg", "-r", *args)
         def resize(width, height):
@@ -457,7 +520,6 @@ seat seat0 fallback true
             type_text("Tokyo")
             inspect_accessibility(stack, app_id, app.pid)
             command(f'[app_id="{app_id}"] focus')
-            key("Escape")
         if labwc:
             check_window_actions(OUTPUT / log)
         else:
