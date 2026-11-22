@@ -46,3 +46,9 @@ tests/cost/build "$work" --trace
 COST_TRIALS=20 ACTIVATION_TRIALS=20 tests/wayland/run --cost "$work"
 python3 -B tests/cost/report.py "$work"
 ```
+
+## Typing echo under mundaneDE
+
+The Terminal Find check passed under mundaneDE main at `2a0c8d0`. Its production panel launched Orca and authorized its keyboard monitor. A standard US evdev key from the private Sway host reached the nested winit seat. Find changed from “Tokyo” to “Tokyoz”, AT-SPI reported an insertion of “z” at offset 5 and the caret at 6, and Orca’s recording speech backend said **“z”**. The Sway-only variant above retains its original assertion. [Recorded speech](orca-mundanede.jsonl)
+
+Build a scratch clone of mundaneDE with `cargo build --locked --bin mundane-de --example nested-input`. From this repository run `tests/wayland/mundanede-echo /path/to/scratch/clone` with the Wayland test dependencies, bubblewrap, xkbcli, mundaneDE panel dependencies and Orca on PATH. The wrapper gives the panel a private session and system-bus substitute, headless output, temporary home and PID namespace.

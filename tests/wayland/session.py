@@ -95,6 +95,22 @@ def find_and_copy(text):
     until(lambda: clipboard() == text, f"selected text {text!r} on the private clipboard")
 
 
+def recording_profile():
+    profile = Path(os.environ["XDG_DATA_HOME"]) / "orca"
+    profile.mkdir(exist_ok=True)
+    (profile / "orca-customizations.py").write_text(
+        "from orca import gsettings_registry, speech_manager\n"
+        "gsettings_registry.get_registry().set_runtime_value('typing-echo', 'character-echo', True)\n"
+        "gsettings_registry.get_registry().set_runtime_value('typing-echo', 'key-echo', True)\n"
+        "gsettings_registry.get_registry().set_runtime_value('typing-echo', 'alphabetic-keys', True)\n"
+        "speech_manager.SPEECH_FACTORY_MODULES[:] = ['recording_speech']\n"
+        "gsettings_registry.get_registry().set_runtime_value('speech', 'speech-server-factory', 'recording_speech')\n")
+    transcript = OUTPUT / "orca-terminal.jsonl"
+    transcript.write_text("")
+    os.environ["ORCA_TRANSCRIPT"] = str(transcript)
+    return transcript
+
+
 def inspect_accessibility(stack, app_id, app_pid, suite=None):
     suite = suite or app_id.rsplit(".", 1)[1]
     listing = output("orca", "--list-apps")
@@ -273,7 +289,10 @@ def main():
     parser.add_argument("--at-spi", action="store_true")
     parser.add_argument("--profile", choices=["standard", "fractional", "contrast"], default="standard")
     parser.add_argument("--compositor", choices=["sway", "labwc"], default="sway")
+    parser.add_argument("--mundanede-echo", type=Path, metavar="CHECKOUT", help="test physical typing echo in a scratch build of mundaneDE")
     args = parser.parse_args()
+    if args.mundanede_echo:
+        args.at_spi = True
     if args.missing_video_decoder:
         args.app = "video"
         args.at_spi = True
@@ -281,6 +300,8 @@ def main():
         args.at_spi = True
     if args.at_spi:
         suite = "fields" if args.fields else "cost" if args.cost else args.app
+        if args.mundanede_echo:
+            suite = "mundanede-echo"
         if args.missing_video_decoder:
             suite = "missing-video-decoder"
         OUTPUT = OUTPUT / f"accessibility-{suite}-{args.profile}"
@@ -356,6 +377,10 @@ seat seat0 fallback true
             until(lambda: "true" in output("gdbus", "call", "--address", address, "--dest", "org.freedesktop.DBus",
                   "--object-path", "/org/freedesktop/DBus", "--method", "org.freedesktop.DBus.NameHasOwner",
                   "org.a11y.atspi.Registry"), "private AT-SPI registry")
+            if args.mundanede_echo:
+                from mundanede_echo import check
+                check(args.mundanede_echo.resolve(), stack, launch, until, ROOT, RUNTIME, OUTPUT, recording_profile())
+                return
             launch(stack, "python3", str(HERE / "accessibility.py"), "--control", log="gtk.log")
             until(lambda: "AT-SPI control" in output("swaymsg", "-r", "-t", "get_tree"), "GTK window")
             run("swaymsg", "-q", '[title="AT-SPI control"] move scratchpad')
@@ -377,18 +402,7 @@ seat seat0 fallback true
                 measure(args.cost.resolve(), set_enabled)
                 return
             if args.app == "terminal":
-                profile = Path(os.environ["XDG_DATA_HOME"]) / "orca"
-                profile.mkdir(exist_ok=True)
-                (profile / "orca-customizations.py").write_text(
-                    "from orca import gsettings_registry, speech_manager\n"
-                    "gsettings_registry.get_registry().set_runtime_value('typing-echo', 'character-echo', True)\n"
-                    "gsettings_registry.get_registry().set_runtime_value('typing-echo', 'key-echo', True)\n"
-                    "gsettings_registry.get_registry().set_runtime_value('typing-echo', 'alphabetic-keys', True)\n"
-                    "speech_manager.SPEECH_FACTORY_MODULES[:] = ['recording_speech']\n"
-                    "gsettings_registry.get_registry().set_runtime_value('speech', 'speech-server-factory', 'recording_speech')\n")
-                transcript = OUTPUT / "orca-terminal.jsonl"
-                transcript.write_text("")
-                os.environ["ORCA_TRANSCRIPT"] = str(transcript)
+                transcript = recording_profile()
                 launch(stack, "orca", "--debug", "--debug-file", str(OUTPUT / "orca-debug.log"), log="orca.log", env={**os.environ, "PYTHONPATH": str(HERE)+os.pathsep+os.environ.get("PYTHONPATH", ""),
                        "ORCA_TRANSCRIPT": str(transcript), "PULSE_SERVER": "unix:"+str(RUNTIME / "no-audio"),
                        "SPEECHD_ADDRESS": "unix_socket:"+str(RUNTIME / "no-speechd")})

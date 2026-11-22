@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+# Keep Xwayland, Orca and all desktop services in the disposable nested session.
+set -eu
+cd "$(dirname "$0")/../.."
+checkout=$(realpath "${1:?supply a scratch mundaneDE checkout built with --bin mundane-de --example nested-input}")
+orca=$(command -v orca)
+mkdir -p target/wayland
+mounts=()
+if [[ $orca != /usr/bin/orca ]]; then
+    # mundaneDE starts this exact executable and authorizes its PID.
+    mounts+=(--overlay-src /usr/bin --tmp-overlay /usr/bin --ro-bind "$orca" /usr/bin/orca)
+fi
+exec bwrap --unshare-net --unshare-ipc --unshare-pid --die-with-parent \
+    --ro-bind / / --dev /dev --proc /proc --tmpfs /tmp --dir /tmp/.X11-unix \
+    --ro-bind "$checkout" "$checkout" --bind "$PWD/target/wayland" "$PWD/target/wayland" \
+    "${mounts[@]}" --setenv XDG_CACHE_HOME /tmp \
+    tests/wayland/run --mundanede-echo "$checkout"
