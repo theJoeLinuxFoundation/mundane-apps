@@ -55,3 +55,15 @@ The screenshots use the production renderers, private labwc, software rendering 
 | Buttons, toggle, badges and tooltip | [Dark](design/panel-dark.png) | [Light](design/panel-light.png) | [Contrast](design/panel-high-contrast.png) | [Contrast](design/panel-light-high-contrast.png) | [Accent](design/panel-accent.png) | [Reduced](design/panel-reduced-motion.png) |
 
 Run `tests/wayland/run --design-sheet panel` for the images and the private-bus keyboard and AT-SPI checks.
+
+## Popovers and choices
+
+`Popover` retains the trigger and moves focus to the initial control on open. A second activation closes it. `popover_contents` sends Escape to the dismissal callback. Call the same dismissal path when the compositor reports an outside click. The compositor consumes that click at the seat.
+
+`ChoiceMenu` provides anchored menu contents or a searchable list. `menu_trigger` exposes the expanded state. Up/Down wrap through enabled choices, Home/End jump to either end, Enter selects and Escape dismisses. Search filters labels without changing stable option keys. Tab switches between filter and options. Pointer, keyboard and AT activation emit the same selection event. Dismissal restores the trigger’s focus. The owner subscribes to `MenuEvent` and executes the selected command.
+
+| Reference sheet | Dark | Light | Dark high contrast | Light high contrast | Custom accent | Reduced motion |
+| --- | --- | --- | --- | --- | --- | --- |
+| Popover, menu and searchable list | [Dark](design/menus-dark.png) | [Light](design/menus-light.png) | [Contrast](design/menus-high-contrast.png) | [Contrast](design/menus-light-high-contrast.png) | [Accent](design/menus-accent.png) | [Reduced](design/menus-reduced-motion.png) |
+
+Run `tests/wayland/run --design-sheet menus` to check filtering, disabled options, selection, both dismissal keys and focus restoration.

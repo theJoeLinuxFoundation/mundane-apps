@@ -186,3 +186,9 @@ pub use tabs::tab_strip;
 
 mod panel;
 pub use panel::{PanelState, badge, panel_button, toggle, tooltip, with_tooltip};
+
+mod menu;
+pub use menu::{ChoiceMenu, MenuChoice, MenuEvent, menu_trigger};
+
+mod popover;
+pub use popover::{Popover, popover_contents};

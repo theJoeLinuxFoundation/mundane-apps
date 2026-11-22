@@ -1,6 +1,9 @@
 use gpui::{prelude::*, *};
 use mundane_ui::{self as ui, Theme};
 pub struct Showcase {
+    popover: ui::Popover,
+    menus: Vec<Entity<ui::ChoiceMenu>>,
+    chosen: SharedString,
     group: String,
     header: ui::WindowHeader,
     handles: Vec<FocusHandle>,
@@ -11,13 +14,128 @@ impl Showcase {
     pub fn new(group: String, w: &mut Window, cx: &mut Context<Self>) -> Self {
         let handles: Vec<_> = (0..20).map(|_| cx.focus_handle().tab_stop(true)).collect();
         handles[0].focus(w, cx);
+        let mut popover = ui::Popover::new(cx);
+        let mut menus = vec![];
+        if group == "menus" {
+            popover.show(&handles[6], w, cx);
+            for (name, options, searchable) in [
+                ("Actions", vec!["Open", "Rename", "Delete"], false),
+                (
+                    "Locations",
+                    vec!["North quay", "South quay", "Harbour"],
+                    true,
+                ),
+            ] {
+                let menu = cx.new(|cx| {
+                    ui::ChoiceMenu::new(
+                        name,
+                        options
+                            .into_iter()
+                            .map(|label| {
+                                let mut c = ui::MenuChoice::new(label, label);
+                                c.enabled = label != "Rename";
+                                c
+                            })
+                            .collect(),
+                        searchable,
+                        cx,
+                    )
+                });
+                cx.observe(&menu, |_, _, cx| cx.notify()).detach();
+                cx.subscribe(&menu, |s, _, event, cx| {
+                    if let ui::MenuEvent::Selected(key) = event {
+                        s.chosen = key.clone();
+                        cx.notify();
+                    }
+                })
+                .detach();
+                menu.update(cx, |m, cx| m.show(w, cx));
+                menus.push(menu);
+            }
+        }
         Self {
+            popover,
+            menus,
+            chosen: "None".into(),
             group,
             header: ui::WindowHeader::new(cx),
             handles,
             on: true,
             launches: 0,
         }
+    }
+    fn menus(&self, cx: &Context<Self>) -> Div {
+        let trigger = cx.weak_entity();
+        let dismiss = cx.weak_entity();
+        let close = cx.weak_entity();
+        let popup = div()
+            .flex()
+            .flex_col()
+            .gap_1()
+            .child(
+                ui::button(
+                    "Details",
+                    &self.popover.trigger(),
+                    Theme::current(cx),
+                    move |w, cx| {
+                        let _ = trigger.update(cx, |s, cx| {
+                            s.popover.toggle(&s.handles[6], w, cx);
+                            cx.notify();
+                        });
+                    },
+                )
+                .aria_expanded(self.popover.is_open()),
+            )
+            .when(self.popover.is_open(), |el| {
+                el.child(ui::popover_contents(
+                    "Details popup",
+                    Theme::current(cx),
+                    ui::button(
+                        "Dismiss details",
+                        &self.handles[6],
+                        Theme::current(cx),
+                        move |w, cx| {
+                            let _ = close.update(cx, |s, cx| {
+                                s.popover.dismiss(w, cx);
+                                cx.notify();
+                            });
+                        },
+                    ),
+                    move |w, cx| {
+                        let _ = dismiss.update(cx, |s, cx| {
+                            s.popover.dismiss(w, cx);
+                            cx.notify();
+                        });
+                    },
+                ))
+            });
+
+        let t = Theme::current(cx);
+        div()
+            .flex()
+            .flex_col()
+            .gap_3()
+            .child(popup)
+            .child(
+                div().flex().gap_3().items_start().children(
+                    ["Actions", "Locations"]
+                        .into_iter()
+                        .zip(&self.menus)
+                        .map(|(label, m)| {
+                            div()
+                                .w(rems(20.))
+                                .flex()
+                                .flex_col()
+                                .gap_1()
+                                .child(ui::menu_trigger(label, m, t, cx))
+                                .child(m.clone())
+                        }),
+                ),
+            )
+            .child(
+                ui::text_label("selected", format!("Selected: {}", self.chosen))
+                    .child(format!("Selected: {}", self.chosen)),
+            )
     }
     fn panel(&self, cx: &Context<Self>) -> Div {
         let t = Theme::current(cx);
@@ -148,6 +266,7 @@ impl Render for Showcase {
             w.set_window_title(&title);
         }
         let (heading, body) = match self.group.as_str() {
+            "menus" => ("Menus and searchable options", self.menus(cx)),
             "panel" => ("Panel controls", self.panel(cx)),
             _ => unreachable!(),
         };

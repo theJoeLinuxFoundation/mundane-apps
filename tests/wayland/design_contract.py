@@ -77,4 +77,28 @@ def verify(group, pid, key):
         assert named("Show keyboard help").get_role() == Atspi.Role.TOOL_TIP
         click("Editor")
         named("Commands activated: 2")
+    elif group == "menus":
+        focused("Filter options")
+        subprocess.run(["wtype","south"],check=True)
+        key("Down")
+        focused("South quay")
+        key("Return")
+        named("Selected: South quay")
+        focused("Locations")
+        click("Actions")  # Second activation closes the initially open menu.
+        focused("Actions")
+        click("Actions")
+        focused("Open")
+        key("Down")
+        focused("Delete")  # Disabled Rename is skipped.
+        key("Escape")
+        focused("Actions")
+        click("Details")
+        focused("Details")
+        click("Details")
+        focused("Dismiss details")
+        key("Escape")
+        focused("Details")
+    else:
+        raise AssertionError(f"missing contract for {group}")
     print(f"Passed {group} control contract")
