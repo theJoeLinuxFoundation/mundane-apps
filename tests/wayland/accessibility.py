@@ -197,6 +197,7 @@ if suite == "Processes":
 tree = [(n.get_role_name(), n.get_name(), n.get_interfaces()) for n in walk(root)]
 print(json.dumps(tree, ensure_ascii=False), flush=True)
 expected = {"Terminal": ["Find in Terminal", "Find match", "Find text"],
+            "DocumentViewer": ["Page 2 of 2", "Page number", "Find text", "Document status"],
             "Calculator": ["Expression", "Result", "History", "Use result", "Clear history"],
             "ImageViewer": ["North Point.jpg", "Open", "Zoom out", "Zoom in", "Fit", "Image status"],
             "Files": ["Open folder", "Cancel", "Open"],
@@ -208,6 +209,26 @@ if suite in ("Files", "Terminal", "SystemMonitor"):
     assert dialog.get_state_set().contains(Atspi.StateType.MODAL)
     assert dialog.get_description()
     assert all(n.get_role() != Atspi.Role.TITLE_BAR for n in walk(root))
+if suite == "DocumentViewer":
+    field = named(root, "Find text")
+    assert field.get_state_set().contains(Atspi.StateType.FOCUSED)
+    assert Atspi.Text.get_text(field, 0, -1) == "high water"
+    assert Atspi.Text.get_text(named(root, "Page number"), 0, -1) == "2"
+    def page_text():
+        page = next(n for n in walk(root) if n.get_role() == Atspi.Role.DOCUMENT_FRAME)
+        return Atspi.Text.get_text(page, 0, -1)
+    assert "The east channel reaches high water at noon." in page_text()
+    def status_is(suffix):
+        node = named(root, "Document status")
+        node.clear_cache()
+        return node.get_description().endswith(suffix)
+    assert status_is("Match 1 of 1 · 125%")
+    for label, suffix in [("Zoom out", "Match 1 of 1 · 100%"), ("Done", "Page 2 of 2 · 100%"),
+                          ("Previous page", "Page 1 of 2 · 100%")]:
+        button = named(root, label)
+        assert button.get_role() == Atspi.Role.PUSH_BUTTON and button.do_action(0)
+        wait(lambda: status_is(suffix), label)
+    assert "Survey overview" in page_text()
 if suite == "Calculator":
     field = named(root, "Expression")
     assert field.get_state_set().contains(Atspi.StateType.FOCUSED)

@@ -81,6 +81,20 @@ Enter an arithmetic expression or use the keypad. Calculator handles parentheses
 | Clear the expression / close Calculator | Ctrl+L / Ctrl+W |
 | Reach the header / return to the expression | F6 / Escape |
 
+## Document Viewer
+
+Open a local PDF from Files, the command line, or the **Open** button. Jump to a page, search across the document, and zoom in to read a match. The page exposes its embedded text to screen readers. Document Viewer loads the system PDFium shared library at runtime. [Engine comparison, installation and tests](docs/document-tests.md)
+
+| Action | Shortcut |
+| --- | --- |
+| Open / close | Ctrl+O / Ctrl+W |
+| Previous / next page | Page Up / Page Down |
+| Enter a page number | Ctrl+L, then Enter |
+| Find text | Ctrl+F, type a phrase, then Enter |
+| Next / previous match | F3 / Shift+F3 |
+| Zoom in / out / return to 100% | Ctrl+= / Ctrl+- / Ctrl+0 |
+| Scroll / leave Find | Arrow keys on the page / Escape |
+
 ## Building
 
 Use a Rust toolchain with Cargo, a C/C++ toolchain, pkg-config, and the Linux development files for Wayland, xkbcommon and fontconfig. The release build was tested with Rust 1.100 on x86-64 Linux. Run Terminal in a Wayland session with Mesa, a Vulkan driver, installed fonts and xterm-256color terminfo.
@@ -93,6 +107,7 @@ cargo build --workspace --release --locked
 ./target/release/mundane-system-monitor
 ./target/release/mundane-image-viewer "tests/fixtures/North Point.jpg"
 ./target/release/mundane-calculator
+./target/release/mundane-document-viewer "tests/fixtures/Coastal survey.pdf"
 ```
 
 Files uses the OpenURI desktop portal or GIO's default handler, GIO Trash, and GNU coreutils for recursive copies and cross-filesystem moves. Its desktop entry handles local directories. Text Editor accepts a local path and declares `text/plain`. Its Open and Save As dialogs use the FileChooser desktop portal. Distribution packaging and the joe image smoke test are pending. [Development plan](docs/plan.md)

@@ -22,9 +22,13 @@ def choose(bus, sender, path, iface, method, args, call):
     if method == "OpenFile" and len(sys.argv) > 1:
         dest = Path(sys.argv[1])
     cancel = (runtime / "cancel-choice").exists()
-    bus.emit_signal(sender, handle, "org.freedesktop.portal.Request", "Response",
-                    GLib.Variant("(ua{sv})", (1, {}) if cancel else (0, {"uris": GLib.Variant("as", [dest.as_uri()])})))
-    (runtime / method).touch()
+    # Portal requests reply with a handle before the user's subsequent choice.
+    def respond():
+        bus.emit_signal(sender, handle, "org.freedesktop.portal.Request", "Response",
+                        GLib.Variant("(ua{sv})", (1, {}) if cancel else (0, {"uris": GLib.Variant("as", [dest.as_uri()])})))
+        (runtime / method).touch()
+        return GLib.SOURCE_REMOVE
+    GLib.timeout_add(100, respond)
 
 
 def start(bus, _):

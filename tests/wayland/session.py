@@ -245,7 +245,7 @@ def exercise_monitor(args, scale, stack, app, app_id):
 def main():
     global OUTPUT
     parser = argparse.ArgumentParser()
-    parser.add_argument("--app", choices=["terminal", "files", "text-editor", "system-monitor", "image-viewer", "calculator"], default="terminal")
+    parser.add_argument("--app", choices=["terminal", "files", "text-editor", "system-monitor", "image-viewer", "calculator", "document-viewer"], default="terminal")
     parser.add_argument("--fields", action="store_true", help="exercise two-window activation, password and multiline fields")
     parser.add_argument("--cost", type=Path, help="directory containing the two release cost fixture binaries")
     parser.add_argument("--at-spi", action="store_true")
@@ -300,7 +300,7 @@ seat seat0 fallback true
         os.environ["WAYLAND_DISPLAY"] = display.name
         run("dbus-update-activation-environment", "WAYLAND_DISPLAY", "XDG_CURRENT_DESKTOP")
         if args.at_spi:
-            if args.app in ("terminal", "image-viewer", "calculator") and not args.cost:
+            if args.app in ("terminal", "image-viewer", "calculator", "document-viewer") and not args.cost:
                 launch(stack, "wtype", "-k", "Shift_L", "-s", "300000", log="seat.log")
             from gi.repository import Gio, GLib
             launch(stack, "/usr/lib/at-spi-bus-launcher", "--launch-immediately", log="a11y-bus.log")
@@ -381,6 +381,13 @@ seat seat0 fallback true
                 launch(stack, "python3", str(HERE / "open_portal.py"), log=f"portal-{args.profile}.log")
                 until((RUNTIME / "portal-ready").exists, "private OpenURI portal")
             argv.append(str(folder))
+        if suite_app == "document-viewer":
+            document = ROOT / "tests/fixtures/Coastal survey.pdf"
+            argv.append(str(document))
+            second = Path.home() / "Survey copy.pdf"
+            second.write_bytes(document.read_bytes())
+            launch(stack, "python3", str(HERE / "chooser_portal.py"), str(second), log="document-portal.log")
+            until((RUNTIME / "chooser-ready").exists, "private FileChooser")
         if suite_app == "image-viewer":
             argv.append(str(ROOT / "tests/fixtures/North Point.jpg"))
             second = Path.home() / "Blue tile.png"
@@ -405,6 +412,32 @@ seat seat0 fallback true
                 return "ack_configure" in (OUTPUT / log).read_text(errors="replace")
             return app_id in command("-t", "get_tree")
         until(mapped, f"mapped {suite_app}")
+        if suite_app == "document-viewer":
+            resize(720, 560)
+            until(lambda: "Coastal survey.pdf — Document Viewer" in (OUTPUT / log).read_text(), "opened PDF")
+            key("Shift_L")
+            if labwc:
+                run("wlrctl", "toplevel", "waitfor", app_id, "state:active")
+            key("l", "ctrl")
+            type_text("2")
+            key("Return")
+            key("f", "ctrl")
+            type_text("high water")
+            key("Return")
+            key("equal", "ctrl")
+            name = f"document-{args.compositor}-{args.profile}.png"
+            compare_screenshot(name, scale)
+            if args.at_spi:
+                inspect_accessibility(stack, app_id, app.pid)
+            key("Escape")
+            key("Prior")
+            key("o", "ctrl")
+            until((RUNTIME / "OpenFile").exists, "private PDF chooser response")
+            until(lambda: "Survey copy.pdf — Document Viewer" in (OUTPUT / log).read_text(), "portal Open PDF")
+            key("w", "ctrl")
+            assert app.wait(timeout=8) == 0
+            print(f"Passed {name}, page jump, search, zoom and portal Open")
+            return
         if suite_app == "calculator":
             resize(372, 550)
             key("Shift_L")
