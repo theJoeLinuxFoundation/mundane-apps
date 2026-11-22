@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Document Viewer
+Exec=mundane-document-viewer %f
+Icon=document-viewer
+Categories=Office;Viewer;
+MimeType=application/pdf;
+Terminal=false
