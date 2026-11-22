@@ -162,6 +162,12 @@ pub fn inspect(path: &Path) -> Result<(Vec<Entry>, Stamp)> {
     );
     Ok((entries, before))
 }
+struct Locked(File);
+impl Drop for Locked {
+    fn drop(&mut self) {
+        let _ = self.0.unlock();
+    }
+}
 pub fn edit(
     path: &Path,
     reviewed: Option<Stamp>,
@@ -191,11 +197,12 @@ pub fn edit(
             )
             .open(path)?;
         file.try_lock()?;
+        let locked = Locked(file);
         ensure!(
             Stamp::read(path)? == stamp,
             "Archive changed. Reopen it before editing."
         );
-        Some(file)
+        Some(locked)
     } else {
         None
     };
@@ -206,7 +213,7 @@ pub fn edit(
     if let Some(file) = locked.as_ref() {
         stage
             .as_file()
-            .set_permissions(file.metadata()?.permissions())?;
+            .set_permissions(file.0.metadata()?.permissions())?;
         let mut reader = Reader::open(path)?;
         while let Some(entry) = reader.next()? {
             if entry.path.ancestors().any(|p| remove.contains(p)) {

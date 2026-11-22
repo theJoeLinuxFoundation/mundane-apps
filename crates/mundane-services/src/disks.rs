@@ -411,7 +411,7 @@ fn inventory(conn: &Connection) -> Result<Vec<Item>> {
         let mut regions = vec![];
         if let Some(table) = ifaces.get(TABLE) {
             let mut spans = Vec::new();
-            for (_, interfaces) in &objects {
+            for interfaces in objects.values() {
                 if let Some(part) = interfaces.get(PART)
                     && object(part, "Table").as_deref() == Some(path.as_str())
                     && !part
