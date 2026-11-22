@@ -1,3 +1,4 @@
+mod alarms;
 use gpui::{prelude::*, *};
 use mundane_services::clocks::{self, City, Countdown, Notification};
 use mundane_ui::{
@@ -9,6 +10,8 @@ use std::{path::PathBuf, time::Duration};
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Page {
     World,
+    Alarms,
+    NewAlarm,
     Search,
     Timer,
 }
@@ -27,6 +30,8 @@ struct Clocks {
     path: Option<PathBuf>,
     fixed: Option<i64>,
     minute: i64,
+    alarms: alarms::Alarms,
+    alarm_link: FocusHandle,
     countdown: Countdown,
     remaining: String,
     notice: String,
@@ -81,12 +86,22 @@ impl Clocks {
             path,
             fixed,
             minute: 0,
+            alarms: alarms::Alarms::new(cx),
+            alarm_link: cx.focus_handle().tab_stop(true),
             countdown: Countdown::Idle,
             remaining: String::new(),
             notice,
             notification: None,
             generation: 0,
         };
+        if this
+            .path
+            .as_ref()
+            .and_then(|p| clocks::alarms::read(&p.with_file_name("alarms.json")).ok())
+            .is_some_and(|alarms| alarms.iter().any(|a| a.ringing))
+        {
+            this.page = Page::Alarms;
+        }
         this.refresh(cx);
         this
     }
@@ -124,7 +139,8 @@ impl Clocks {
                     .map(|z| row(z, z.clone(), String::new()))
                     .collect()
             }
-            Page::Timer => vec![],
+            Page::Alarms => self.alarm_rows(),
+            Page::NewAlarm | Page::Timer => vec![],
         };
         self.list.replace(rows);
         cx.notify()
@@ -138,6 +154,8 @@ impl Clocks {
             Page::Timer if self.countdown == Countdown::Idle => self.duration.focus_handle(cx),
             Page::Timer => self.action.clone(),
             Page::World => self.list.focus.clone(),
+            Page::Alarms => self.alarms_focus(),
+            Page::NewAlarm => self.alarm_focus(cx),
         }
         .focus(w, cx)
     }
@@ -213,6 +231,7 @@ impl Clocks {
         cx.notify()
     }
     fn tick(&mut self, now: Duration, w: &mut Window, cx: &mut Context<Self>) {
+        self.alarm_tick(cx);
         if self.countdown.expire(now) {
             self.page(Page::Timer, w, cx);
             let token = self.generation;
@@ -253,6 +272,25 @@ impl Clocks {
         let k = &e.keystroke;
         match (k.key.as_str(), k.modifiers.control) {
             ("f6", false) => self.navigation.focus(w, cx),
+            ("a", true)
+                if self.page != Page::NewAlarm
+                    && self.page != Page::Search
+                    && self.page != Page::Timer =>
+            {
+                self.page(Page::Alarms, w, cx)
+            }
+            ("n", true) if self.page == Page::Alarms => self.new_alarm(w, cx),
+            ("enter", false)
+                if self.page == Page::NewAlarm
+                    && (self.alarm_focus(cx).is_focused(w)
+                        || self.alarms.time.focus_handle(cx).is_focused(w)) =>
+            {
+                self.update_alarm(None, w, cx)
+            }
+            ("escape", false) if self.page == Page::NewAlarm => self.page(Page::Alarms, w, cx),
+            ("delete", false) if self.page == Page::Alarms && self.list.focus.is_focused(w) => {
+                self.update_alarm(Some(clocks::alarms::Action::Remove), w, cx)
+            }
             ("n", true) => self.page(Page::Search, w, cx),
             ("t", true) => self.page(Page::Timer, w, cx),
             ("escape", false) => self.page(Page::World, w, cx),
@@ -312,6 +350,13 @@ impl Render for Clocks {
                     let _ = v.update(cx, |c, cx| c.page(Page::Timer, w, cx));
                 }))
             });
+        let v = cx.weak_entity();
+        let tools = tools.when(!matches!(self.page, Page::Alarms | Page::NewAlarm), |el| {
+            el.child(button("Alarms", &self.alarm_link, t, move |w, cx| {
+                let _ = v.update(cx, |v, cx| v.page(Page::Alarms, w, cx));
+            }))
+        });
+        let alarm_page = matches!(self.page, Page::Alarms | Page::NewAlarm);
         let timer = self.page == Page::Timer;
         let action = if timer {
             match self.countdown {
@@ -357,6 +402,8 @@ impl Render for Clocks {
                 tools,
                 &match self.page {
                     Page::World => self.list.focus.clone(),
+                    Page::Alarms => self.alarms_focus(),
+                    Page::NewAlarm => self.alarm_focus(cx),
                     Page::Search => self.search.focus_handle(cx),
                     Page::Timer if self.countdown == Countdown::Idle => {
                         self.duration.focus_handle(cx)
@@ -366,20 +413,24 @@ impl Render for Clocks {
                 t,
                 w,
             ))
-            .child(
-                div()
-                    .bg(rgb(t.panel))
-                    .p_3()
-                    .flex()
-                    .items_center()
-                    .justify_between()
-                    .child(heading("section", title))
-                    .child(act),
-            );
+            .when(!alarm_page, |el| {
+                el.child(
+                    div()
+                        .bg(rgb(t.panel))
+                        .p_3()
+                        .flex()
+                        .items_center()
+                        .justify_between()
+                        .child(heading("section", title))
+                        .child(act),
+                )
+            });
         if search {
             root = root.child(div().p_3().child(self.search.clone()))
         }
-        if timer {
+        if alarm_page {
+            root = root.child(self.alarm_panel(w, cx));
+        } else if timer {
             let status = match self.countdown {
                 Countdown::Idle => "Duration in seconds, m:ss or h:mm:ss".into(),
                 Countdown::Running(_) => self.remaining.clone(),

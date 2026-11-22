@@ -3207,6 +3207,7 @@ dependencies = [
 name = "mundane-clocks"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "gpui",
  "mundane-services",
  "mundane-ui",

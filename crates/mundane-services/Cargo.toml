@@ -34,7 +34,7 @@ url = { version = "2", optional = true }
 [features]
 provider = ["dep:curl", "dep:httpdate", "dep:sha2", "dep:url", "dep:tempfile", "dep:serde", "dep:serde_json", "dep:anyhow"]
 weather = ["provider", "dep:jiff"]
-clocks = ["dep:jiff", "dep:zbus", "dep:anyhow", "dep:tempfile", "dep:rustix", "rustix/time"]
+clocks = ["dep:serde", "dep:serde_json", "dep:jiff", "dep:zbus", "dep:anyhow", "dep:tempfile", "dep:rustix", "rustix/time"]
 disks = ["dep:zbus", "dep:anyhow"]
 usage = ["dep:rustix", "rustix/process"]
 archive = ["dep:anyhow", "dep:tempfile", "dep:rustix"]

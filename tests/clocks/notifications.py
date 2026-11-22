@@ -13,8 +13,11 @@ xml = f"""<node><interface name="{name}"><method name="Notify">
 def call(bus, sender, path, iface, method, args, invocation):
     values = args.unpack()
     if method == "Notify":
-        assert values[3] == "Timer finished"
-        (work / "notified").touch()
+        if values[3] == "Alarm":
+            (work / "alarm-notified").write_text(values[4])
+        else:
+            assert values[3] == "Timer finished"
+            (work / "notified").touch()
         invocation.return_value(GLib.Variant("(u)", (42,)))
     else:
         assert values == (42,)

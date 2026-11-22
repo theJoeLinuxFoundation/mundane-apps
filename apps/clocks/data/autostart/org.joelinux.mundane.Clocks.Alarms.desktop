@@ -1,0 +1,6 @@
+[Desktop Entry]
+Type=Application
+Name=Clocks alarms
+Exec=mundane-clocks --watch-alarms
+TryExec=mundane-clocks
+NoDisplay=true

@@ -598,6 +598,9 @@ seat seat0 fallback true
                       lambda tag: record(stack, RUNTIME, launch, tag), check_tone)
             elif suite_app == "calculator":
                 calculator(args.round_four, ROOT, key, type_text, compare_screenshot, clipboard)
+            elif suite_app == "clocks":
+                from round_four import clocks
+                clocks(args.round_four, app, ROOT, key, type_text, until, compare_screenshot)
             else:
                 raise ValueError(f"No round-four scenario for {suite_app}")
             return

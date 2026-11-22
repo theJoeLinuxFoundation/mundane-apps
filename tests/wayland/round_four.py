@@ -119,3 +119,40 @@ def calculator(side, root, key, type_text, compare, clipboard):
         key("a", "ctrl")
         key("c", "ctrl")
         assert clipboard() == "8.04672"
+
+
+def clocks(side, app, root, key, type_text, until, compare):
+    key("Shift_L")
+    if side == "after":
+        key("a", "ctrl")
+        key("n", "ctrl")
+        type_text("Morning walk")
+        key("Tab")
+        key("a", "ctrl")
+        type_text("07:30")
+        key("Tab")
+        key("Return")  # Monday
+        key("Tab")
+        key("Return")  # Tuesday
+        key("Tab", "shift")
+        key("Tab", "shift")
+        key("Return")  # Save from the time field
+        path = Path(os.environ["XDG_CONFIG_HOME"]) / "mundane-clocks/alarms.json"
+        until(path.exists, "saved alarm")
+        alarm, = json.loads(path.read_text())
+        assert (alarm["name"], alarm["hour"], alarm["minute"], alarm["days"]) == ("Morning walk", 7, 30, 3)
+    compare("clocks-alarms.png", 1, root / "docs/parity/round-4" / side)
+    if side == "after":
+        key("w", "ctrl")
+        assert app.wait(timeout=5) == 0
+        alarm["next"] = 1
+        path.write_text(json.dumps([alarm]))
+        binary = os.environ.get("MUNDANE_CLOCKS_BIN", root / "target/debug/mundane-clocks")
+        worker = subprocess.Popen([binary, "--watch-alarms"])
+        try:
+            sent = Path(os.environ["XDG_RUNTIME_DIR"]) / "alarm-notified"
+            until(lambda: sent.exists() and sent.read_text() == "Morning walk", "notification with Clocks closed")
+            assert json.loads(path.read_text())[0]["ringing"]
+        finally:
+            worker.terminate()
+            worker.wait(timeout=5)

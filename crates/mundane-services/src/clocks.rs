@@ -17,6 +17,9 @@ use zbus::{
     zvariant::Value,
 };
 
+pub mod alarms;
+pub use jiff::tz::TimeZone as LocalZone;
+
 pub fn zones() -> Vec<String> {
     let mut zones: Vec<_> = tz::db()
         .available()
@@ -169,7 +172,15 @@ pub struct Notification {
 }
 impl Notification {
     pub fn send() -> Result<Self> {
+        Self::named("Timer finished", "The countdown has ended.")
+    }
+    pub fn named(summary: &str, body: &str) -> Result<Self> {
         let conn = Connection::session()?;
+        let mut hints = HashMap::<&str, Value>::new();
+        if summary == "Alarm" {
+            hints.insert("sound-name", Value::from("alarm-clock-elapsed"));
+            hints.insert("urgency", Value::from(2u8));
+        }
         let reply = conn.call_method(
             Some("org.freedesktop.Notifications"),
             "/org/freedesktop/Notifications",
@@ -179,10 +190,10 @@ impl Notification {
                 "Clocks",
                 0u32,
                 "preferences-system-time",
-                "Timer finished",
-                "The countdown has ended.",
+                summary,
+                body,
                 Vec::<String>::new(),
-                HashMap::<&str, Value>::new(),
+                hints,
                 0i32,
             ),
         )?;
