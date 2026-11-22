@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Calculator
+Exec=mundane-calculator
+Icon=accessories-calculator
+Categories=Utility;Calculator;
+Terminal=false

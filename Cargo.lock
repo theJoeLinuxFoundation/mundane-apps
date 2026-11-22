@@ -2795,6 +2795,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "mundane-calculator"
+version = "0.1.0"
+dependencies = [
+ "gpui",
+ "gpui_linux",
+ "mundane-ui",
+ "num-bigint",
+ "num-rational",
+ "num-traits",
+]
+
+[[package]]
 name = "mundane-files"
 version = "0.1.0"
 dependencies = [

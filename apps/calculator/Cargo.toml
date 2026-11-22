@@ -1,0 +1,17 @@
+[package]
+name = "mundane-calculator"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+gpui.workspace = true
+gpui_linux.workspace = true
+mundane-ui = { path = "../../crates/mundane-ui" }
+num-bigint = "0.4"
+num-rational = "0.4"
+num-traits = "0.2"
+
+[dev-dependencies]
+gpui = { workspace = true, features = ["test-support"] }

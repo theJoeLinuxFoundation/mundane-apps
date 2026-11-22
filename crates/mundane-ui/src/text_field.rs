@@ -146,6 +146,11 @@ impl TextField {
     }
 
     fn backspace(&mut self, _: &Backspace, window: &mut Window, cx: &mut Context<Self>) {
+        self.delete_backward(window, cx);
+    }
+
+    /// Delete the selection or preceding grapheme, including from an on-screen keypad.
+    pub fn delete_backward(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         if self.selected_range.is_empty() {
             let prev = self.previous_boundary(self.cursor_offset());
             if self.cursor_offset() == prev {

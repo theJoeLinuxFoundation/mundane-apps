@@ -98,8 +98,8 @@ pub fn button(
         .child(label)
 }
 
-fn button_base(
-    label: &'static str,
+pub fn button_base(
+    label: impl Into<SharedString>,
     focus: &FocusHandle,
     theme: Theme,
     activate: impl Fn(&mut Window, &mut App) + 'static,
