@@ -6,7 +6,7 @@ license.workspace = true
 publish.workspace = true
 
 [dependencies]
-async-channel.workspace = true
+async-channel = { workspace = true, optional = true }
 alacritty_terminal = { workspace = true, optional = true }
 
 ashpd = { version = "0.13", default-features = false, features = ["async-io", "open_uri"], optional = true }
@@ -20,5 +20,6 @@ tempfile = { version = "3", optional = true }
 url = { version = "2", optional = true }
 
 [features]
+monitor = ["dep:rustix", "rustix/param", "rustix/process"]
 files = ["dep:ashpd", "dep:freedesktop-icons", "dep:image", "dep:md-5", "dep:mime_guess", "dep:png", "dep:rustix", "dep:tempfile", "dep:url"]
-terminal = ["dep:alacritty_terminal"]
+terminal = ["dep:alacritty_terminal", "dep:async-channel"]
