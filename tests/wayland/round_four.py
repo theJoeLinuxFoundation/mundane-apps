@@ -262,7 +262,25 @@ def disks(side, root, service, key, type_text, until, compare):
         key("u", "ctrl")
         type_text("survey")
         key("Return")
-        until((service / "unlocked").exists, "UDisks unlocked the encrypted fixture")
+        until((service / "listed-unlocked").exists, "UDisks listed the decrypted filesystem")
+        key("End")
+        key("Up")
+        key("u", "ctrl")
+    else:
+        key("End")
+    compare("disks-vault.png", 1, root / "docs/parity/round-4" / side)
+    if side == "after":
+        key("Return")
+        assert (service / "unlocked").exists()
+        key("u", "ctrl")
+        key("Tab")
+        key("Return")
+        until(lambda: not (service / "unlocked").exists(), "UDisks locked the volume")
+        key("Home")
+        key("e", "ctrl")
+        key("Tab")
+        key("Return")
+        until((service / "powered-off").exists, "safe removal after locking")
 
 
 def usage(side, root, log, key, until, compare, command):

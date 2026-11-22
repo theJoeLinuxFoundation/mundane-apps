@@ -145,11 +145,12 @@ Open a downloaded font or collection from Files or Ctrl+O, browse its faces and 
 
 ### Disks
 
-Select a drive or partition table to see the filesystems and unpartitioned regions in disk order. Select a drive to eject its media or power it off according to UDisks capabilities. Removal asks for confirmation with Cancel focused. Select a locked volume and use Unlock (Ctrl+U) to enter its passphrase. Formatting, partition editing and SMART diagnostics remain.
+Select a drive or partition table to see the filesystems and unpartitioned regions in disk order. Select a drive to eject its media or power it off according to UDisks capabilities. Removal asks for confirmation with Cancel focused. Select a locked volume and use Unlock (Ctrl+U) to enter its passphrase. After unmounting its decrypted filesystem, use Ctrl+U on the encrypted volume to lock it before removing the drive. Formatting, partition editing and SMART diagnostics remain.
 
 | Task | Before | After |
 | --- | --- | --- |
 | Inspect disk layout | [Device list](parity/round-4/before/disks-layout.png) | [Partition layout](parity/round-4/after/disks-layout.png) |
+| Lock encrypted media | [Encrypted partition](parity/round-4/before/disks-vault.png) | [Lock confirmation](parity/round-4/after/disks-vault.png) |
 | Safely remove hardware | [Drive selected](parity/round-4/before/disks-remove.png) | [Power-off confirmation](parity/round-4/after/disks-remove.png) |
 
 ### Disk Usage

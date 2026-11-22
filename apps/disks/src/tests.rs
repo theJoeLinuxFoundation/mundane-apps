@@ -184,7 +184,25 @@ fn drive_operations_require_capability_stable_identity_and_idle_volumes() {
     f.client.perform(unlock, "survey").unwrap();
     assert!(f.client.perform(power, "").is_err());
     assert!(f.client.perform(unlock, "survey").is_err());
-    fs::remove_file(d.join("unlocked")).unwrap();
+    let active = f.client.list().unwrap();
+    let lock = active
+        .iter()
+        .flat_map(|row| &row.actions)
+        .find(|a| a.operation == Operation::Lock)
+        .unwrap();
+    let cleartext = active.last().unwrap().volume.as_ref().unwrap();
+    f.client.change(cleartext).unwrap();
+    assert!(d.join("clear-mounted").exists());
+    assert!(f.client.perform(lock, "").is_err());
+    assert!(d.join("unlocked").exists());
+    let mounted = f.client.list().unwrap();
+    f.client
+        .change(mounted.last().unwrap().volume.as_ref().unwrap())
+        .unwrap();
+    assert!(!d.join("clear-mounted").exists());
+    f.client.perform(lock, "").unwrap();
+    assert!(!d.join("unlocked").exists());
+    assert!(f.client.perform(lock, "").is_err());
     f.client.perform(eject, "").unwrap();
     assert!(f.client.perform(power, "").is_err());
     fs::remove_file(d.join("ejected")).unwrap();

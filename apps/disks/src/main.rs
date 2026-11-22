@@ -238,8 +238,11 @@ impl Disks {
                     .and_then(|i| self.items.get(i))
                     .and_then(|n| {
                         n.actions.iter().find(|a| {
-                            (a.operation == mundane_services::disks::Operation::Unlock)
-                                == (k.key == "u")
+                            matches!(
+                                a.operation,
+                                mundane_services::disks::Operation::Lock
+                                    | mundane_services::disks::Operation::Unlock
+                            ) == (k.key == "u")
                         })
                     })
                     .cloned()

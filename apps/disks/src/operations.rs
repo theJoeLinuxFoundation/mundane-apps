@@ -27,15 +27,22 @@ impl Disks {
             self.prompt = Some(Prompt::Unlock(target, field));
         } else {
             let action = target.operation.label();
-            let message = if target.operation == Operation::PowerOff {
-                format!(
-                    "Safely power off {label}? Other drives in the same enclosure may also disconnect."
-                )
-            } else {
-                format!("Eject the media from {label}?")
+            let (subject, message) = match target.operation {
+                Operation::Lock => (
+                    "volume",
+                    format!("Lock {label}? Its decrypted contents will no longer be available."),
+                ),
+                Operation::PowerOff => (
+                    "drive",
+                    format!(
+                        "Safely power off {label}? Other drives in the same enclosure may also disconnect."
+                    ),
+                ),
+                Operation::Eject => ("drive", format!("Eject the media from {label}?")),
+                Operation::Unlock => unreachable!(),
             };
             let dialog =
-                cx.new(|cx| ConfirmDialog::new(format!("{action} drive"), message, action, cx));
+                cx.new(|cx| ConfirmDialog::new(format!("{action} {subject}"), message, action, cx));
             cx.subscribe_in(&dialog, w, move |this, _, answer: &Confirmation, w, cx| {
                 this.prompt = None;
                 if *answer == Confirmation::Confirmed {

@@ -13,6 +13,8 @@ drive = root + "/drives/Coast_Field_Recorder"
 disk = root + "/block_devices/testdisk"
 volume = disk + "1"
 reserve = disk + "2"
+clear = root + "/block_devices/clear"
+clear_mount = "/run/media/joe/Private notes"
 mount_at = "/run/media/joe/Survey"
 om = "org.freedesktop.DBus.ObjectManager"
 filesystem = name + ".Filesystem"
@@ -44,13 +46,13 @@ def objects():
     if (work / "encrypted").exists():
         vault = disk + "3"
         unlocked = (work / "unlocked").exists()
-        clear = root + "/block_devices/clear"
         disks[vault] = {name+".Block":block("/dev/testdisk3",83,gib//2,"Field vault","crypto_LUKS"),
                         name+".Partition":{"Table":v("o",disk),"Offset":v("t",63*gib+1048576),"Number":v("u",3)},
                         name+".Encrypted":{"CleartextDevice":v("o",clear if unlocked else "/")}}
         if unlocked:
+            (work / "listed-unlocked").touch()
             disks[clear]={name+".Block":dict(block("/dev/dm-0",92,gib//2,"Private notes","ext4"),Drive=v("o","/"),CryptoBackingDevice=v("o",vault)),
-                          filesystem:{"MountPoints":v("aay",[])}}
+                          filesystem:{"MountPoints":v("aay",[clear_mount.encode()+b"\0"] if (work/"clear-mounted").exists() else [])}}
     return disks
 
 def call(bus, sender, path, iface, method, args, invocation):
@@ -60,12 +62,15 @@ def call(bus, sender, path, iface, method, args, invocation):
         return
     flags = invocation.get_message().get_flags()
     interactive = bool(flags & Gio.DBusMessageFlags.ALLOW_INTERACTIVE_AUTHORIZATION)
-    if method in ("Unlock","PowerOff","Eject"):
+    if method in ("Unlock","Lock","PowerOff","Eject"):
         if not interactive or (work / "deny").exists():
             invocation.return_dbus_error(name+".Error.NotAuthorized","Authentication refused")
         elif method=="Unlock" and args.unpack()==("survey", {}):
             (work/"unlocked").touch()
             invocation.return_value(v("(o)",(root+"/block_devices/clear",)))
+        elif method=="Lock" and args.unpack()==({},) and (work/"unlocked").exists():
+            (work/"unlocked").unlink()
+            invocation.return_value(v("()",()))
         elif method in ("PowerOff","Eject") and args.unpack()==({},):
             (work/("powered-off" if method=="PowerOff" else "ejected")).touch()
             invocation.return_value(v("()",()))
@@ -74,7 +79,7 @@ def call(bus, sender, path, iface, method, args, invocation):
         return
     with (work / "calls.jsonl").open("a") as log:
         print(json.dumps([path,method,interactive,args.unpack()[0]]), file=log)
-    if path != volume or not interactive or args.unpack() != ({},):
+    if (path != volume and not (path == clear and (work / "unlocked").exists())) or not interactive or args.unpack() != ({},):
         invocation.return_dbus_error(name+".Error.Failed","Unexpected test request")
         return
     if (work / "deny").exists():
@@ -84,11 +89,12 @@ def call(bus, sender, path, iface, method, args, invocation):
         (work / "removed").touch()
         invocation.return_dbus_error("org.freedesktop.DBus.Error.UnknownObject","Device was removed.")
         return
+    marker = work / ("clear-mounted" if path == clear else "mounted")
     if method == "Mount":
-        (work / "mounted").touch()
-        invocation.return_value(v("(s)",(mount_at,)))
+        marker.touch()
+        invocation.return_value(v("(s)",(clear_mount if path == clear else mount_at,)))
     elif method == "Unmount":
-        (work / "mounted").unlink()
+        marker.unlink()
         invocation.return_value(v("()",()))
 
 xml = f"""<node><interface name="{om}"><method name="GetManagedObjects">
@@ -97,14 +103,14 @@ xml = f"""<node><interface name="{om}"><method name="GetManagedObjects">
 <arg direction="out" type="s"/></method><method name="Unmount"><arg direction="in" type="a{{sv}}"/>
 </method></interface><interface name="{name}.Drive"><method name="PowerOff"><arg direction="in" type="a{{sv}}"/></method>
 <method name="Eject"><arg direction="in" type="a{{sv}}"/></method></interface>
-<interface name="{name}.Encrypted"><method name="Unlock"><arg direction="in" type="s"/><arg direction="in" type="a{{sv}}"/><arg direction="out" type="o"/></method></interface></node>"""
+<interface name="{name}.Encrypted"><method name="Unlock"><arg direction="in" type="s"/><arg direction="in" type="a{{sv}}"/><arg direction="out" type="o"/></method><method name="Lock"><arg direction="in" type="a{{sv}}"/></method></interface></node>"""
 interfaces = Gio.DBusNodeInfo.new_for_xml(xml).interfaces
 conn = Gio.DBusConnection.new_for_address_sync(address, Gio.DBusConnectionFlags.AUTHENTICATION_CLIENT |
                                                Gio.DBusConnectionFlags.MESSAGE_BUS_CONNECTION, None, None)
 conn.register_object(root, interfaces[0], call, None, None)
 conn.register_object(drive, interfaces[2], call, None, None)
 conn.register_object(disk+"3", interfaces[3], call, None, None)
-for path in (volume,reserve):
+for path in (volume,reserve,clear):
     conn.register_object(path, interfaces[1], call, None, None)
 Gio.bus_own_name_on_connection(conn,name,Gio.BusNameOwnerFlags.NONE,
                                lambda *_:(work/"ready").touch(),None)

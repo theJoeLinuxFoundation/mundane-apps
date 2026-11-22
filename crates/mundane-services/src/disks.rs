@@ -47,6 +47,7 @@ pub enum Operation {
     PowerOff,
     Eject,
     Unlock,
+    Lock,
 }
 impl Operation {
     pub fn label(self) -> &'static str {
@@ -54,6 +55,7 @@ impl Operation {
             Self::PowerOff => "Power off",
             Self::Eject => "Eject",
             Self::Unlock => "Unlock",
+            Self::Lock => "Lock",
         }
     }
 }
@@ -155,12 +157,18 @@ impl UDisks {
                 );
             }
         }
-        let proxy = Proxy::new(&conn, target.owner.as_str(), target.path.as_str(), DRIVE)?;
-        let (method, message) = match target.operation {
-            Operation::PowerOff => ("PowerOff", "Drive powered off."),
-            Operation::Eject => ("Eject", "Media ejected."),
-            _ => unreachable!(),
+        let (interface, method, message) = match target.operation {
+            Operation::PowerOff => (DRIVE, "PowerOff", "Drive powered off."),
+            Operation::Eject => (DRIVE, "Eject", "Media ejected."),
+            Operation::Lock => (ENCRYPTED, "Lock", "Volume locked."),
+            Operation::Unlock => unreachable!(),
         };
+        let proxy = Proxy::new(
+            &conn,
+            target.owner.as_str(),
+            target.path.as_str(),
+            interface,
+        )?;
         operation_result(
             proxy
                 .call_with_flags::<_, _, ()>(method, flags, &(opts,))
@@ -390,23 +398,25 @@ fn inventory(conn: &Connection) -> Result<Vec<Item>> {
         let mut actions = vec![];
         if crypto.is_some() {
             detail.push(if unlocked { "Unlocked" } else { "Locked" }.into());
-            if !unlocked {
-                actions.push(DeviceAction {
-                    operation: Operation::Unlock,
-                    path: path.to_string(),
-                    owner: owner.clone(),
-                    id: format!(
-                        "{}:{}",
-                        string(p, "IdUUID"),
-                        part.map(|p| string(p, "UUID")).unwrap_or_default()
-                    ),
-                    detected: drive_props
-                        .map(|p| number(p, "TimeMediaDetected").max(number(p, "TimeDetected")))
-                        .unwrap_or(0),
-                    device_number: number(p, "DeviceNumber"),
-                    sibling: String::new(),
-                });
-            }
+            actions.push(DeviceAction {
+                operation: if unlocked {
+                    Operation::Lock
+                } else {
+                    Operation::Unlock
+                },
+                path: path.to_string(),
+                owner: owner.clone(),
+                id: format!(
+                    "{}:{}",
+                    string(p, "IdUUID"),
+                    part.map(|p| string(p, "UUID")).unwrap_or_default()
+                ),
+                detected: drive_props
+                    .map(|p| number(p, "TimeMediaDetected").max(number(p, "TimeDetected")))
+                    .unwrap_or(0),
+                device_number: number(p, "DeviceNumber"),
+                sibling: String::new(),
+            });
         }
         let mut regions = vec![];
         if let Some(table) = ifaces.get(TABLE) {
