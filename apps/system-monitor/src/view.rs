@@ -306,6 +306,17 @@ impl Render for Monitor {
             ))
             .when(self.graphs, |el| el.child(self.resources(cx)))
             .when(!self.graphs, |el| {
+                let count = self.rows.len();
+                let process_count = if count == 1 {
+                    "1 process".to_owned()
+                } else {
+                    format!("{count} processes")
+                };
+                let status = self
+                    .sample_error
+                    .as_deref()
+                    .or(self.status.as_deref())
+                    .unwrap_or("Updates every 2 s");
                 el.when(self.filtering, |el| {
                     el.child(div().p_2().child(self.filter.clone()))
                 })
@@ -330,14 +341,7 @@ impl Render for Monitor {
                 .child(
                     Role::Status
                         .control("process-status", "Process status")
-                        .aria_description(format!(
-                            "{} processes. {}",
-                            self.rows.len(),
-                            self.sample_error
-                                .as_deref()
-                                .or(self.status.as_deref())
-                                .unwrap_or("Updates every 2 s")
-                        ))
+                        .aria_description(format!("{process_count}. {status}"))
                         .px_3()
                         .py_2()
                         .gap_2()
@@ -347,22 +351,8 @@ impl Render for Monitor {
                         .bg(rgb(theme.panel))
                         .text_sm()
                         .text_color(rgb(theme.secondary))
-                        .child(format!(
-                            "{} {}",
-                            self.rows.len(),
-                            if self.rows.len() == 1 {
-                                "process"
-                            } else {
-                                "processes"
-                            }
-                        ))
-                        .child(
-                            self.sample_error
-                                .as_deref()
-                                .or(self.status.as_deref())
-                                .unwrap_or("Updates every 2 s")
-                                .to_owned(),
-                        ),
+                        .child(process_count)
+                        .child(status.to_owned()),
                 )
             });
         div()
